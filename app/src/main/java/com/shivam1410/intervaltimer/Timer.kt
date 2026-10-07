@@ -93,7 +93,14 @@ object Timer {
     }
 
     /** In-session choices: switch the break activity or focus music right now, or lengthen this break. */
-    fun chooseActivity(id: String) = choose(settings.value.copy(activity = id))
+    fun chooseActivity(id: String) {
+        val s = session.value
+        val before = plan
+        saveSettings(settings.value.copy(activity = id))
+        // NSDR / power nap are 20 min: if the activity is already running, stretch or shrink it now.
+        val after = s.takeIf { it.running(before) && before[it.index].kind == Kind.ACTIVITY }?.let { resize(it, plan[it.index].ms - before[it.index].ms) } ?: s
+        if (after.running(plan)) commit(after, null)
+    }
     fun chooseFocus(id: String) = choose(settings.value.copy(focusSound = id))
     fun extendBreak() = commit(extend(plan, session.value, 10 * MIN), null)
 

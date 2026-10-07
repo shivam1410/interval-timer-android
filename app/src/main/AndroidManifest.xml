@@ -12,6 +12,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
+    <!-- Silence activity: measures loudness while its screen is open; nothing is recorded. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- The Sketch activity opens Sketch Seed when it is installed. -->
+    <queries>
+        <package android:name="com.shivam.sketchseed" />
+    </queries>
 
     <application
         android:name=".App"

@@ -64,6 +64,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -95,7 +98,17 @@ fun Root(now: Long) {
     var showHistory by rememberSaveable { mutableStateOf(false) }
     BackHandler(showHistory) { showHistory = false }
 
-    Column(Modifier.fillMaxSize().systemBarsPadding()) {
+    // Power nap goes fully black, status bar included, with light status icons.
+    val napping = session.running(plan) && !session.paused && plan[session.index].kind == Kind.ACTIVITY && settings.activity == "nap"
+    val view = LocalView.current
+    val dark = isSystemInDarkTheme()
+    SideEffect {
+        (view.context as? android.app.Activity)?.window?.let {
+            WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = !napping && !dark
+        }
+    }
+
+    Column(Modifier.fillMaxSize().background(if (napping) Color.Black else Color.Transparent).systemBarsPadding()) {
         update?.let { tag ->
             Banner("Update $tag downloaded", "Install") { Updater.install(ctx) }
         }
@@ -257,7 +270,7 @@ private fun ActivityPicker(selected: String, onPick: (String) -> Unit) {
             items.forEach { a ->
                 val on = selected == a.id
                 FilterChip(
-                    on, { onPick(a.id) }, { Text("${a.emoji} ${a.name}") },
+                    on, { onPick(a.id) }, { Text("${a.emoji} ${a.name}" + (a.minutes?.let { " · ${it}m" } ?: "")) },
                     colors = colors,
                     border = FilterChipDefaults.filterChipBorder(enabled = true, selected = on, borderColor = Color.Transparent),
                 )
@@ -272,6 +285,7 @@ private fun ActivityPicker(selected: String, onPick: (String) -> Unit) {
 private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long) {
     val p = plan[s.index]
     val left = s.left(now)
+    if (p.kind == Kind.ACTIVITY && settings.activity == "nap" && !s.paused) return NapScreen(s)
     val isWork = p.kind == Kind.WORK
     val accent = if (isWork) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
     var confirmEnd by remember { mutableStateOf(false) }
@@ -306,7 +320,7 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
 
         Segments(plan, s, accent)
 
-        if (isWork) FocusMusic(settings.focusSound) else BreakChoices(p, s, chosen)
+        if (isWork) FocusMusic(settings.focusSound) else BreakChoices(p, s, chosen, s.phaseMs - left)
 
         Row(
             Modifier.fillMaxWidth().padding(top = 16.dp).height(IntrinsicSize.Min),
@@ -356,7 +370,7 @@ private fun nextLabel(plan: List<Phase>, s: Session): String {
 
 /** Chosen during the break itself: what to do, and whether to make it a long one. */
 @Composable
-private fun BreakChoices(p: Phase, s: Session, chosen: Activity) {
+private fun BreakChoices(p: Phase, s: Session, chosen: Activity, elapsedMs: Long) {
     var changing by remember(s.index) { mutableStateOf(p.kind == Kind.PREP) }
     Card(
         Modifier.fillMaxWidth().padding(top = 20.dp),
@@ -370,6 +384,7 @@ private fun BreakChoices(p: Phase, s: Session, chosen: Activity) {
             } else {
                 Text("${chosen.emoji}  ${chosen.name}", style = MaterialTheme.typography.titleLarge)
                 Text(chosen.hint, style = MaterialTheme.typography.bodyLarge)
+                ActivityCue(chosen, elapsedMs, s.paused)
             }
             if (changing) ActivityPicker(chosen.id) { Timer.chooseActivity(it) }
             // Same solid surface style as the activity chips; fixed height keeps the pair even.

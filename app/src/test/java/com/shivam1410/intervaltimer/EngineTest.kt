@@ -101,6 +101,34 @@ class EngineTest {
         assertEquals(15 * MIN, totals(p, resumed, 45 * MIN).first)
     }
 
+    @Test fun fixedLengthActivityStretchesBreak() {
+        val np = plan(s.copy(activity = "nsdr"))
+        assertEquals(20 * MIN, np[2].ms)
+        assertEquals(8 * MIN, p[2].ms)
+    }
+
+    @Test fun resizeShiftsCurrentPhase() {
+        val act = catchUp(p, start(p, 0), 53 * MIN)
+        val r = resize(act, 12 * MIN)
+        assertEquals(72 * MIN, r.endsAt)
+        assertEquals(20 * MIN, r.phaseMs)
+    }
+
+    @Test fun guidedStepsLoop() {
+        val steps = listOf(Step("a", 30), Step("b", 40))
+        assertEquals(0 to 30, stepAt(steps, 0))
+        assertEquals(1 to 10, stepAt(steps, 60_000))
+        assertEquals(0 to 25, stepAt(steps, 75_000)) // looped
+    }
+
+    @Test fun silenceMetering() {
+        val quiet = ShortArray(100) { 10 }
+        val loud = ShortArray(100) { 16000 }
+        assertTrue(dbfs(quiet, 100) < QUIET_DB)
+        assertTrue(dbfs(loud, 100) > -10f)
+        assertEquals(0.5f, quietShare(listOf(-60f, -20f)), 0.001f)
+    }
+
     @Test fun versionCompare() {
         assertTrue(isNewer("v1.0.10", "1.0.9"))
         assertFalse(isNewer("v1.0.0", "1.0.0"))

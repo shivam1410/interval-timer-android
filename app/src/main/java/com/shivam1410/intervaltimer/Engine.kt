@@ -27,6 +27,8 @@ val PRESETS = listOf(
     Preset("Pomodoro", 25, 5, 12),
 )
 
+data class Step(val name: String, val sec: Int)
+
 data class Activity(
     val id: String,
     val emoji: String,
@@ -34,20 +36,68 @@ data class Activity(
     val group: String,
     val hint: String,
     val sound: String? = null, // id from resources/manifest.json, looped during the activity
+    val minutes: Int? = null, // the activity part of the break lasts at least this long
+    val steps: List<Step> = emptyList(), // guided routine, looped for the activity's length
+    val tracks: List<String> = emptyList(), // YouTube / YouTube Music links; one is picked at random on play
+    val playLabel: String = "",
+    val app: String? = null, // package launched by the activity's button
 )
+
+const val SKETCH_SEED = "com.shivam.sketchseed"
 
 val ACTIVITIES = listOf(
     Activity("breathing", "🫁", "Box breathing", "Recover", "Inhale 4 · hold 4 · exhale 4 · hold 4"),
     Activity("meditation", "🧘", "Meditation", "Recover", "Eyes closed. Follow the breath. Let thoughts pass.", "bowl"),
-    Activity("nsdr", "😌", "NSDR / Yoga Nidra", "Recover", "Lie still. Slowly scan the body from toes to head.", "brown_noise"),
-    Activity("nap", "💤", "Power nap", "Recover", "Sleep. The gong will wake you."),
-    Activity("stretch", "🧎", "Stretch", "Move", "Neck rolls, shoulder shrugs, forward fold, hip openers."),
-    Activity("walk", "🚶", "Walk", "Move", "Stand up and walk. Leave the phone."),
-    Activity("eyes", "👀", "Eye + neck reset", "Move", "Look far away. Palm your eyes. Roll your neck."),
-    Activity("hydrate", "💧", "Hydrate", "Refresh", "Drink a full glass of water."),
+    Activity(
+        "nsdr", "😌", "NSDR", "Recover", "Lie down, press play and follow the voice. 20-minute Non-Sleep Deep Rest.",
+        minutes = 20,
+        tracks = listOf(
+            "https://music.youtube.com/watch?v=bk_lD69u204", // Yog Nidra — Sri Sri Ravi Shankar
+            "https://music.youtube.com/watch?v=iRR2yCoIaYY", // 20 Minute NSDR — Dr. Andrew Huberman
+        ),
+        playLabel = "Play NSDR on YouTube Music",
+    ),
+    Activity("nap", "💤", "Power nap", "Recover", "Sleep. The gong will wake you.", minutes = 20),
+    Activity(
+        "stretch", "🧎", "Stretch", "Move", "Play a guided video, or follow the steps below.",
+        minutes = 20,
+        tracks = listOf(
+            "https://www.youtube.com/watch?v=AF9d2Icl4fA", // Yoga Stretch — Yoga With Adriene
+            "https://www.youtube.com/watch?v=sTANio_2E0Q", // 20 min Full Body Stretch for stress — MadFit
+            "https://www.youtube.com/watch?v=aGcwjh4kETQ", // 20 Min Daily Yoga Stretch — Mady Morrison
+            "https://www.youtube.com/watch?v=FFYQ4MEvueY", // 20 min Deep Yoga Stretch — YOGATX
+        ),
+        playLabel = "Play a 20-min stretch video",
+        steps = listOf(
+            Step("Neck rolls, slow circles", 40), Step("Shoulder rolls, back and down", 40),
+            Step("Chest opener: hands clasped behind you", 40), Step("Side bend, left then right", 40),
+            Step("Forward fold, knees soft", 40), Step("Hip flexor lunge, switch at halfway", 60),
+        ),
+    ),
+    Activity("walk", "🚶", "Walk", "Move", "Stand up and walk until the gong. Leave the phone."),
+    Activity(
+        "eyes", "👀", "Eye + neck reset", "Move", "Rest your eyes and release the neck.",
+        steps = listOf(
+            Step("Look at something 20 ft away", 30), Step("Palming: warm palms over closed eyes", 40),
+            Step("Slow eye circles, both directions", 30), Step("Near–far focus: thumb, then the wall", 30),
+            Step("Chin tucks, hold 3 seconds each", 30), Step("Ear to shoulder, left then right", 40),
+        ),
+    ),
     Activity("ambient", "🌧", "Ambient sound", "Refresh", "Rain. Just listen.", "rain"),
     Activity("silence", "🤫", "Silence", "Refresh", "Nothing. Just be."),
+    Activity("sketch", "✏️", "Sketch", "Create", "Draw today's prompt in Sketch Seed.", app = SKETCH_SEED),
 )
+
+/** The step of a guided routine at [elapsedMs] into the activity (routine loops), and seconds left in it. */
+fun stepAt(steps: List<Step>, elapsedMs: Long): Pair<Int, Int>? {
+    if (steps.isEmpty()) return null
+    var t = ((elapsedMs / 1000) % steps.sumOf { it.sec }).toInt()
+    steps.forEachIndexed { i, st ->
+        if (t < st.sec) return i to st.sec - t
+        t -= st.sec
+    }
+    return null
+}
 
 fun activity(id: String) = ACTIVITIES.firstOrNull { it.id == id } ?: ACTIVITIES[0]
 
@@ -61,7 +111,8 @@ fun plan(s: Settings): List<Phase> = buildList {
         add(Phase(Kind.WORK, c, s.workMin * MIN))
         val prep = s.prepMin.coerceIn(0, s.breakMin)
         if (prep > 0) add(Phase(Kind.PREP, c, prep * MIN))
-        if (s.breakMin > prep) add(Phase(Kind.ACTIVITY, c, (s.breakMin - prep) * MIN))
+        val minutes = maxOf(s.breakMin - prep, activity(s.activity).minutes ?: 0)
+        if (minutes > 0) add(Phase(Kind.ACTIVITY, c, minutes * MIN))
     }
 }
 
@@ -131,6 +182,13 @@ fun extend(plan: List<Phase>, s: Session, ms: Long): Session {
     }
 }
 
+/** Grows or shrinks the phase in progress by [deltaMs] (activity switched to/from a fixed-length one). */
+fun resize(s: Session, deltaMs: Long): Session = s.copy(
+    phaseMs = s.phaseMs + deltaMs,
+    endsAt = if (s.paused) s.endsAt else s.endsAt + deltaMs,
+    pausedLeft = if (s.paused) (s.pausedLeft + deltaMs).coerceAtLeast(1) else 0,
+)
+
 /** Minutes this break has been lengthened by (shown on the break screen). */
 fun extraMin(s: Session) = s.bonus / MIN
 
@@ -175,3 +233,19 @@ fun fmtDur(ms: Long): String {
     val m = ms / MIN
     return if (m >= 60) "${m / 60}h %02dm".format(m % 60) else "${m}m"
 }
+
+// ponytail: phone mics and rooms vary; -45 dBFS is "quiet" on a Pixel in a still room. Tune here if needed.
+const val QUIET_DB = -45f
+
+/** Loudness of a mic buffer in dBFS (0 = full scale, about -90 = digital silence). */
+fun dbfs(buf: ShortArray, n: Int): Float {
+    if (n <= 0) return -90f
+    var sum = 0.0
+    for (i in 0 until n) sum += buf[i].toDouble() * buf[i]
+    val rms = kotlin.math.sqrt(sum / n) / 32768.0
+    return if (rms <= 0) -90f else (20 * kotlin.math.log10(rms)).toFloat().coerceAtLeast(-90f)
+}
+
+/** Fraction of measured moments at or below the quiet line. */
+fun quietShare(levels: List<Float>, threshold: Float = QUIET_DB): Float =
+    if (levels.isEmpty()) 1f else levels.count { it <= threshold }.toFloat() / levels.size
