@@ -7,12 +7,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -39,22 +36,12 @@ import androidx.compose.ui.unit.dp
 import java.text.DateFormat
 import java.util.Date
 
-/** Top-right of home: Google photo + first name, or "Sign in". Tap opens the account dialog. */
+/** Top-right of home: round Google photo (or person icon when signed out). Tap opens the account dialog. */
 @Composable
 fun ProfileChip() {
     val p by Drive.profile.collectAsState()
     var open by remember { mutableStateOf(false) }
-    Row(
-        Modifier.clip(RoundedCornerShape(24.dp)).clickable { open = true }
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Avatar(p, 32.dp)
-        Text(
-            p?.name?.substringBefore(' ')?.ifEmpty { null } ?: if (p == null) "Sign in" else "You",
-            Modifier.padding(start = 8.dp), style = MaterialTheme.typography.labelLarge,
-        )
-    }
+    Box(Modifier.clip(CircleShape).clickable { open = true }) { Avatar(p, 44.dp) }
     if (open) AccountDialog(p) { open = false }
 }
 

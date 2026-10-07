@@ -133,7 +133,9 @@ private fun Banner(text: String, action: String, onClick: () -> Unit) {
 private fun Setup(s: Settings, now: Long, onHistory: () -> Unit) {
     val total = plan(s).sumOf { it.ms }
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    val greeting = when (hour) { in 4..11 -> "Good morning."; in 12..16 -> "Good afternoon."; else -> "Good evening." }
+    val first = Drive.profile.collectAsState().value?.name?.substringBefore(' ').orEmpty()
+    val greeting = when (hour) { in 4..11 -> "Good morning"; in 12..16 -> "Good afternoon"; else -> "Good evening" } +
+        if (first.isNotEmpty()) ", $first" else ""
     fun set(f: Settings.() -> Settings) = Timer.saveSettings(s.f())
 
     Column(Modifier.fillMaxSize()) {
