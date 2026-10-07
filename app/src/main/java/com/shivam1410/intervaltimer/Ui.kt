@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -142,13 +143,9 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(greeting, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                HistoryPill(onHistory)
+                Spacer(Modifier.width(8.dp))
                 ProfileChip()
-            }
-            val days by History.days.collectAsState()
-            val streak = streaks(days, History.today()).first
-            FilledTonalButton(onHistory, Modifier.padding(top = 12.dp)) {
-                Icon(painterResource(R.drawable.ic_chart), null, Modifier.size(18.dp))
-                Text(if (streak > 0) "  🔥 $streak-day streak · History" else "  History", style = MaterialTheme.typography.labelLarge)
             }
             Text("Your workday", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 20.dp))
             Text(
@@ -204,6 +201,22 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(20.dp).height(64.dp),
             shape = RoundedCornerShape(32.dp),
         ) { Text("Start workday", fontSize = 20.sp) }
+    }
+}
+
+/** Header shortcut to History: chart icon plus the current streak, next to the profile photo. */
+@Composable
+private fun HistoryPill(onClick: () -> Unit) {
+    val days by History.days.collectAsState()
+    val streak = streaks(days, History.today()).first
+    val cs = MaterialTheme.colorScheme
+    Row(
+        Modifier.height(44.dp).clip(CircleShape).background(cs.secondaryContainer).clickable(onClickLabel = "History", onClick = onClick)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(painterResource(R.drawable.ic_chart), "History", Modifier.size(20.dp), tint = cs.onSecondaryContainer)
+        if (streak > 0) Text(" 🔥$streak", style = MaterialTheme.typography.labelLarge, color = cs.onSecondaryContainer)
     }
 }
 
