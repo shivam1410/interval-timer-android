@@ -1,5 +1,8 @@
 package com.shivam1410.intervaltimer
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.LaunchedEffect
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -231,5 +234,38 @@ fun NapScreen(s: Session) {
                     .combinedClickable(onClick = {}, onLongClick = { Timer.skip() }).padding(horizontal = 20.dp, vertical = 12.dp),
             )
         }
+    }
+}
+
+/** 5-4-3-2-1-Start before a quick timer, so there's time to put the phone down. Back or Cancel aborts. */
+@Composable
+fun Countdown(id: String, onDone: () -> Unit) {
+    val a = activity(id)
+    val cs = MaterialTheme.colorScheme
+    var n by remember(id) { mutableIntStateOf(5) }
+    LaunchedEffect(id) {
+        while (n > 0) {
+            kotlinx.coroutines.delay(1000)
+            n--
+        }
+        kotlinx.coroutines.delay(700) // let "Start" show
+        Timer.startQuick(id)
+        onDone()
+    }
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(a.emoji, fontSize = 48.sp)
+        Text(a.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp))
+        Text("${a.quickMin} min", color = cs.onSurfaceVariant)
+        Box(Modifier.padding(vertical = 32.dp).size(220.dp).clip(CircleShape).background(cs.tertiaryContainer), contentAlignment = Alignment.Center) {
+            Text(
+                if (n > 0) "$n" else "Start",
+                fontSize = if (n > 0) 112.sp else 48.sp, fontWeight = FontWeight.Light, color = cs.onTertiaryContainer,
+            )
+        }
+        TextButton(onDone) { Text("Cancel") }
     }
 }

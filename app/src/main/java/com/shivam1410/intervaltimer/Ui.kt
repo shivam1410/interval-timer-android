@@ -109,7 +109,9 @@ fun Root(now: Long) {
     val plan = remember(settings, session.quick) { session.quick?.let(::quickPlan) ?: plan(settings) }
     val ctx = LocalContext.current
     var page by rememberSaveable { mutableStateOf("") } // "", "history", "settings"
+    var countdown by rememberSaveable { mutableStateOf<String?>(null) } // quick timer about to start
     BackHandler(page.isNotEmpty()) { page = "" }
+    BackHandler(countdown != null) { countdown = null }
 
     // Power nap goes fully black, status bar included, with light status icons.
     val napping = session.running(plan) && !session.paused && plan[session.index].kind == Kind.ACTIVITY && (session.quick ?: settings.activity) == "nap"
@@ -129,7 +131,8 @@ fun Root(now: Long) {
         when {
             page == "history" -> HistoryScreen { page = "" }
             page == "settings" -> SettingsScreen(settings) { page = "" }
-            session.idle -> Setup(settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" })
+            countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null } }
+            session.idle -> Setup(settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onQuick = { countdown = it })
             session.done(plan) -> Done(session, settings) { page = "history" }
             else -> Running(plan, session, settings, now)
         }
@@ -158,7 +161,7 @@ private fun Banner(text: String, action: String, onClick: () -> Unit) {
 // ---------- Setup ----------
 
 @Composable
-private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () -> Unit) {
+private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () -> Unit, onQuick: (String) -> Unit) {
     val total = plan(s).sumOf { it.ms }
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val first = Drive.profile.collectAsState().value?.displayName?.substringBefore(' ').orEmpty()
@@ -203,7 +206,7 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
                 }
             }
 
-            QuickTimers()
+            QuickTimers(onQuick)
             Spacer(Modifier.height(16.dp))
         }
         Button(
@@ -245,11 +248,11 @@ private fun RowScope.PresetChip(name: String, ratio: String, selected: Boolean, 
 
 /** One-off activity timers on home: tap to start a single NSDR / stretch / walk / … session now. */
 @Composable
-private fun QuickTimers() {
+private fun QuickTimers(onQuick: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
     Text("Quick timers", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     TileGrid(QUICK.map(::activity)) { a ->
-        ActivityTile(a, "${a.quickMin} min", cs.surfaceContainer, cs.onSurface, cs.onSurfaceVariant, "Start ${a.name}") { Timer.startQuick(a.id) }
+        ActivityTile(a, "${a.quickMin} min", cs.surfaceContainer, cs.onSurface, cs.onSurfaceVariant, "Start ${a.name}") { onQuick(a.id) }
     }
 }
 

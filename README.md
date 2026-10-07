@@ -6,7 +6,7 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Gong + vibration** at every transition (single gong → break, double → work, long → day done)
 - **Home is quick**: Workday 50:10 · Deep 90:15 · Pomodoro 25:5 · Custom (only Custom shows the
   schedule controls), plus **quick timers** for one-off sessions — NSDR, Sketch, Stretch, Exercise,
-  Walk, Power nap, Breathing
+  Walk, Power nap, Breathing — tapping one counts down 5-4-3-2-1-Start first
 - **Settings** (tap your photo): Google account & Drive sync, gong / vibration / volume, version
   and update check
 - **Breaks start with a 2-min prepare phase**; on the break screen you choose the activity
@@ -35,13 +35,13 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 
 ## Screenshots
 
-| Home + quick timers | Work + focus music | Break · pick an activity | Stretch (video + steps) |
+| Home + quick timers | Quick-timer countdown | Work + focus music | Break · pick an activity |
 |:-:|:-:|:-:|:-:|
-| <img src="docs/screenshots/setup.png" width="200"> | <img src="docs/screenshots/work.png" width="200"> | <img src="docs/screenshots/break-prepare.png" width="200"> | <img src="docs/screenshots/break-activity.png" width="200"> |
+| <img src="docs/screenshots/setup.png" width="200"> | <img src="docs/screenshots/countdown.png" width="200"> | <img src="docs/screenshots/work.png" width="200"> | <img src="docs/screenshots/break-prepare.png" width="200"> |
 
-| History (sample data) | Settings | Dark: work | Dark: break tiles |
+| Breathing | History (sample data) | Settings | Dark: break |
 |:-:|:-:|:-:|:-:|
-| <img src="docs/screenshots/history.png" width="200"> | <img src="docs/screenshots/settings.png" width="200"> | <img src="docs/screenshots/work-dark.png" width="200"> | <img src="docs/screenshots/break-dark.png" width="200"> |
+| <img src="docs/screenshots/break-activity.png" width="200"> | <img src="docs/screenshots/history.png" width="200"> | <img src="docs/screenshots/settings.png" width="200"> | <img src="docs/screenshots/break-dark.png" width="200"> |
 
 Light and dark follow the system theme, with Material You colours from the wallpaper.
 
