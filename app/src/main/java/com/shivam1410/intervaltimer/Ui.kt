@@ -181,12 +181,6 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit) {
                 Stepper("Cycles", s.cycles, "", 1..16) { v -> set { copy(cycles = v) } }
             }
 
-            Text(
-                "Pick break activities, longer breaks and focus music while the timer runs.",
-                Modifier.padding(top = 16.dp), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
             Section("Alerts") {
                 Toggle(R.drawable.ic_gong, "Gong", s.gong) { v -> set { copy(gong = v) } }
                 Toggle(R.drawable.ic_vibrate, "Vibration", s.vibrate) { v -> set { copy(vibrate = v) } }
