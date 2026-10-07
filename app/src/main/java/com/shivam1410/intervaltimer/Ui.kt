@@ -79,8 +79,21 @@ import java.util.Date
 @Composable
 fun AppTheme(content: @Composable () -> Unit) {
     val ctx = LocalContext.current
-    // Pixel 10 always has Material You; follow the wallpaper palette.
-    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)) {
+    // Work follows the wallpaper (Material You); breaks use a fixed dark-pink palette (tertiary roles)
+    // so they read as "rest" regardless of wallpaper. Values are the M3 pink tonal palette.
+    val dark = isSystemInDarkTheme()
+    val scheme = if (dark) {
+        dynamicDarkColorScheme(ctx).copy(
+            tertiary = Color(0xFFFFB0CB), onTertiary = Color(0xFF5E1133),
+            tertiaryContainer = Color(0xFF7D2A4A), onTertiaryContainer = Color(0xFFFFD9E3),
+        )
+    } else {
+        dynamicLightColorScheme(ctx).copy(
+            tertiary = Color(0xFFA0305C), onTertiary = Color.White,
+            tertiaryContainer = Color(0xFFFFD9E3), onTertiaryContainer = Color(0xFF3E001C),
+        )
+    }
+    MaterialTheme(colorScheme = scheme) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, content = content)
     }
 }
@@ -379,7 +392,10 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
                 ),
             ) { Text("Skip", fontSize = 18.sp) }
             // End sits in the same row; it asks for confirmation.
-            OutlinedButton({ confirmEnd = true }, Modifier.weight(if (quick) 1f else 0.8f).height(56.dp)) { Text("End", fontSize = 18.sp) }
+            OutlinedButton(
+                { confirmEnd = true }, Modifier.weight(if (quick) 1f else 0.8f).height(56.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = accent),
+            ) { Text("End", fontSize = 18.sp) }
         }
     }
 

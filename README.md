@@ -54,7 +54,7 @@ a system-rendered countdown. A foreground service exists only while audio is pla
 
 Audio is **not bundled in the APK**. [`resources/`](resources) holds the sounds and
 `manifest.json`; the app downloads them from this repo on first launch and caches them offline.
-Sounds are synthesized by [`tools/gen_sounds.py`](tools/gen_sounds.py). To add a sound, drop a file
+Sounds are synthesized by [`tools/gen_sounds.py`](tools/gen_sounds.py), except the ocean and whale recordings (see [Credits](#credits)). To add a sound, drop a file
 in `resources/` and add an entry to `manifest.json` (`"loop": true` makes it selectable as music).
 
 ## Google Drive sync setup (one-time, Google Cloud Console)
@@ -69,6 +69,15 @@ in `resources/` and add an entry to `manifest.json` (`"loop": true` makes it sel
 
 No Web client or API key is needed: the app uses Google's `AuthorizationClient`, which returns the
 Drive token and your name/photo in one consent.
+
+## Credits
+
+Real recordings in `resources/` (everything else there is synthesized by `tools/gen_sounds.py`):
+
+- **Ocean** — [“Oceanwavescrushing”](https://commons.wikimedia.org/wiki/File:Oceanwavescrushing.ogg)
+  by **Luftrum**, licensed [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/); used unmodified.
+- **Whales** — [“Whales and Dolphins, Nueva Esparta”](https://commons.wikimedia.org/wiki/File:Whales_and_Dolphins_whale_nature_sounds_songs_nueva_esparta.ogg)
+  by Wilfredo R. Rodriguez H., [CC0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain).
 
 ## Build & release
 

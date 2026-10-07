@@ -35,7 +35,7 @@
     {
       "id": "ocean",
       "name": "Ocean",
-      "file": "ocean.wav",
+      "file": "ocean_luftrum.ogg",
       "loop": true
     },
     {
@@ -47,7 +47,7 @@
     {
       "id": "whales",
       "name": "Whales",
-      "file": "whales.wav",
+      "file": "whales_nueva_esparta.ogg",
       "loop": true
     },
     {
