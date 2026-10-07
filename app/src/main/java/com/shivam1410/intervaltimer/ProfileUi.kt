@@ -53,7 +53,7 @@ private fun Avatar(p: Drive.Profile?, size: Dp) {
     Box(Modifier.size(size).clip(CircleShape).background(cs.primary), contentAlignment = Alignment.Center) {
         when {
             bmp != null -> Image(bmp, null, Modifier.size(size), contentScale = ContentScale.Crop)
-            p != null && p.name.isNotEmpty() -> Text(p.name.take(1).uppercase(), color = cs.onPrimary, fontWeight = FontWeight.SemiBold)
+            p != null && p.name.isNotEmpty() -> Text(p.displayName.take(1), color = cs.onPrimary, fontWeight = FontWeight.SemiBold)
             else -> Icon(painterResource(R.drawable.ic_person), null, Modifier.size(size * 0.6f), tint = cs.onPrimary)
         }
     }
@@ -67,7 +67,7 @@ private fun AccountDialog(p: Drive.Profile?, onClose: () -> Unit) {
         onDismissRequest = onClose,
         icon = { Avatar(p, 64.dp) },
         title = {
-            val t = p?.name?.ifEmpty { null } ?: if (p == null) "Back up to Google Drive" else "Google account"
+            val t = p?.displayName?.ifEmpty { null } ?: if (p == null) "Back up to Google Drive" else "Google account"
             Text(t, Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         },
         text = {
@@ -75,7 +75,6 @@ private fun AccountDialog(p: Drive.Profile?, onClose: () -> Unit) {
                 if (p == null) {
                     Text("Sign in with Google to keep your history and streaks in your Drive's private app folder and restore them on any phone.", textAlign = TextAlign.Center)
                 } else {
-                    if (p.email.isNotEmpty()) Text(p.email, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     val synced = if (p.lastSync == 0L) "Not synced yet"
                     else "Last synced " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(p.lastSync))
                     Text(synced, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)

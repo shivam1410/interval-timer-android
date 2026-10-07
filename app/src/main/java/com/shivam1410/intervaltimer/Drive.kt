@@ -31,7 +31,10 @@ object Drive {
     private const val FILE = "history.json"
     private const val API = "https://www.googleapis.com"
 
-    data class Profile(val name: String, val email: String, val photo: File?, val lastSync: Long)
+    data class Profile(val name: String, val email: String, val photo: File?, val lastSync: Long) {
+        /** "shivam garg" -> "Shivam Garg" (Google returns names as typed). */
+        val displayName get() = name.split(' ').joinToString(" ") { w -> w.replaceFirstChar { it.titlecase() } }
+    }
 
     val profile = MutableStateFlow<Profile?>(null)
     val status = MutableStateFlow("")
