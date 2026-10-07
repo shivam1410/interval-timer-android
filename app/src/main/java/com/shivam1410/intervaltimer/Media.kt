@@ -18,6 +18,9 @@ const val REPO = "shivam1410/interval-timer-android"
  */
 object Media {
     private const val BASE = "https://raw.githubusercontent.com/$REPO/main/resources/"
+    // The list comes via the API (uncached) so new sounds show up right after a push; raw.githubusercontent
+    // caches for 5 min. Files themselves are immutable by name, so the cached URL is fine for them.
+    private const val MANIFEST = "https://api.github.com/repos/$REPO/contents/resources/manifest.json"
 
     data class Sound(val id: String, val name: String, val file: String, val loop: Boolean)
 
@@ -40,7 +43,7 @@ object Media {
         downloading.value = true
         thread {
             try {
-                val json = fetch(BASE + "manifest.json")
+                val json = fetch(MANIFEST, accept = "application/vnd.github.raw+json")
                 val list = parse(json)
                 list.filter { !File(dir, it.file).exists() }.forEach { download(BASE + it.file, File(dir, it.file)) }
                 File(dir, "manifest.json").writeText(json)
@@ -61,14 +64,15 @@ object Media {
     }
 }
 
-private fun open(url: String) = (URL(url).openConnection() as HttpURLConnection).apply {
+private fun open(url: String, accept: String = "application/vnd.github+json, */*") = (URL(url).openConnection() as HttpURLConnection).apply {
     connectTimeout = 15_000
     readTimeout = 30_000
-    setRequestProperty("Accept", "application/vnd.github+json, */*")
+    setRequestProperty("Accept", accept)
     if (responseCode !in 200..299) throw IOException("HTTP $responseCode for $url")
 }
 
-fun fetch(url: String): String = open(url).inputStream.use { it.readBytes().decodeToString() }
+fun fetch(url: String, accept: String = "application/vnd.github+json, */*"): String =
+    open(url, accept).inputStream.use { it.readBytes().decodeToString() }
 
 /** Downloads to a temp file first so a half-finished download is never mistaken for a real one. */
 fun download(url: String, dest: File) {
