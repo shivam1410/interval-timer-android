@@ -7,5 +7,7 @@ class App : Application() {
         super.onCreate()
         Timer.init(this)
         Media.init(this)
+        History.init(this)
+        Drive.init(this)
     }
 }

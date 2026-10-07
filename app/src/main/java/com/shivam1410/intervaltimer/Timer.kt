@@ -37,7 +37,8 @@ object Timer {
         settings.value = loadSettings()
         session.value = prefs.run {
             Session(getInt("index", -1), getLong("endsAt", 0), getLong("pausedLeft", 0), getLong("startedAt", 0), getLong("finishedAt", 0),
-                getLong("phaseMs", 0), getLong("bonus", 0))
+                getLong("phaseMs", 0), getLong("bonus", 0),
+                getLong("workMs", 0), getLong("breakMs", 0), getInt("cycles_done", 0))
         }
         val nm = app.getSystemService(NotificationManager::class.java)
         // Both channels are silent: the gong and vibration are played by SoundService.
@@ -84,7 +85,12 @@ object Timer {
         val next = skip(plan, s, now())
         commit(next, cueFor(s, next))
     }
-    fun stop() = commit(Session(), null)
+    /** Ends the day early; whatever was done so far still goes into history. */
+    fun stop() {
+        val s = session.value
+        if (s.running(plan)) History.record(s.startedAt, credit(plan, s, now()))
+        commit(Session(), null)
+    }
 
     /** In-session choices: switch the break activity or focus music right now, or lengthen this break. */
     fun chooseActivity(id: String) = choose(settings.value.copy(activity = id))
@@ -115,10 +121,12 @@ object Timer {
     }
 
     private fun commit(s: Session, cue: Cue?, restartSound: Boolean = true) {
+        if (s.done(plan) && session.value.running(plan)) History.record(s.startedAt, s)
         session.value = s
         prefs.edit().putInt("index", s.index).putLong("endsAt", s.endsAt).putLong("pausedLeft", s.pausedLeft)
             .putLong("startedAt", s.startedAt).putLong("finishedAt", s.finishedAt)
-            .putLong("phaseMs", s.phaseMs).putLong("bonus", s.bonus).apply()
+            .putLong("phaseMs", s.phaseMs).putLong("bonus", s.bonus)
+            .putLong("workMs", s.workMs).putLong("breakMs", s.breakMs).putInt("cycles_done", s.cycles).apply()
 
         val am = app.getSystemService(AlarmManager::class.java)
         val alarm = PendingIntent.getBroadcast(app, 0, Intent(app, Receiver::class.java).setAction(Receiver.ALARM), PendingIntent.FLAG_IMMUTABLE)
@@ -170,7 +178,7 @@ object Timer {
 
     fun subtitle(s: Session, now: Long): String {
         val pl = plan
-        if (s.done(pl)) return "${fmtDur(totals(pl, s, now).first)} focused · ${settings.value.cycles} cycles"
+        if (s.done(pl)) return "${fmtDur(s.workMs)} focused · ${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"}"
         val p = pl[s.index]
         return when (p.kind) {
             Kind.PREP -> "Lie down. Put your phone aside. Close your eyes."

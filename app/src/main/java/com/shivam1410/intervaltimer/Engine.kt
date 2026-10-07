@@ -79,6 +79,10 @@ data class Session(
     val finishedAt: Long = 0,
     val phaseMs: Long = 0,
     val bonus: Long = 0,
+    // Actual time spent in finished phases (skips count only what elapsed) and work blocks run to the end.
+    val workMs: Long = 0,
+    val breakMs: Long = 0,
+    val cycles: Int = 0,
 ) {
     val idle get() = index < 0
     val paused get() = pausedLeft > 0
@@ -96,7 +100,17 @@ fun resume(s: Session, now: Long) = s.copy(endsAt = now + s.pausedLeft, pausedLe
 /** Jump to the next phase immediately. */
 fun skip(plan: List<Phase>, s: Session, now: Long): Session = enter(plan, s, s.index + 1, now)
 
-private fun enter(plan: List<Phase>, s: Session, i: Int, startAt: Long): Session {
+/** Banks the time spent in the current phase, as if it ended at [at]. */
+fun credit(plan: List<Phase>, s: Session, at: Long): Session {
+    if (!s.running(plan)) return s
+    val left = if (s.paused) s.pausedLeft else (s.endsAt - at).coerceAtLeast(0)
+    val spent = (s.phaseMs - left).coerceAtLeast(0)
+    return if (plan[s.index].kind == Kind.WORK) s.copy(workMs = s.workMs + spent, cycles = s.cycles + if (left == 0L) 1 else 0)
+    else s.copy(breakMs = s.breakMs + spent)
+}
+
+private fun enter(plan: List<Phase>, prev: Session, i: Int, startAt: Long): Session {
+    val s = credit(plan, prev, startAt)
     if (i >= plan.size) return s.copy(index = plan.size, endsAt = startAt, pausedLeft = 0, finishedAt = startAt, bonus = 0)
     val ms = plan[i].ms + if (plan[i].kind == Kind.ACTIVITY) s.bonus else 0
     return s.copy(index = i, endsAt = startAt + ms, pausedLeft = 0, phaseMs = ms, bonus = if (plan[i].kind == Kind.WORK) 0 else s.bonus)
@@ -136,20 +150,9 @@ fun catchUp(plan: List<Phase>, s: Session, now: Long, waitBeforeWork: Boolean = 
     return cur
 }
 
-/** Planned work and break time already behind us (ms). */
-fun totals(plan: List<Phase>, s: Session, now: Long): Pair<Long, Long> {
-    var work = 0L
-    var rest = 0L
-    plan.forEachIndexed { i, p ->
-        val spent = when {
-            i < s.index -> p.ms
-            i == s.index && s.running(plan) -> s.phaseMs - s.left(now)
-            else -> 0
-        }
-        if (p.kind == Kind.WORK) work += spent else rest += spent
-    }
-    return work to rest
-}
+/** Work and break time actually spent so far, including the phase in progress (ms). */
+fun totals(plan: List<Phase>, s: Session, now: Long): Pair<Long, Long> =
+    credit(plan, s, now).let { it.workMs to it.breakMs }
 
 /** "1.2.10" > "1.2.9"; tolerates a leading "v". */
 fun isNewer(remote: String, local: String): Boolean {

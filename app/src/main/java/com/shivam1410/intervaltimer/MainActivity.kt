@@ -8,6 +8,7 @@ import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableLongStateOf
 
 class MainActivity : ComponentActivity() {
@@ -23,6 +24,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val googleConsent = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+        Drive.onResult(it.data)
+    }
+
+    fun signIn() = Drive.signIn(this, googleConsent)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -31,6 +38,7 @@ class MainActivity : ComponentActivity() {
         }
         if (Media.missing) Media.sync()
         Updater.check(this)
+        Drive.sync()
         setContent { AppTheme { Root(now.longValue) } }
     }
 

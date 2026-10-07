@@ -56,6 +56,8 @@ class EngineTest {
         val done = catchUp(p, start(p, 0), 9 * 60 * MIN)
         assertTrue(done.done(p))
         assertEquals(8 * 60 * MIN, done.finishedAt)
+        assertEquals(8, done.cycles)
+        assertEquals(400 * MIN, done.workMs)
     }
 
     @Test fun pauseShiftsSchedule() {
@@ -83,6 +85,20 @@ class EngineTest {
         val st = catchUp(p, start(p, 0), 70 * MIN)
         assertEquals(70 * MIN, totals(p, st, 70 * MIN).let { it.first + it.second })
         assertEquals(60 * MIN, totals(p, st, 70 * MIN).first)
+    }
+
+    @Test fun skippedWorkCountsOnlyElapsedAndNoCycle() {
+        val sk = skip(p, start(p, 0), 20 * MIN)
+        assertEquals(20 * MIN, sk.workMs)
+        assertEquals(0, sk.cycles)
+        val full = catchUp(p, start(p, 0), 50 * MIN)
+        assertEquals(1, full.cycles)
+    }
+
+    @Test fun pausedTimeIsNotCounted() {
+        val paused = pause(start(p, 0), 10 * MIN)
+        val resumed = resume(paused, 40 * MIN) // 30 min away
+        assertEquals(15 * MIN, totals(p, resumed, 45 * MIN).first)
     }
 
     @Test fun versionCompare() {
