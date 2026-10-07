@@ -206,10 +206,10 @@ private fun HistoryPill(onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     Row(
         Modifier.height(44.dp).clip(CircleShape).background(cs.secondaryContainer).clickable(onClickLabel = "History", onClick = onClick)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 8.dp), // 8 + 28 + 8 = 44: stays a circle when there's no streak
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(painterResource(R.drawable.ic_chart), "History", Modifier.size(20.dp), tint = cs.onSecondaryContainer)
+        Icon(painterResource(R.drawable.ic_chart), "History", Modifier.size(28.dp), tint = cs.onSecondaryContainer)
         if (streak > 0) Text(" 🔥$streak", style = MaterialTheme.typography.labelLarge, color = cs.onSecondaryContainer)
     }
 }
