@@ -36,7 +36,8 @@ object Timer {
         app = ctx.applicationContext
         settings.value = loadSettings()
         session.value = prefs.run {
-            Session(getInt("index", -1), getLong("endsAt", 0), getLong("pausedLeft", 0), getLong("startedAt", 0), getLong("finishedAt", 0))
+            Session(getInt("index", -1), getLong("endsAt", 0), getLong("pausedLeft", 0), getLong("startedAt", 0), getLong("finishedAt", 0),
+                getLong("phaseMs", 0), getLong("bonus", 0))
         }
         val nm = app.getSystemService(NotificationManager::class.java)
         // Both channels are silent: the gong and vibration are played by SoundService.
@@ -56,8 +57,7 @@ object Timer {
         settings.value = s
         prefs.edit().apply {
             putInt("workMin", s.workMin); putInt("breakMin", s.breakMin); putInt("prepMin", s.prepMin)
-            putInt("cycles", s.cycles); putString("activity", s.activity); putInt("longEvery", s.longEvery)
-            putInt("longMin", s.longMin); putString("longActivity", s.longActivity); putString("focusSound", s.focusSound)
+            putInt("cycles", s.cycles); putString("activity", s.activity); putString("focusSound", s.focusSound)
             putBoolean("gong", s.gong); putBoolean("vibrate", s.vibrate); putInt("volume", s.volume)
             putBoolean("waitBeforeWork", s.waitBeforeWork)
         }.apply()
@@ -67,8 +67,7 @@ object Timer {
         prefs.run {
             Settings(
                 getInt("workMin", d.workMin), getInt("breakMin", d.breakMin), getInt("prepMin", d.prepMin),
-                getInt("cycles", d.cycles), (getString("activity", d.activity) ?: d.activity), getInt("longEvery", d.longEvery),
-                getInt("longMin", d.longMin), (getString("longActivity", d.longActivity) ?: d.longActivity), (getString("focusSound", d.focusSound) ?: d.focusSound),
+                getInt("cycles", d.cycles), (getString("activity", d.activity) ?: d.activity), (getString("focusSound", d.focusSound) ?: d.focusSound),
                 getBoolean("gong", d.gong), getBoolean("vibrate", d.vibrate), getInt("volume", d.volume),
                 getBoolean("waitBeforeWork", d.waitBeforeWork),
             )
@@ -86,6 +85,18 @@ object Timer {
         commit(next, cueFor(s, next))
     }
     fun stop() = commit(Session(), null)
+
+    /** In-session choices: switch the break activity or focus music right now, or lengthen this break. */
+    fun chooseActivity(id: String) = choose(settings.value.copy(activity = id))
+    fun chooseFocus(id: String) = choose(settings.value.copy(focusSound = id))
+    fun extendBreak() = commit(extend(plan, session.value, 10 * MIN), null)
+
+    private fun choose(s: Settings) {
+        saveSettings(s)
+        if (session.value.running(plan)) commit(session.value, null)
+    }
+
+    private val chosen get() = activity(settings.value.activity)
 
     /** Alarm fired, device booted, or app opened: settle into whatever phase "now" is. */
     fun sync(playCue: Boolean) {
@@ -106,7 +117,8 @@ object Timer {
     private fun commit(s: Session, cue: Cue?, restartSound: Boolean = true) {
         session.value = s
         prefs.edit().putInt("index", s.index).putLong("endsAt", s.endsAt).putLong("pausedLeft", s.pausedLeft)
-            .putLong("startedAt", s.startedAt).putLong("finishedAt", s.finishedAt).apply()
+            .putLong("startedAt", s.startedAt).putLong("finishedAt", s.finishedAt)
+            .putLong("phaseMs", s.phaseMs).putLong("bonus", s.bonus).apply()
 
         val am = app.getSystemService(AlarmManager::class.java)
         val alarm = PendingIntent.getBroadcast(app, 0, Intent(app, Receiver::class.java).setAction(Receiver.ALARM), PendingIntent.FLAG_IMMUTABLE)
@@ -139,7 +151,7 @@ object Timer {
         val p = plan[s.index]
         return when (p.kind) {
             Kind.WORK -> settings.value.focusSound.ifEmpty { null }
-            Kind.ACTIVITY -> p.activity?.sound
+            Kind.ACTIVITY -> chosen.sound
             Kind.PREP -> null
         }
     }
@@ -150,8 +162,8 @@ object Timer {
         val p = pl[s.index]
         val head = when (p.kind) {
             Kind.WORK -> "Work · cycle ${p.cycle}/${settings.value.cycles}"
-            Kind.PREP -> if (p.long) "Long break · prepare" else "Break · prepare"
-            Kind.ACTIVITY -> p.activity?.let { "${it.emoji} ${it.name}" } ?: "Break"
+            Kind.PREP -> "Break · prepare"
+            Kind.ACTIVITY -> "${chosen.emoji} ${chosen.name}"
         }
         return if (s.paused) "Paused · $head" else head
     }
@@ -162,12 +174,12 @@ object Timer {
         val p = pl[s.index]
         return when (p.kind) {
             Kind.PREP -> "Lie down. Put your phone aside. Close your eyes."
-            Kind.ACTIVITY -> p.activity?.hint.orEmpty()
+            Kind.ACTIVITY -> chosen.hint
             Kind.WORK -> {
                 val next = pl.getOrNull(s.index + 1) ?: return "Last block of the day"
                 val breakMs = pl.drop(s.index + 1).takeWhile { it.kind != Kind.WORK }.sumOf { it.ms }
                 val at = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(s.endsAt))
-                "Next: ${if (next.long) "Long break" else "Break"} · ${fmtDur(breakMs)}" + if (s.paused) "" else " at $at"
+                "Next: Break · ${fmtDur(breakMs)}" + if (s.paused) "" else " at $at"
             }
         }
     }
@@ -182,10 +194,11 @@ object Timer {
         val (title, text) = when (cue) {
             Cue.WORK -> "Break complete" to "Work cycle ${p.cycle}/${settings.value.cycles} · ${fmtDur(p.ms)}" +
                 if (s.paused) " · tap Start when ready" else " started"
-            else -> "Work session complete" to "${fmtDur(settings.value.workMin * MIN)} focused → ${fmtDur(breakMs)} recovery. Lie down and get comfortable."
+            else -> "Work session complete" to "${fmtDur(settings.value.workMin * MIN)} focused → ${fmtDur(breakMs)} recovery. " +
+                "Lie down and get comfortable. Open to choose your recovery."
         }
         return Notification.Builder(app, CH_ALERT)
-            .setSmallIcon(R.drawable.ic_bowl)
+            .setSmallIcon(R.drawable.ic_gong)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
@@ -195,6 +208,7 @@ object Timer {
             .setCategory(Notification.CATEGORY_ALARM)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .addAction(if (s.paused) action(Receiver.RESUME, "Start") else action(Receiver.SKIP, "Skip"))
+            .apply { if (cue == Cue.BREAK) addAction(action(Receiver.EXTEND, "+10 min")) }
             .build()
     }
 
@@ -203,7 +217,7 @@ object Timer {
         val pl = plan
         // The end-of-day summary is the one status post that should pop up.
         val b = Notification.Builder(app, if (s.done(pl)) CH_ALERT else CH_STATUS)
-            .setSmallIcon(R.drawable.ic_bowl)
+            .setSmallIcon(R.drawable.ic_gong)
             .setContentTitle(title(s))
             .setContentText(subtitle(s, now()))
             .setContentIntent(openApp)

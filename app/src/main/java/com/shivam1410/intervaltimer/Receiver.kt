@@ -14,6 +14,7 @@ class Receiver : BroadcastReceiver() {
             PAUSE -> Timer.pause()
             RESUME -> Timer.resume()
             SKIP -> Timer.skip()
+            EXTEND -> Timer.extendBreak()
             Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> Timer.sync(playCue = false)
             INSTALL_STATUS -> onInstallStatus(ctx, intent)
         }
@@ -38,6 +39,7 @@ class Receiver : BroadcastReceiver() {
         const val PAUSE = "it.PAUSE"
         const val RESUME = "it.RESUME"
         const val SKIP = "it.SKIP"
+        const val EXTEND = "it.EXTEND"
         const val INSTALL_STATUS = "it.INSTALL_STATUS"
     }
 }

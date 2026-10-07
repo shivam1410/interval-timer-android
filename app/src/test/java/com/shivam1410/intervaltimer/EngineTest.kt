@@ -16,12 +16,27 @@ class EngineTest {
         assertEquals(8 * MIN, p[2].ms)
     }
 
-    @Test fun longBreakEveryN() {
-        val lp = plan(s.copy(longEvery = 3, longMin = 20, longActivity = "nap"))
-        val longs = lp.filter { it.long && it.kind == Kind.ACTIVITY }
-        assertEquals(listOf(3, 6), longs.map { it.cycle })
-        assertEquals(18 * MIN, longs[0].ms)
-        assertEquals("nap", longs[0].activity!!.id)
+    @Test fun extendDuringActivityShiftsRestOfDay() {
+        val inBreak = catchUp(p, start(p, 0), 53 * MIN) // cycle 1 activity, ends at 60
+        val longer = extend(p, inBreak, 10 * MIN)
+        assertEquals(70 * MIN, longer.endsAt)
+        val nextWork = catchUp(p, longer, 70 * MIN)
+        assertEquals(Kind.WORK, p[nextWork.index].kind)
+        assertEquals(120 * MIN, nextWork.endsAt)
+        assertEquals(0, nextWork.bonus)
+    }
+
+    @Test fun extendDuringPrepLengthensActivity() {
+        val prep = catchUp(p, start(p, 0), 51 * MIN)
+        val act = catchUp(p, extend(p, prep, 10 * MIN), 52 * MIN)
+        assertEquals(Kind.ACTIVITY, p[act.index].kind)
+        assertEquals(18 * MIN, act.phaseMs)
+        assertEquals(70 * MIN, act.endsAt)
+    }
+
+    @Test fun extendDuringWorkDoesNothing() {
+        val st = start(p, 0)
+        assertEquals(st, extend(p, st, 10 * MIN))
     }
 
     @Test fun zeroPrepSkipsPrepPhase() {

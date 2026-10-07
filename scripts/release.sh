@@ -8,6 +8,7 @@ VERSION=${1:?usage: scripts/release.sh <version> [notes]}
 NOTES=${2:-"Release v$VERSION"}
 REPO=shivam1410/interval-timer-android
 export GH_TOKEN=$(gh auth token -u shivam1410)
+export AW_NO_COAUTHOR=1 # no co-author trailers on this repo's commits
 
 sed -i '' "s/^VERSION_NAME=.*/VERSION_NAME=$VERSION/" gradle.properties
 ./gradlew -q testDebugUnitTest assembleRelease

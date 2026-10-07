@@ -4,10 +4,14 @@ A low-power workday timer for Android (built for the Pixel 10 / Android 16): sta
 morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** on its own.
 
 - **Gong + vibration** at every transition (single gong → break, double → work, long → day done)
-- **Breaks with a 2-min prepare phase**, then an activity: box breathing, meditation, NSDR,
-  power nap, stretch, walk, eye reset, hydrate, ambient sound, silence
-- **Long breaks** every N cycles (e.g. a 20-min power nap)
-- **Focus music** during work (brown noise, rain, ocean, singing bowls), screen off
+- **Setup is just the schedule** (presets 50:10, 90:15, 25:5) and alerts; everything else is
+  decided while the timer runs
+- **Breaks start with a 2-min prepare phase**; on the break screen you choose the activity
+  (box breathing, meditation, NSDR, power nap, stretch, walk, eye reset, hydrate, ambient, silence)
+  and can make it a **long break** (+10 min each tap, also from the notification); the rest of
+  the day shifts later
+- **Focus music** is picked on the work screen (brown noise, rain, ocean, singing bowls) and
+  keeps playing with the screen off
 - **Actionable notification** with countdown, Pause and Skip — no need to open the app
 - **Restart-proof**: phases are absolute timestamps, rebuilt after reboot
 - **Local-first**: settings and session go to Android's Google backup; no account, no analytics

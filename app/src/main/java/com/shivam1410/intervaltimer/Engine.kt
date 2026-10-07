@@ -10,10 +10,8 @@ data class Settings(
     val breakMin: Int = 10,
     val prepMin: Int = 2,
     val cycles: Int = 8,
+    // Picked during the session, remembered as the default for the next break / work block.
     val activity: String = "breathing",
-    val longEvery: Int = 0, // 0 = no long breaks
-    val longMin: Int = 20,
-    val longActivity: String = "nap",
     val focusSound: String = "", // "" = off
     val gong: Boolean = true,
     val vibrate: Boolean = true,
@@ -55,24 +53,23 @@ fun activity(id: String) = ACTIVITIES.firstOrNull { it.id == id } ?: ACTIVITIES[
 
 enum class Kind { WORK, PREP, ACTIVITY }
 
-data class Phase(val kind: Kind, val cycle: Int, val ms: Long, val activity: Activity? = null, val long: Boolean = false)
+data class Phase(val kind: Kind, val cycle: Int, val ms: Long)
 
 /** Flattens the workday into phases: WORK, then a break split into PREP + ACTIVITY, per cycle. */
 fun plan(s: Settings): List<Phase> = buildList {
     for (c in 1..s.cycles) {
         add(Phase(Kind.WORK, c, s.workMin * MIN))
-        val long = s.longEvery > 0 && c % s.longEvery == 0
-        val total = if (long) s.longMin else s.breakMin
-        val act = activity(if (long) s.longActivity else s.activity)
-        val prep = s.prepMin.coerceIn(0, total)
-        if (prep > 0) add(Phase(Kind.PREP, c, prep * MIN, act, long))
-        if (total > prep) add(Phase(Kind.ACTIVITY, c, (total - prep) * MIN, act, long))
+        val prep = s.prepMin.coerceIn(0, s.breakMin)
+        if (prep > 0) add(Phase(Kind.PREP, c, prep * MIN))
+        if (s.breakMin > prep) add(Phase(Kind.ACTIVITY, c, (s.breakMin - prep) * MIN))
     }
 }
 
 /**
  * index: -1 idle, 0..plan.size-1 running, plan.size done.
  * pausedLeft > 0 means paused with that many ms left in the current phase.
+ * phaseMs is the current phase's real length (planned + any break extension);
+ * bonus is extra time requested during PREP, applied when the activity starts.
  */
 data class Session(
     val index: Int = -1,
@@ -80,6 +77,8 @@ data class Session(
     val pausedLeft: Long = 0,
     val startedAt: Long = 0,
     val finishedAt: Long = 0,
+    val phaseMs: Long = 0,
+    val bonus: Long = 0,
 ) {
     val idle get() = index < 0
     val paused get() = pausedLeft > 0
@@ -88,7 +87,7 @@ data class Session(
     fun left(now: Long) = if (paused) pausedLeft else (endsAt - now).coerceAtLeast(0)
 }
 
-fun start(plan: List<Phase>, now: Long) = Session(0, now + plan[0].ms, 0, now)
+fun start(plan: List<Phase>, now: Long) = Session(0, now + plan[0].ms, 0, now, phaseMs = plan[0].ms)
 
 fun pause(s: Session, now: Long) = s.copy(pausedLeft = (s.endsAt - now).coerceAtLeast(1))
 
@@ -97,9 +96,29 @@ fun resume(s: Session, now: Long) = s.copy(endsAt = now + s.pausedLeft, pausedLe
 /** Jump to the next phase immediately. */
 fun skip(plan: List<Phase>, s: Session, now: Long): Session = enter(plan, s, s.index + 1, now)
 
-private fun enter(plan: List<Phase>, s: Session, i: Int, startAt: Long): Session =
-    if (i >= plan.size) s.copy(index = plan.size, endsAt = startAt, pausedLeft = 0, finishedAt = startAt)
-    else s.copy(index = i, endsAt = startAt + plan[i].ms, pausedLeft = 0)
+private fun enter(plan: List<Phase>, s: Session, i: Int, startAt: Long): Session {
+    if (i >= plan.size) return s.copy(index = plan.size, endsAt = startAt, pausedLeft = 0, finishedAt = startAt, bonus = 0)
+    val ms = plan[i].ms + if (plan[i].kind == Kind.ACTIVITY) s.bonus else 0
+    return s.copy(index = i, endsAt = startAt + ms, pausedLeft = 0, phaseMs = ms, bonus = if (plan[i].kind == Kind.WORK) 0 else s.bonus)
+}
+
+/** Lengthens the current break; everything after it shifts later. No effect during work. */
+fun extend(plan: List<Phase>, s: Session, ms: Long): Session {
+    if (!s.running(plan)) return s
+    return when (plan[s.index].kind) {
+        Kind.WORK -> s
+        Kind.PREP -> s.copy(bonus = s.bonus + ms)
+        Kind.ACTIVITY -> s.copy(
+            endsAt = s.endsAt + if (s.paused) 0 else ms,
+            pausedLeft = if (s.paused) s.pausedLeft + ms else 0,
+            phaseMs = s.phaseMs + ms,
+            bonus = s.bonus + ms,
+        )
+    }
+}
+
+/** Minutes this break has been lengthened by (shown on the break screen). */
+fun extraMin(s: Session) = s.bonus / MIN
 
 /**
  * Advances through every phase boundary that has passed. Restart-proof: after a reboot
@@ -111,7 +130,7 @@ fun catchUp(plan: List<Phase>, s: Session, now: Long, waitBeforeWork: Boolean = 
     while (cur.running(plan) && !cur.paused && now >= cur.endsAt) {
         cur = enter(plan, cur, cur.index + 1, cur.endsAt)
         if (waitBeforeWork && cur.running(plan) && plan[cur.index].kind == Kind.WORK) {
-            return cur.copy(pausedLeft = plan[cur.index].ms)
+            return cur.copy(pausedLeft = cur.phaseMs)
         }
     }
     return cur
@@ -124,7 +143,7 @@ fun totals(plan: List<Phase>, s: Session, now: Long): Pair<Long, Long> {
     plan.forEachIndexed { i, p ->
         val spent = when {
             i < s.index -> p.ms
-            i == s.index && s.running(plan) -> p.ms - s.left(now)
+            i == s.index && s.running(plan) -> s.phaseMs - s.left(now)
             else -> 0
         }
         if (p.kind == Kind.WORK) work += spent else rest += spent

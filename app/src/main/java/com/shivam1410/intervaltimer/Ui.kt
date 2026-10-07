@@ -118,8 +118,6 @@ private fun Setup(s: Settings, now: Long) {
     val total = plan(s).sumOf { it.ms }
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val greeting = when (hour) { in 4..11 -> "Good morning."; in 12..16 -> "Good afternoon."; else -> "Good evening." }
-    val downloading by Media.downloading.collectAsState()
-    val sounds by Media.sounds.collectAsState()
     fun set(f: Settings.() -> Settings) = Timer.saveSettings(s.f())
 
     Column(Modifier.fillMaxSize()) {
@@ -141,7 +139,7 @@ private fun Setup(s: Settings, now: Long) {
                     FilterChip(
                         selected = s.workMin == p.work && s.breakMin == p.brk && s.cycles == p.cycles,
                         onClick = { set { copy(workMin = p.work, breakMin = p.brk, cycles = p.cycles) } },
-                        label = { Text("${p.name} ${p.work}/${p.brk}") },
+                        label = { Text("${p.name} ${p.work}:${p.brk}") },
                     )
                 }
             }
@@ -153,38 +151,11 @@ private fun Setup(s: Settings, now: Long) {
                 Stepper("Cycles", s.cycles, "", 1..16) { v -> set { copy(cycles = v) } }
             }
 
-            Section("Break activity") {
-                ActivityPicker(s.activity) { id -> set { copy(activity = id) } }
-            }
-
-            Section("Long break") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(0, 2, 3, 4).forEach { n ->
-                        FilterChip(s.longEvery == n, { set { copy(longEvery = n) } }, { Text(if (n == 0) "Off" else "Every $n") })
-                    }
-                }
-                if (s.longEvery > 0) {
-                    Stepper("Long break", s.longMin, "min", 5..60) { v -> set { copy(longMin = v) } }
-                    ActivityPicker(s.longActivity) { id -> set { copy(longActivity = id) } }
-                }
-            }
-
-            Section("Focus music during work") {
-                val loops = sounds.filter { it.loop }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(s.focusSound.isEmpty(), { set { copy(focusSound = "") } }, { Text("Off") })
-                    loops.forEach { snd ->
-                        FilterChip(s.focusSound == snd.id, { set { copy(focusSound = snd.id) } }, { Text(snd.name) })
-                    }
-                }
-                if (loops.isEmpty()) {
-                    Text(
-                        if (downloading) "Downloading sounds from GitHub…" else "Sounds not downloaded yet",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (!downloading) TextButton({ Media.sync() }) { Text("Retry download") }
-                }
-            }
+            Text(
+                "Pick break activities, longer breaks and focus music while the timer runs.",
+                Modifier.padding(top = 16.dp), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             Section("Alerts") {
                 Toggle("🔔 Gong", s.gong) { v -> set { copy(gong = v) } }
@@ -255,10 +226,13 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
     val accent = if (isWork) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
     var confirmEnd by remember { mutableStateOf(false) }
     val (workDone, breakDone) = totals(plan, s, now)
+    val chosen = activity(settings.activity)
+    val phaseMs = s.phaseMs.takeIf { it > 0 } ?: p.ms
+    val brk = if (s.bonus > 0) "LONG BREAK" else "BREAK"
     val label = when (p.kind) {
         Kind.WORK -> "WORK"
-        Kind.PREP -> if (p.long) "LONG BREAK · PREPARE" else "BREAK · PREPARE"
-        Kind.ACTIVITY -> if (p.long) "LONG BREAK" else "BREAK"
+        Kind.PREP -> "$brk · PREPARE"
+        Kind.ACTIVITY -> brk
     }
 
     Column(
@@ -271,9 +245,9 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
             Canvas(Modifier.fillMaxSize()) {
                 val stroke = Stroke(14.dp.toPx(), cap = StrokeCap.Round)
                 drawArc(track, 0f, 360f, false, style = stroke)
-                drawArc(accent, -90f, 360f * left / p.ms, false, style = stroke)
+                drawArc(accent, -90f, 360f * left / phaseMs, false, style = stroke)
             }
-            if (p.kind == Kind.ACTIVITY && p.activity?.id == "breathing" && !s.paused) Breathing(accent)
+            if (p.kind == Kind.ACTIVITY && chosen.id == "breathing" && !s.paused) Breathing(accent)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(fmt(left), fontSize = 64.sp, fontWeight = FontWeight.Light)
                 Text("Cycle ${p.cycle} / ${settings.cycles}", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -282,24 +256,7 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
 
         Segments(plan, s, accent)
 
-        if (!isWork) {
-            Card(
-                Modifier.fillMaxWidth().padding(top = 20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-            ) {
-                Column(Modifier.padding(20.dp)) {
-                    val a = p.activity
-                    if (p.kind == Kind.PREP) {
-                        Text("Prepare", style = MaterialTheme.typography.titleLarge)
-                        Text("Lie down.\nPut your phone aside.\nClose your eyes.", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
-                        a?.let { Text("Then: ${it.emoji} ${it.name}", Modifier.padding(top = 12.dp), color = MaterialTheme.colorScheme.onTertiaryContainer) }
-                    } else if (a != null) {
-                        Text("${a.emoji}  ${a.name}", style = MaterialTheme.typography.titleLarge)
-                        Text(a.hint, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
-                    }
-                }
-            }
-        }
+        if (isWork) FocusMusic(settings.focusSound) else BreakChoices(p, s, chosen)
 
         Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Stat("Today", "${fmtDur(workDone)} work", "${fmtDur(breakDone)} breaks", Modifier.weight(1f))
@@ -311,7 +268,7 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
                 { if (s.paused) Timer.resume() else Timer.pause() },
                 Modifier.weight(1f).height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = accent),
-            ) { Text(if (s.paused) (if (s.pausedLeft == p.ms) "Start" else "Resume") else "Pause", fontSize = 18.sp) }
+            ) { Text(if (s.paused) (if (s.pausedLeft == phaseMs) "Start" else "Resume") else "Pause", fontSize = 18.sp) }
             FilledTonalButton({ Timer.skip() }, Modifier.weight(1f).height(56.dp)) { Text("Skip", fontSize = 18.sp) }
         }
         OutlinedButton({ confirmEnd = true }, Modifier.padding(top = 12.dp)) { Text("End workday") }
@@ -332,8 +289,63 @@ private fun nextLabel(plan: List<Phase>, s: Session): String {
     val n = plan.getOrNull(s.index + 1) ?: return "Day complete"
     return when (n.kind) {
         Kind.WORK -> "Work · ${fmtDur(n.ms)}"
-        else -> "${n.activity?.emoji.orEmpty()} ${n.activity?.name.orEmpty()} · ${fmtDur(n.ms)}"
+        Kind.PREP -> "Break · ${fmtDur(plan.drop(s.index + 1).takeWhile { it.kind != Kind.WORK }.sumOf { it.ms })}"
+        Kind.ACTIVITY -> activity(Timer.settings.value.activity).let { "${it.emoji} ${it.name} · ${fmtDur(n.ms + s.bonus)}" }
     } + " at ${clock(s.endsAt)}"
+}
+
+/** Chosen during the break itself: what to do, and whether to make it a long one. */
+@Composable
+private fun BreakChoices(p: Phase, s: Session, chosen: Activity) {
+    var changing by remember(s.index) { mutableStateOf(p.kind == Kind.PREP) }
+    Card(
+        Modifier.fillMaxWidth().padding(top = 20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (p.kind == Kind.PREP) {
+                Text("Prepare", style = MaterialTheme.typography.titleLarge)
+                Text("Lie down.\nPut your phone aside.\nClose your eyes.", style = MaterialTheme.typography.bodyLarge)
+                Text("Then: ${chosen.emoji} ${chosen.name}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+            } else {
+                Text("${chosen.emoji}  ${chosen.name}", style = MaterialTheme.typography.titleLarge)
+                Text(chosen.hint, style = MaterialTheme.typography.bodyLarge)
+            }
+            if (changing) ActivityPicker(chosen.id) { Timer.chooseActivity(it) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!changing) OutlinedButton({ changing = true }) { Text("Change activity") }
+                OutlinedButton({ Timer.extendBreak() }) {
+                    Text(if (s.bonus > 0) "Longer +10 min (now +${extraMin(s)})" else "Make it longer +10 min")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FocusMusic(selected: String) {
+    val sounds by Media.sounds.collectAsState()
+    val downloading by Media.downloading.collectAsState()
+    val loops = sounds.filter { it.loop }
+    Card(
+        Modifier.fillMaxWidth().padding(top = 20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text("🎵 Focus music", style = MaterialTheme.typography.titleSmall)
+            FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected.isEmpty(), { Timer.chooseFocus("") }, { Text("Off") })
+                loops.forEach { snd -> FilterChip(selected == snd.id, { Timer.chooseFocus(snd.id) }, { Text(snd.name) }) }
+            }
+            if (loops.isEmpty()) {
+                Text(
+                    if (downloading) "Downloading sounds from GitHub…" else "Sounds not downloaded yet",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (!downloading) TextButton({ Media.sync() }) { Text("Retry download") }
+            }
+        }
+    }
 }
 
 @Composable
