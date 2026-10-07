@@ -4,7 +4,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -135,7 +135,7 @@ private fun Setup(s: Settings, now: Long) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PRESETS.forEach { p ->
                     FilterChip(
                         selected = s.workMin == p.work && s.breakMin == p.brk && s.cycles == p.cycles,
@@ -364,21 +364,15 @@ private fun Segments(plan: List<Phase>, s: Session, accent: Color) {
 @Composable
 private fun Breathing(color: Color) {
     val t = rememberInfiniteTransition(label = "breath")
-    val scale by t.animateFloat(
-        0.55f, 0.55f,
-        infiniteRepeatable(
-            keyframes {
-                durationMillis = 16_000
-                0.55f at 0 using LinearEasing
-                0.95f at 4_000 using LinearEasing
-                0.95f at 8_000 using LinearEasing
-                0.55f at 12_000 using LinearEasing
-            },
-            RepeatMode.Restart,
-        ),
-        label = "scale",
-    )
+    val ms by t.animateFloat(0f, 16_000f, infiniteRepeatable(tween(16_000, easing = LinearEasing), RepeatMode.Restart), label = "ms")
+    val step = (ms / 4_000).toInt().coerceIn(0, 3)
+    val f = ms % 4_000 / 4_000
+    val scale = when (step) { 0 -> 0.55f + 0.4f * f; 1 -> 0.95f; 2 -> 0.95f - 0.4f * f; else -> 0.55f }
     Box(Modifier.size(260.dp).scale(scale).clip(CircleShape).background(color.copy(alpha = 0.15f)))
+    Text(
+        listOf("Inhale", "Hold", "Exhale", "Hold")[step],
+        Modifier.padding(top = 150.dp), color = color, style = MaterialTheme.typography.titleMedium,
+    )
 }
 
 // ---------- Done ----------

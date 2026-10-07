@@ -8,6 +8,7 @@ import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.IBinder
 import android.os.PowerManager
+import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.VibratorManager
 import android.util.Log
@@ -25,7 +26,7 @@ class SoundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(Timer.NOTIF_ID, Timer.notification(false), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        startForeground(Timer.NOTIF_ID, Timer.notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         val s = Timer.settings.value
         val cueId = intent?.getStringExtra("cue")
         val wanted = intent?.getStringExtra("music")
@@ -78,7 +79,10 @@ class SoundService : Service() {
     private fun vibrate(cueId: String) {
         val pulses = when (cueId) { "gong" -> 1; "gong_double" -> 2; "gong_long" -> 3; else -> 0 }
         val timings = if (pulses == 0) longArrayOf(0, 120) else LongArray(pulses * 2) { if (it % 2 == 0) 250L else 450L }
-        getSystemService(VibratorManager::class.java).defaultVibrator.vibrate(VibrationEffect.createWaveform(timings, -1))
+        getSystemService(VibratorManager::class.java).defaultVibrator.vibrate(
+            VibrationEffect.createWaveform(timings, -1),
+            VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM), // TOUCH usage is muted with the screen off
+        )
     }
 
     private fun stopMusic() {

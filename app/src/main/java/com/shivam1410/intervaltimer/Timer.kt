@@ -21,8 +21,9 @@ enum class Cue(val sound: String) { BREAK("gong"), WORK("gong_double"), DONE("go
 object Timer {
     private const val TAG = "Timer"
     const val NOTIF_ID = 1
-    private const val CH_SESSION = "session"
-    private const val CH_TRANSITION = "transition"
+    private const val ALERT_ID = 2
+    private const val CH_STATUS = "status"
+    private const val CH_ALERT = "alert"
 
     val session = MutableStateFlow(Session())
     val settings = MutableStateFlow(Settings())
@@ -38,14 +39,17 @@ object Timer {
             Session(getInt("index", -1), getLong("endsAt", 0), getLong("pausedLeft", 0), getLong("startedAt", 0), getLong("finishedAt", 0))
         }
         val nm = app.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CH_SESSION, "Current phase", NotificationManager.IMPORTANCE_LOW))
-        // Sound is the gong we play ourselves; the channel only makes the transition pop up.
-        nm.createNotificationChannel(
-            NotificationChannel(CH_TRANSITION, "Phase changes", NotificationManager.IMPORTANCE_HIGH).apply {
-                setSound(null, null)
-                enableVibration(false)
-            }
-        )
+        // Both channels are silent: the gong and vibration are played by SoundService.
+        // Status stays visible (not "Silent"); alerts pop up once per phase change.
+        listOf(
+            NotificationChannel(CH_STATUS, "Current phase", NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(CH_ALERT, "Phase changes", NotificationManager.IMPORTANCE_HIGH),
+        ).forEach {
+            it.setSound(null, null)
+            it.enableVibration(false)
+            it.setShowBadge(false)
+            nm.createNotificationChannel(it)
+        }
     }
 
     fun saveSettings(s: Settings) {
@@ -110,7 +114,9 @@ object Timer {
         if (s.running(plan) && !s.paused) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, s.endsAt, alarm)
 
         val nm = app.getSystemService(NotificationManager::class.java)
-        if (s.idle) nm.cancel(NOTIF_ID) else nm.notify(NOTIF_ID, notification(cue != null))
+        nm.cancel(ALERT_ID)
+        if (s.idle) nm.cancel(NOTIF_ID) else nm.notify(NOTIF_ID, notification())
+        if (cue != null && cue != Cue.SOFT && !s.done(plan)) nm.notify(ALERT_ID, alert(cue, s))
 
         if (!restartSound) return
         val music = musicFor(s)
@@ -161,20 +167,47 @@ object Timer {
                 val next = pl.getOrNull(s.index + 1) ?: return "Last block of the day"
                 val breakMs = pl.drop(s.index + 1).takeWhile { it.kind != Kind.WORK }.sumOf { it.ms }
                 val at = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(s.endsAt))
-                "Next: ${if (next.long) "long break" else "break"} · ${fmtDur(breakMs)}" + if (s.paused) "" else " at $at"
+                "Next: ${if (next.long) "Long break" else "Break"} · ${fmtDur(breakMs)}" + if (s.paused) "" else " at $at"
             }
         }
     }
 
-    fun notification(alert: Boolean): Notification {
+    private val openApp get() = PendingIntent.getActivity(app, 0, Intent(app, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+
+    /** Heads-up shown at a phase change, e.g. "Work session complete · 50m focused → 10m recovery". */
+    private fun alert(cue: Cue, s: Session): Notification {
+        val pl = plan
+        val p = pl[s.index]
+        val breakMs = pl.drop(s.index).takeWhile { it.kind != Kind.WORK }.sumOf { it.ms }
+        val (title, text) = when (cue) {
+            Cue.WORK -> "Break complete" to "Work cycle ${p.cycle}/${settings.value.cycles} · ${fmtDur(p.ms)}" +
+                if (s.paused) " · tap Start when ready" else " started"
+            else -> "Work session complete" to "${fmtDur(settings.value.workMin * MIN)} focused → ${fmtDur(breakMs)} recovery. Lie down and get comfortable."
+        }
+        return Notification.Builder(app, CH_ALERT)
+            .setSmallIcon(R.drawable.ic_bowl)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(Notification.BigTextStyle().bigText(text))
+            .setContentIntent(openApp)
+            .setAutoCancel(true)
+            .setTimeoutAfter(2 * MIN)
+            .setCategory(Notification.CATEGORY_ALARM)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .addAction(if (s.paused) action(Receiver.RESUME, "Start") else action(Receiver.SKIP, "Skip"))
+            .build()
+    }
+
+    fun notification(): Notification {
         val s = session.value
         val pl = plan
-        val open = PendingIntent.getActivity(app, 0, Intent(app, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        val b = Notification.Builder(app, if (alert) CH_TRANSITION else CH_SESSION)
+        // The end-of-day summary is the one status post that should pop up.
+        val b = Notification.Builder(app, if (s.done(pl)) CH_ALERT else CH_STATUS)
             .setSmallIcon(R.drawable.ic_bowl)
             .setContentTitle(title(s))
             .setContentText(subtitle(s, now()))
-            .setContentIntent(open)
+            .setContentIntent(openApp)
+            .setOnlyAlertOnce(!s.done(pl))
             .setCategory(Notification.CATEGORY_STOPWATCH)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
         if (s.running(pl)) {
