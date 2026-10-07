@@ -25,7 +25,7 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 
 ## Screenshots
 
-| Setup | Work + focus music | Break · prepare | Box breathing |
+| Home | Work + focus music | Break · prepare | Box breathing |
 |:-:|:-:|:-:|:-:|
 | <img src="docs/screenshots/setup.png" width="200"> | <img src="docs/screenshots/work.png" width="200"> | <img src="docs/screenshots/break-prepare.png" width="200"> | <img src="docs/screenshots/break-breathing.png" width="200"> |
 
