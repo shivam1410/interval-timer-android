@@ -6,7 +6,7 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Gong + vibration** at every transition (single gong → break, double → work, long → day done)
 - **Home is quick**: Workday 50:10 · Deep 90:15 · Pomodoro 25:5 · Custom (only Custom shows the
   schedule controls), plus **quick timers** for one-off sessions — NSDR, Sketch, Stretch, Exercise,
-  Walk, Power nap, Box breathing
+  Walk, Power nap, Breathing
 - **Settings** (tap your photo): Google account & Drive sync, gong / vibration / volume, version
   and update check
 - **Breaks start with a 2-min prepare phase**; on the break screen you choose the activity
@@ -16,9 +16,10 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - **Stretch** (20 min): one of four 20-min videos, or a guided step routine
   - **Exercise**, **Eye + neck reset**: guided step-by-step with a timer per step
   - **Power nap** (20 min): black screen, hold to wake early; the gong wakes you
-  - **Silence**: live mic level graph and how quiet you were (nothing recorded)
+  - **Meditation**: sit in silence with a live stillness meter — how quiet you stayed (nothing recorded)
   - **Sketch**: opens [Sketch Seed](https://github.com/shivam1410/sketchseed)
-  - Box breathing animation, meditation bowls, ambient rain, walk
+  - **Refresh**: rain, ocean, whales, white / pink / brown / grey noise
+  - Breathing animation, walk
 - **Focus music** is picked on the work screen (brown noise, rain, ocean, singing bowls) and
   keeps playing with the screen off
 - **Actionable notification** with countdown, Pause and Skip — no need to open the app

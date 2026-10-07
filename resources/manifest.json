@@ -43,6 +43,30 @@
       "name": "Singing bowls",
       "file": "bowl.wav",
       "loop": true
+    },
+    {
+      "id": "whales",
+      "name": "Whales",
+      "file": "whales.wav",
+      "loop": true
+    },
+    {
+      "id": "white_noise",
+      "name": "White noise",
+      "file": "white_noise.wav",
+      "loop": true
+    },
+    {
+      "id": "pink_noise",
+      "name": "Pink noise",
+      "file": "pink_noise.wav",
+      "loop": true
+    },
+    {
+      "id": "grey_noise",
+      "name": "Grey noise",
+      "file": "grey_noise.wav",
+      "loop": true
     }
   ]
 }

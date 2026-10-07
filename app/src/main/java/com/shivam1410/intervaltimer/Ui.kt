@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -39,7 +40,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -235,24 +235,35 @@ private fun RowScope.PresetChip(name: String, ratio: String, selected: Boolean, 
 private fun QuickTimers() {
     val cs = MaterialTheme.colorScheme
     Text("Quick timers", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
-    // 4-column grid: every timer visible at once, no hidden horizontal scroll.
+    TileGrid(QUICK.map(::activity)) { a ->
+        ActivityTile(a, "${a.quickMin} min", cs.surfaceContainer, cs.onSurface, cs.onSurfaceVariant, "Start ${a.name}") { Timer.startQuick(a.id) }
+    }
+}
+
+/** 4-column grid of equal-height tiles; every item visible, no horizontal scroll. */
+@Composable
+private fun TileGrid(items: List<Activity>, tile: @Composable RowScope.(Activity) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        QUICK.map(::activity).chunked(4).forEach { row ->
+        items.chunked(4).forEach { row ->
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEach { a ->
-                    Column(
-                        Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(20.dp)).background(cs.surfaceContainer)
-                            .clickable(onClickLabel = "Start ${a.name}") { Timer.startQuick(a.id) }.padding(vertical = 14.dp, horizontal = 4.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(a.emoji, fontSize = 28.sp)
-                        Text(a.name, style = MaterialTheme.typography.labelMedium, maxLines = 2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
-                        Text("${a.quickMin} min", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
-                    }
-                }
+                row.forEach { tile(it) }
                 repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
+    }
+}
+
+/** Emoji, name and a small caption in a rounded tile — shared by quick timers and the break picker. */
+@Composable
+private fun RowScope.ActivityTile(a: Activity, caption: String, bg: Color, fg: Color, sub: Color, label: String, onClick: () -> Unit) {
+    Column(
+        Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(20.dp)).background(bg)
+            .clickable(onClickLabel = label, onClick = onClick).padding(vertical = 14.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(a.emoji, fontSize = 28.sp)
+        Text(a.name, style = MaterialTheme.typography.labelMedium, color = fg, maxLines = 2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+        if (caption.isNotEmpty()) Text(caption, style = MaterialTheme.typography.labelSmall, color = sub)
     }
 }
 
@@ -283,27 +294,19 @@ fun Toggle(icon: Int, label: String, value: Boolean, onChange: (Boolean) -> Unit
     }
 }
 
-/** Lives on the tertiary break card, so chips are solid fills rather than outlines on a tinted card. */
+/** Break picker: same tiles as the quick timers; solid surface tiles on the tinted card, chosen one filled. */
 @Composable
-private fun ActivityPicker(selected: String, onPick: (String) -> Unit) {
+private fun ActivityPicker(selected: String, breakMin: Int, onPick: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
-    val colors = FilterChipDefaults.filterChipColors(
-        containerColor = cs.surface,
-        labelColor = cs.onSurface,
-        selectedContainerColor = cs.tertiary,
-        selectedLabelColor = cs.onTertiary,
-    )
     ACTIVITIES.groupBy { it.group }.forEach { (group, items) ->
         Text(group, style = MaterialTheme.typography.labelLarge, color = cs.onTertiaryContainer, modifier = Modifier.padding(top = 4.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items.forEach { a ->
-                val on = selected == a.id
-                FilterChip(
-                    on, { onPick(a.id) }, { Text("${a.emoji} ${a.name}" + (a.minutes?.let { " · ${it}m" } ?: "")) },
-                    colors = colors,
-                    border = FilterChipDefaults.filterChipBorder(enabled = true, selected = on, borderColor = Color.Transparent),
-                )
-            }
+        TileGrid(items) { a ->
+            val on = selected == a.id
+            ActivityTile(
+                a, "${a.minutes ?: breakMin} min", // fixed 20-min activities, else the regular break length
+                if (on) cs.tertiary else cs.surface, if (on) cs.onTertiary else cs.onSurface,
+                if (on) cs.onTertiary else cs.onSurfaceVariant, "Choose ${a.name}",
+            ) { onPick(a.id) }
         }
     }
 }
@@ -375,8 +378,9 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                 ),
             ) { Text("Skip", fontSize = 18.sp) }
+            // End sits in the same row; it asks for confirmation.
+            OutlinedButton({ confirmEnd = true }, Modifier.weight(if (quick) 1f else 0.8f).height(56.dp)) { Text("End", fontSize = 18.sp) }
         }
-        OutlinedButton({ confirmEnd = true }, Modifier.padding(top = 12.dp)) { Text(if (quick) "End ${chosen.name}" else "End workday") }
     }
 
     if (confirmEnd) {
@@ -416,16 +420,22 @@ private fun BreakChoices(p: Phase, s: Session, chosen: Activity, elapsedMs: Long
             } else {
                 Text("${chosen.emoji}  ${chosen.name}", style = MaterialTheme.typography.titleLarge)
                 Text(chosen.hint, style = MaterialTheme.typography.bodyLarge)
-                ActivityCue(chosen, elapsedMs, s.paused)
             }
-            if (changing) ActivityPicker(chosen.id) { Timer.chooseActivity(it) }
-            // Same solid surface style as the activity chips; fixed height keeps the pair even.
+            // One row of actions: the activity's own button (play / open) + Change + +10 min, equal height.
             val cs = MaterialTheme.colorScheme
             val colors = ButtonDefaults.buttonColors(containerColor = cs.surface, contentColor = cs.onSurface)
-            Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!changing && !quick) Button({ changing = true }, Modifier.height(44.dp), colors = colors) { Text("Change activity") }
-                Button({ Timer.extendBreak() }, Modifier.height(44.dp), colors = colors) { Text("+10 min") }
+            val pad = PaddingValues(horizontal = 10.dp)
+            val primary = p.kind == Kind.ACTIVITY && hasPrimaryAction(chosen)
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (primary) PrimaryAction(chosen, Modifier.weight(1.4f).height(44.dp))
+                if (!quick) Button({ changing = !changing }, Modifier.weight(1f).height(44.dp), colors = colors, contentPadding = pad) {
+                    // Toggles the tile picker; "Done" closes it so the row never ends up with a lone button.
+                    Text(if (changing) "Done" else if (primary) "Change" else "Change activity", maxLines = 1)
+                }
+                Button({ Timer.extendBreak() }, Modifier.weight(1f).height(44.dp), colors = colors, contentPadding = pad) { Text("+10 min", maxLines = 1) }
             }
+            if (p.kind == Kind.ACTIVITY) ActivityCue(chosen, elapsedMs, s.paused)
+            if (changing) ActivityPicker(chosen.id, Timer.settings.value.breakMin) { Timer.chooseActivity(it) }
         }
     }
 }

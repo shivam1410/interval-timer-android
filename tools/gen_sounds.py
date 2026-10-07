@@ -93,6 +93,54 @@ def ocean(n):
     return [x * (0.15 + 0.85 * (0.5 - 0.5 * math.cos(2 * math.pi * i / period)) ** 2) for i, x in enumerate(b)]
 
 
+def white(n):
+    return [random.uniform(-1, 1) for _ in range(n)]
+
+
+def pink(n):
+    # Paul Kellet's economy pink filter
+    b0 = b1 = b2 = 0.0
+    out = []
+    for _ in range(n):
+        w = random.uniform(-1, 1)
+        b0 = 0.99765 * b0 + w * 0.0990460
+        b1 = 0.96300 * b1 + w * 0.2965164
+        b2 = 0.57000 * b2 + w * 1.0526913
+        out.append(b0 + b1 + b2 + w * 0.1848)
+    return out
+
+
+def grey(n):
+    # ponytail: rough equal-loudness shape = pink with extra lows and a touch of highs
+    p, b = pink(n), brown(n, 0.02)
+    w = white(n)
+    return [0.6 * p[i] + 0.9 * b[i] + 0.08 * w[i] for i in range(n)]
+
+
+def whales(seconds=60.0):
+    """Slow gliding calls with vibrato over a soft ocean bed."""
+    n = int(seconds * SR)
+    buf = [x * 0.25 for x in ocean(n)]
+    t0 = 0.0
+    while t0 < seconds - 6:
+        dur = random.uniform(2.5, 5.0)
+        f_a, f_b = random.uniform(120, 260), random.uniform(250, 600)
+        if random.random() < 0.5:
+            f_a, f_b = f_b, f_a
+        start, length, phase = int(t0 * SR), int(dur * SR), 0.0
+        for j in range(length):
+            x = j / length
+            f = f_a + (f_b - f_a) * (0.5 - 0.5 * math.cos(math.pi * x)) + 6 * math.sin(2 * math.pi * 5 * j / SR)
+            phase += 2 * math.pi * f / SR
+            env = math.sin(math.pi * x) ** 2
+            v = env * (math.sin(phase) + 0.3 * math.sin(2 * phase) + 0.1 * math.sin(3 * phase))
+            for k, (d, g) in enumerate(((0, 1.0), (0.21, 0.35), (0.47, 0.18))):  # cheap echo
+                i = (start + j + int(d * SR)) % n
+                buf[i] += 0.6 * g * v
+        t0 += dur + random.uniform(1.5, 5.0)
+    return buf
+
+
 def bowl_drone(seconds=40.0):
     buf = [0.0] * int(seconds * SR)
     for k, at in enumerate(range(0, int(seconds), 10)):
@@ -110,6 +158,10 @@ if __name__ == "__main__":
     write("rain.wav", seamless(rain, 30))
     write("ocean.wav", seamless(ocean, 40))
     write("bowl.wav", bowl_drone())
+    write("white_noise.wav", seamless(white, 20))
+    write("pink_noise.wav", seamless(pink, 30))
+    write("grey_noise.wav", seamless(grey, 30))
+    write("whales.wav", whales())
     manifest = {
         "sounds": [
             {"id": "gong", "name": "Gong", "file": "gong.wav"},
@@ -120,6 +172,10 @@ if __name__ == "__main__":
             {"id": "rain", "name": "Rain", "file": "rain.wav", "loop": True},
             {"id": "ocean", "name": "Ocean", "file": "ocean.wav", "loop": True},
             {"id": "bowl", "name": "Singing bowls", "file": "bowl.wav", "loop": True},
+            {"id": "whales", "name": "Whales", "file": "whales.wav", "loop": True},
+            {"id": "white_noise", "name": "White noise", "file": "white_noise.wav", "loop": True},
+            {"id": "pink_noise", "name": "Pink noise", "file": "pink_noise.wav", "loop": True},
+            {"id": "grey_noise", "name": "Grey noise", "file": "grey_noise.wav", "loop": True},
         ]
     }
     with open(os.path.join(OUT, "manifest.json"), "w") as f:

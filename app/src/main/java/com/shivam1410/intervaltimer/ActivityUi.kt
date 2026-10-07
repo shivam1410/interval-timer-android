@@ -61,18 +61,26 @@ private const val SKETCH_SEED_RELEASES = "https://github.com/shivam1410/sketchse
 /** Per-activity extra on the break card: guided steps, a play/open button, or the silence meter. */
 @Composable
 fun ActivityCue(a: Activity, elapsedMs: Long, paused: Boolean) {
+    when {
+        a.steps.isNotEmpty() -> StepGuide(a.steps, elapsedMs)
+        a.id == "meditation" && !paused -> SilenceMeter()
+    }
+}
+
+fun hasPrimaryAction(a: Activity) = a.tracks.isNotEmpty() || a.app != null
+
+/** The activity's main button (play a track / open Sketch Seed), sized to sit in one row with Change and +10 min. */
+@Composable
+fun PrimaryAction(a: Activity, modifier: Modifier) {
     val ctx = LocalContext.current
     val cs = MaterialTheme.colorScheme
     val solid = ButtonDefaults.buttonColors(containerColor = cs.tertiary, contentColor = cs.onTertiary)
-    if (a.tracks.isNotEmpty()) {
-        Button({ open(ctx, a.tracks.random()) }, Modifier.fillMaxWidth().height(48.dp), colors = solid) { Text("▶  ${a.playLabel}") }
-    }
+    val pad = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)
     when {
-        a.steps.isNotEmpty() -> StepGuide(a.steps, elapsedMs)
-        a.app != null -> Button({ launch(ctx, a.app) }, Modifier.fillMaxWidth().height(48.dp), colors = solid) {
-            Text(if (installed(ctx, a.app)) "✏️  Open Sketch Seed" else "Get Sketch Seed")
+        a.tracks.isNotEmpty() -> Button({ open(ctx, a.tracks.random()) }, modifier, colors = solid, contentPadding = pad) { Text("▶  ${a.playLabel}", maxLines = 1) }
+        a.app != null -> Button({ launch(ctx, a.app) }, modifier, colors = solid, contentPadding = pad) {
+            Text(if (installed(ctx, a.app)) "✏️  Open Sketch Seed" else "Get Sketch Seed", maxLines = 1)
         }
-        a.id == "silence" && !paused -> SilenceMeter()
     }
 }
 

@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
-        if (Media.missing) Media.sync()
+        Media.sync() // refreshes the sound list from GitHub; only new files are downloaded
         Updater.check(this)
         Drive.sync()
         setContent { AppTheme { Root(now.longValue) } }

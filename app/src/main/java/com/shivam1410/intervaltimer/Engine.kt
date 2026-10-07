@@ -48,8 +48,9 @@ data class Activity(
 const val SKETCH_SEED = "com.shivam.sketchseed"
 
 val ACTIVITIES = listOf(
-    Activity("breathing", "🫁", "Box breathing", "Recover", "Inhale 4 · hold 4 · exhale 4 · hold 4", quickMin = 5),
-    Activity("meditation", "🧘", "Meditation", "Recover", "Eyes closed. Follow the breath. Let thoughts pass.", "bowl"),
+    Activity("breathing", "🫁", "Breathing", "Recover", "Box breathing: inhale 4 · hold 4 · exhale 4 · hold 4", quickMin = 5),
+    // Meditation and the old "Silence" were the same thing; one activity: silent, with the stillness meter.
+    Activity("meditation", "🧘", "Meditation", "Recover", "Sit still, eyes closed. Follow the breath; let thoughts pass."),
     Activity(
         "nsdr", "😌", "NSDR", "Recover", "Lie down, press play and follow the voice. 20-minute Non-Sleep Deep Rest.",
         minutes = 20,
@@ -57,7 +58,7 @@ val ACTIVITIES = listOf(
             "https://music.youtube.com/watch?v=bk_lD69u204", // Yog Nidra — Sri Sri Ravi Shankar
             "https://music.youtube.com/watch?v=iRR2yCoIaYY", // 20 Minute NSDR — Dr. Andrew Huberman
         ),
-        playLabel = "Play NSDR on YouTube Music",
+        playLabel = "Play NSDR",
         quickMin = 20,
     ),
     Activity("nap", "💤", "Power nap", "Recover", "Sleep. The gong will wake you.", minutes = 20, quickMin = 20),
@@ -70,7 +71,7 @@ val ACTIVITIES = listOf(
             "https://www.youtube.com/watch?v=aGcwjh4kETQ", // 20 Min Daily Yoga Stretch — Mady Morrison
             "https://www.youtube.com/watch?v=FFYQ4MEvueY", // 20 min Deep Yoga Stretch — YOGATX
         ),
-        playLabel = "Play a 20-min stretch video",
+        playLabel = "Play video",
         quickMin = 20,
         steps = listOf(
             Step("Neck rolls, slow circles", 40), Step("Shoulder rolls, back and down", 40),
@@ -96,9 +97,15 @@ val ACTIVITIES = listOf(
             Step("Chin tucks, hold 3 seconds each", 30), Step("Ear to shoulder, left then right", 40),
         ),
     ),
-    Activity("ambient", "🌧", "Ambient sound", "Refresh", "Rain. Just listen.", "rain"),
-    Activity("silence", "🤫", "Silence", "Refresh", "Nothing. Just be."),
-    Activity("sketch", "✏️", "Sketch", "Create", "Draw today's prompt in Sketch Seed.", app = SKETCH_SEED, quickMin = 20),
+    // Refresh: one tile per soundscape (files live in resources/ on GitHub).
+    Activity("rain", "🌧", "Rain", "Refresh", "Rain. Just listen.", "rain"),
+    Activity("ocean", "🌊", "Ocean", "Refresh", "Waves rolling in and out.", "ocean"),
+    Activity("whales", "🐋", "Whales", "Refresh", "Whale song over the deep.", "whales"),
+    Activity("white_noise", "⚪", "White noise", "Refresh", "Even hiss that masks everything.", "white_noise"),
+    Activity("pink_noise", "🌸", "Pink noise", "Refresh", "Softer than white; like steady rain.", "pink_noise"),
+    Activity("brown_noise", "🟤", "Brown noise", "Refresh", "Deep rumble, like a distant waterfall.", "brown_noise"),
+    Activity("grey_noise", "🌫", "Grey noise", "Refresh", "Balanced to sound even to the ear.", "grey_noise"),
+    Activity("sketch", "✏️", "Sketch", "Create", "Draw today's prompt in Sketch Seed.", app = SKETCH_SEED, minutes = 15, quickMin = 15),
 )
 
 /** The step of a guided routine at [elapsedMs] into the activity (routine loops), and seconds left in it. */
@@ -112,7 +119,9 @@ fun stepAt(steps: List<Step>, elapsedMs: Long): Pair<Int, Int>? {
     return null
 }
 
-fun activity(id: String) = ACTIVITIES.firstOrNull { it.id == id } ?: ACTIVITIES[0]
+private val RENAMED = mapOf("silence" to "meditation", "ambient" to "rain")
+
+fun activity(id: String) = ACTIVITIES.firstOrNull { it.id == (RENAMED[id] ?: id) } ?: ACTIVITIES[0]
 
 enum class Kind { WORK, PREP, ACTIVITY }
 
