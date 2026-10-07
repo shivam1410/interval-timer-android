@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -192,9 +193,11 @@ private fun Setup(s: Settings, now: Long) {
                 Text("Volume ${s.volume}%", style = MaterialTheme.typography.bodyMedium)
                 Slider(s.volume.toFloat(), { v -> set { copy(volume = v.toInt()) } }, valueRange = 10f..100f)
             }
+            val updateStatus by Updater.status.collectAsState()
+            val ctx = LocalContext.current
             Text(
-                "v${BuildConfig.VERSION_NAME}",
-                Modifier.fillMaxWidth().padding(vertical = 16.dp), textAlign = TextAlign.Center,
+                "v${BuildConfig.VERSION_NAME} · ${updateStatus.ifEmpty { "tap to check for updates" }}",
+                Modifier.fillMaxWidth().clickable { Updater.check(ctx) }.padding(vertical = 16.dp), textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline,
             )
         }
