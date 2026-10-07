@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -237,7 +239,7 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
     val (workDone, breakDone) = totals(plan, s, now)
     val chosen = activity(settings.activity)
     val phaseMs = s.phaseMs.takeIf { it > 0 } ?: p.ms
-    val brk = if (s.bonus > 0) "LONG BREAK" else "BREAK"
+    val brk = if (s.bonus > 0) "LONG BREAK · +${extraMin(s)} MIN" else "BREAK"
     val label = when (p.kind) {
         Kind.WORK -> "WORK"
         Kind.PREP -> "$brk · PREPARE"
@@ -267,9 +269,12 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
 
         if (isWork) FocusMusic(settings.focusSound) else BreakChoices(p, s, chosen)
 
-        Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Stat("Today", "${fmtDur(workDone)} work", "${fmtDur(breakDone)} breaks", Modifier.weight(1f))
-            Stat("Next", Timer.subtitle(s, now).removePrefix("Next: ").takeIf { isWork } ?: nextLabel(plan, s), "", Modifier.weight(1f))
+        Row(
+            Modifier.fillMaxWidth().padding(top = 16.dp).height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Stat("Today", "${fmtDur(workDone)} work", "${fmtDur(breakDone)} breaks", Modifier.weight(1f).fillMaxHeight())
+            Stat("Next", Timer.subtitle(s, now).removePrefix("Next: ").takeIf { isWork } ?: nextLabel(plan, s), "", Modifier.weight(1f).fillMaxHeight())
         }
 
         Row(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -278,7 +283,14 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
                 Modifier.weight(1f).height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = accent),
             ) { Text(if (s.paused) (if (s.pausedLeft == phaseMs) "Start" else "Resume") else "Pause", fontSize = 18.sp) }
-            FilledTonalButton({ Timer.skip() }, Modifier.weight(1f).height(56.dp)) { Text("Skip", fontSize = 18.sp) }
+            FilledTonalButton(
+                { Timer.skip() }, Modifier.weight(1f).height(56.dp),
+                colors = if (isWork) ButtonDefaults.filledTonalButtonColors()
+                else ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                ),
+            ) { Text("Skip", fontSize = 18.sp) }
         }
         OutlinedButton({ confirmEnd = true }, Modifier.padding(top = 12.dp)) { Text("End workday") }
     }
@@ -321,11 +333,12 @@ private fun BreakChoices(p: Phase, s: Session, chosen: Activity) {
                 Text(chosen.hint, style = MaterialTheme.typography.bodyLarge)
             }
             if (changing) ActivityPicker(chosen.id) { Timer.chooseActivity(it) }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!changing) OutlinedButton({ changing = true }) { Text("Change activity") }
-                OutlinedButton({ Timer.extendBreak() }) {
-                    Text(if (s.bonus > 0) "Longer +10 min (now +${extraMin(s)})" else "Make it longer +10 min")
-                }
+            // Same solid surface style as the activity chips; fixed height keeps the pair even.
+            val cs = MaterialTheme.colorScheme
+            val colors = ButtonDefaults.buttonColors(containerColor = cs.surface, contentColor = cs.onSurface)
+            Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!changing) Button({ changing = true }, Modifier.height(44.dp), colors = colors) { Text("Change activity") }
+                Button({ Timer.extendBreak() }, Modifier.height(44.dp), colors = colors) { Text("+10 min") }
             }
         }
     }
