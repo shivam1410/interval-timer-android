@@ -1,0 +1,48 @@
+{
+  "sounds": [
+    {
+      "id": "gong",
+      "name": "Gong",
+      "file": "gong.wav"
+    },
+    {
+      "id": "gong_double",
+      "name": "Double gong",
+      "file": "gong_double.wav"
+    },
+    {
+      "id": "gong_long",
+      "name": "Long gong",
+      "file": "gong_long.wav"
+    },
+    {
+      "id": "bell",
+      "name": "Soft bell",
+      "file": "bell.wav"
+    },
+    {
+      "id": "brown_noise",
+      "name": "Brown noise",
+      "file": "brown_noise.wav",
+      "loop": true
+    },
+    {
+      "id": "rain",
+      "name": "Rain",
+      "file": "rain.wav",
+      "loop": true
+    },
+    {
+      "id": "ocean",
+      "name": "Ocean",
+      "file": "ocean.wav",
+      "loop": true
+    },
+    {
+      "id": "bowl",
+      "name": "Singing bowls",
+      "file": "bowl.wav",
+      "loop": true
+    }
+  ]
+}
