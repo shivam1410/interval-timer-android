@@ -1,5 +1,7 @@
 package com.shivam1410.intervaltimer
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
@@ -41,7 +44,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -50,12 +52,10 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.activity.compose.BackHandler
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -93,13 +93,13 @@ fun Root(now: Long) {
     val settings by Timer.settings.collectAsState()
     val update by Updater.ready.collectAsState()
     val updateError by Updater.error.collectAsState()
-    val plan = remember(settings) { plan(settings) }
+    val plan = remember(settings, session.quick) { session.quick?.let(::quickPlan) ?: plan(settings) }
     val ctx = LocalContext.current
-    var showHistory by rememberSaveable { mutableStateOf(false) }
-    BackHandler(showHistory) { showHistory = false }
+    var page by rememberSaveable { mutableStateOf("") } // "", "history", "settings"
+    BackHandler(page.isNotEmpty()) { page = "" }
 
     // Power nap goes fully black, status bar included, with light status icons.
-    val napping = session.running(plan) && !session.paused && plan[session.index].kind == Kind.ACTIVITY && settings.activity == "nap"
+    val napping = session.running(plan) && !session.paused && plan[session.index].kind == Kind.ACTIVITY && (session.quick ?: settings.activity) == "nap"
     val view = LocalView.current
     val dark = isSystemInDarkTheme()
     SideEffect {
@@ -114,9 +114,10 @@ fun Root(now: Long) {
         }
         updateError?.let { Banner(it, "OK") { Updater.error.value = null } }
         when {
-            showHistory -> HistoryScreen { showHistory = false }
-            session.idle -> Setup(settings, now) { showHistory = true }
-            session.done(plan) -> Done(session, settings) { showHistory = true }
+            page == "history" -> HistoryScreen { page = "" }
+            page == "settings" -> SettingsScreen(settings) { page = "" }
+            session.idle -> Setup(settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" })
+            session.done(plan) -> Done(session, settings) { page = "history" }
             else -> Running(plan, session, settings, now)
         }
     }
@@ -144,7 +145,7 @@ private fun Banner(text: String, action: String, onClick: () -> Unit) {
 // ---------- Setup ----------
 
 @Composable
-private fun Setup(s: Settings, now: Long, onHistory: () -> Unit) {
+private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () -> Unit) {
     val total = plan(s).sumOf { it.ms }
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val first = Drive.profile.collectAsState().value?.displayName?.substringBefore(' ').orEmpty()
@@ -158,7 +159,7 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit) {
                 Text(greeting, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 HistoryPill(onHistory)
                 Spacer(Modifier.width(8.dp))
-                ProfileChip()
+                ProfileChip(onSettings)
             }
             Text("Your workday", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 20.dp))
             Text(
@@ -170,37 +171,26 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            // One row, equal widths: name above the bold ratio so all three fit.
-            Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Four equal quick picks; only Custom reveals the schedule steppers.
+            Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 PRESETS.forEach { p ->
-                    FilterChip(
-                        selected = s.workMin == p.work && s.breakMin == p.brk && s.cycles == p.cycles,
-                        onClick = { set { copy(workMin = p.work, breakMin = p.brk, cycles = p.cycles) } },
-                        label = {
-                            Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(p.name, style = MaterialTheme.typography.labelMedium)
-                                Text("${p.work}:${p.brk}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
+                    PresetChip(p.name.substringBefore(' '), "${p.work}:${p.brk}", !s.custom && s.workMin == p.work && s.breakMin == p.brk && s.cycles == p.cycles) {
+                        set { copy(workMin = p.work, breakMin = p.brk, cycles = p.cycles, custom = false) }
+                    }
+                }
+                PresetChip("Custom", if (s.custom) "${s.workMin}:${s.breakMin}" else "···", s.custom) { set { copy(custom = true) } }
+            }
+
+            if (s.custom) {
+                Section("Schedule") {
+                    Stepper("Work", s.workMin, "min", 1..180) { v -> set { copy(workMin = v) } }
+                    Stepper("Break", s.breakMin, "min", 1..60) { v -> set { copy(breakMin = v) } }
+                    Stepper("Prepare (in break)", s.prepMin, "min", 0..10) { v -> set { copy(prepMin = v) } }
+                    Stepper("Cycles", s.cycles, "", 1..16) { v -> set { copy(cycles = v) } }
                 }
             }
 
-            Section("Schedule") {
-                Stepper("Work", s.workMin, "min", 1..180) { v -> set { copy(workMin = v) } }
-                Stepper("Break", s.breakMin, "min", 1..60) { v -> set { copy(breakMin = v) } }
-                Stepper("Prepare (in break)", s.prepMin, "min", 0..10) { v -> set { copy(prepMin = v) } }
-                Stepper("Cycles", s.cycles, "", 1..16) { v -> set { copy(cycles = v) } }
-            }
-
-            Section("Alerts") {
-                Toggle(R.drawable.ic_gong, "Gong", s.gong) { v -> set { copy(gong = v) } }
-                Toggle(R.drawable.ic_vibrate, "Vibration", s.vibrate) { v -> set { copy(vibrate = v) } }
-                Toggle(R.drawable.ic_hourglass, "Wait before each work block", s.waitBeforeWork) { v -> set { copy(waitBeforeWork = v) } }
-                Text("Volume ${s.volume}%", style = MaterialTheme.typography.bodyMedium)
-                Slider(s.volume.toFloat(), { v -> set { copy(volume = v.toInt()) } }, valueRange = 10f..100f)
-            }
+            QuickTimers()
             Spacer(Modifier.height(16.dp))
         }
         Button(
@@ -228,7 +218,46 @@ private fun HistoryPill(onClick: () -> Unit) {
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+private fun RowScope.PresetChip(name: String, ratio: String, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected, onClick = onClick, modifier = Modifier.weight(1f),
+        label = {
+            Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(name, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                Text(ratio, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            }
+        },
+    )
+}
+
+/** One-off activity timers on home: tap to start a single NSDR / stretch / walk / … session now. */
+@Composable
+private fun QuickTimers() {
+    val cs = MaterialTheme.colorScheme
+    Text("Quick timers", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+    // 4-column grid: every timer visible at once, no hidden horizontal scroll.
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        QUICK.map(::activity).chunked(4).forEach { row ->
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { a ->
+                    Column(
+                        Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(20.dp)).background(cs.surfaceContainer)
+                            .clickable(onClickLabel = "Start ${a.name}") { Timer.startQuick(a.id) }.padding(vertical = 14.dp, horizontal = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(a.emoji, fontSize = 28.sp)
+                        Text(a.name, style = MaterialTheme.typography.labelMedium, maxLines = 2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+                        Text("${a.quickMin} min", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                    }
+                }
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+@Composable
+fun Section(title: String, content: @Composable () -> Unit) {
     Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
@@ -246,7 +275,7 @@ private fun Stepper(label: String, value: Int, unit: String, range: IntRange, on
 }
 
 @Composable
-private fun Toggle(icon: Int, label: String, value: Boolean, onChange: (Boolean) -> Unit) {
+fun Toggle(icon: Int, label: String, value: Boolean, onChange: (Boolean) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(painterResource(icon), null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
         Text(label, Modifier.weight(1f).padding(start = 14.dp))
@@ -285,18 +314,20 @@ private fun ActivityPicker(selected: String, onPick: (String) -> Unit) {
 private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long) {
     val p = plan[s.index]
     val left = s.left(now)
-    if (p.kind == Kind.ACTIVITY && settings.activity == "nap" && !s.paused) return NapScreen(s)
+    val quick = s.quick != null
+    val chosen = activity(s.quick ?: settings.activity)
+    if (p.kind == Kind.ACTIVITY && chosen.id == "nap" && !s.paused) return NapScreen(s)
     val isWork = p.kind == Kind.WORK
     val accent = if (isWork) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
     var confirmEnd by remember { mutableStateOf(false) }
     val (workDone, breakDone) = totals(plan, s, now)
-    val chosen = activity(settings.activity)
     val phaseMs = s.phaseMs.takeIf { it > 0 } ?: p.ms
     val brk = if (s.bonus > 0) "LONG BREAK · +${extraMin(s)} MIN" else "BREAK"
-    val label = when (p.kind) {
-        Kind.WORK -> "WORK"
-        Kind.PREP -> "$brk · PREPARE"
-        Kind.ACTIVITY -> brk
+    val label = when {
+        quick -> chosen.name.uppercase() + if (s.bonus > 0) " · +${extraMin(s)} MIN" else ""
+        p.kind == Kind.WORK -> "WORK"
+        p.kind == Kind.PREP -> "$brk · PREPARE"
+        else -> brk
     }
 
     Column(
@@ -314,15 +345,15 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
             if (p.kind == Kind.ACTIVITY && chosen.id == "breathing" && !s.paused) Breathing(accent)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(fmt(left), fontSize = 64.sp, fontWeight = FontWeight.Light)
-                Text("Cycle ${p.cycle} / ${settings.cycles}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(if (quick) "Quick timer" else "Cycle ${p.cycle} / ${settings.cycles}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
-        Segments(plan, s, accent)
+        if (!quick) Segments(plan, s, accent)
 
         if (isWork) FocusMusic(settings.focusSound) else BreakChoices(p, s, chosen, s.phaseMs - left)
 
-        Row(
+        if (!quick) Row(
             Modifier.fillMaxWidth().padding(top = 16.dp).height(IntrinsicSize.Min),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -336,7 +367,7 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
                 Modifier.weight(1f).height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = accent),
             ) { Text(if (s.paused) (if (s.pausedLeft == phaseMs) "Start" else "Resume") else "Pause", fontSize = 18.sp) }
-            FilledTonalButton(
+            if (!quick) FilledTonalButton(
                 { Timer.skip() }, Modifier.weight(1f).height(56.dp),
                 colors = if (isWork) ButtonDefaults.filledTonalButtonColors()
                 else ButtonDefaults.filledTonalButtonColors(
@@ -345,13 +376,13 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
                 ),
             ) { Text("Skip", fontSize = 18.sp) }
         }
-        OutlinedButton({ confirmEnd = true }, Modifier.padding(top = 12.dp)) { Text("End workday") }
+        OutlinedButton({ confirmEnd = true }, Modifier.padding(top = 12.dp)) { Text(if (quick) "End ${chosen.name}" else "End workday") }
     }
 
     if (confirmEnd) {
         AlertDialog(
             onDismissRequest = { confirmEnd = false },
-            title = { Text("End workday?") },
+            title = { Text(if (quick) "End ${chosen.name}?" else "End workday?") },
             text = { Text("The schedule and alarms will be cleared.") },
             confirmButton = { TextButton({ confirmEnd = false; Timer.stop() }) { Text("End") } },
             dismissButton = { TextButton({ confirmEnd = false }) { Text("Keep going") } },
@@ -371,6 +402,7 @@ private fun nextLabel(plan: List<Phase>, s: Session): String {
 /** Chosen during the break itself: what to do, and whether to make it a long one. */
 @Composable
 private fun BreakChoices(p: Phase, s: Session, chosen: Activity, elapsedMs: Long) {
+    val quick = s.quick != null
     var changing by remember(s.index) { mutableStateOf(p.kind == Kind.PREP) }
     Card(
         Modifier.fillMaxWidth().padding(top = 20.dp),
@@ -391,7 +423,7 @@ private fun BreakChoices(p: Phase, s: Session, chosen: Activity, elapsedMs: Long
             val cs = MaterialTheme.colorScheme
             val colors = ButtonDefaults.buttonColors(containerColor = cs.surface, contentColor = cs.onSurface)
             Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!changing) Button({ changing = true }, Modifier.height(44.dp), colors = colors) { Text("Change activity") }
+                if (!changing && !quick) Button({ changing = true }, Modifier.height(44.dp), colors = colors) { Text("Change activity") }
                 Button({ Timer.extendBreak() }, Modifier.height(44.dp), colors = colors) { Text("+10 min") }
             }
         }
@@ -477,19 +509,24 @@ private fun Done(s: Session, settings: Settings, onHistory: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("🎉", fontSize = 64.sp)
-        Text("Workday complete", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 12.dp))
+        val q = s.quick?.let(::activity)
+        Text(q?.emoji ?: "🎉", fontSize = 64.sp)
+        Text(q?.let { "${it.name} complete" } ?: "Workday complete", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 12.dp))
         Card(Modifier.fillMaxWidth().padding(top = 24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Line("Focused", fmtDur(work))
-                Line("Breaks", fmtDur(rest))
-                Line("Cycles", "${s.cycles} / ${settings.cycles}")
+                if (q != null) {
+                    Line("Duration", fmtDur(rest))
+                } else {
+                    Line("Focused", fmtDur(work))
+                    Line("Breaks", fmtDur(rest))
+                    Line("Cycles", "${s.cycles} / ${settings.cycles}")
+                }
                 Line("Started", clock(s.startedAt))
                 Line("Finished", clock(s.finishedAt))
             }
         }
         Button({ Timer.stop() }, Modifier.fillMaxWidth().padding(top = 24.dp).height(56.dp)) { Text("Done") }
-        OutlinedButton(onHistory, Modifier.fillMaxWidth().padding(top = 12.dp).height(56.dp)) { Text("View history") }
+        if (s.quick == null) OutlinedButton(onHistory, Modifier.fillMaxWidth().padding(top = 12.dp).height(56.dp)) { Text("View history") }
     }
 }
 

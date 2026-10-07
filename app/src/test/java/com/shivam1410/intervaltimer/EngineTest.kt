@@ -129,6 +129,15 @@ class EngineTest {
         assertEquals(0.5f, quietShare(listOf(-60f, -20f)), 0.001f)
     }
 
+    @Test fun quickTimerIsOneActivityThenDone() {
+        val q = quickPlan("nsdr")
+        assertEquals(listOf(Kind.ACTIVITY), q.map { it.kind })
+        assertEquals(20 * MIN, q[0].ms)
+        val done = catchUp(q, start(q, 0).copy(quick = "nsdr"), 20 * MIN)
+        assertTrue(done.done(q))
+        assertEquals(20 * MIN, done.breakMs)
+    }
+
     @Test fun versionCompare() {
         assertTrue(isNewer("v1.0.10", "1.0.9"))
         assertFalse(isNewer("v1.0.0", "1.0.0"))

@@ -4,12 +4,21 @@ A low-power workday timer for Android (built for the Pixel 10 / Android 16): sta
 morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** on its own.
 
 - **Gong + vibration** at every transition (single gong → break, double → work, long → day done)
-- **Setup is just the schedule** (presets 50:10, 90:15, 25:5) and alerts; everything else is
-  decided while the timer runs
+- **Home is quick**: Workday 50:10 · Deep 90:15 · Pomodoro 25:5 · Custom (only Custom shows the
+  schedule controls), plus **quick timers** for one-off sessions — NSDR, Sketch, Stretch, Exercise,
+  Walk, Power nap, Box breathing
+- **Settings** (tap your photo): Google account & Drive sync, gong / vibration / volume, version
+  and update check
 - **Breaks start with a 2-min prepare phase**; on the break screen you choose the activity
-  (box breathing, meditation, NSDR, power nap, stretch, walk, eye reset, hydrate, ambient, silence)
   and can make it a **long break** (+10 min each tap, also from the notification); the rest of
-  the day shifts later
+  the day shifts later. Activities have their own cues:
+  - **NSDR** (20 min): plays Yog Nidra or Huberman's NSDR on YouTube Music, picked at random
+  - **Stretch** (20 min): one of four 20-min videos, or a guided step routine
+  - **Exercise**, **Eye + neck reset**: guided step-by-step with a timer per step
+  - **Power nap** (20 min): black screen, hold to wake early; the gong wakes you
+  - **Silence**: live mic level graph and how quiet you were (nothing recorded)
+  - **Sketch**: opens [Sketch Seed](https://github.com/shivam1410/sketchseed)
+  - Box breathing animation, meditation bowls, ambient rain, walk
 - **Focus music** is picked on the work screen (brown noise, rain, ocean, singing bowls) and
   keeps playing with the screen off
 - **Actionable notification** with countdown, Pause and Skip — no need to open the app
@@ -29,9 +38,9 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 |:-:|:-:|:-:|:-:|
 | <img src="docs/screenshots/setup.png" width="200"> | <img src="docs/screenshots/work.png" width="200"> | <img src="docs/screenshots/break-prepare.png" width="200"> | <img src="docs/screenshots/break-breathing.png" width="200"> |
 
-| History (sample data) | Dark: work | Dark: break | Phase-change notification |
+| History (sample data) | Settings | Dark: work | Dark: break |
 |:-:|:-:|:-:|:-:|
-| <img src="docs/screenshots/history.png" width="200"> | <img src="docs/screenshots/work-dark.png" width="200"> | <img src="docs/screenshots/break-dark.png" width="200"> | <img src="docs/screenshots/notifications.png" width="200"> |
+| <img src="docs/screenshots/history.png" width="200"> | <img src="docs/screenshots/settings.png" width="200"> | <img src="docs/screenshots/work-dark.png" width="200"> | <img src="docs/screenshots/break-dark.png" width="200"> |
 
 Light and dark follow the system theme, with Material You colours from the wallpaper.
 

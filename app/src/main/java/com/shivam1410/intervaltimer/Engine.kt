@@ -17,6 +17,7 @@ data class Settings(
     val vibrate: Boolean = true,
     val volume: Int = 70,
     val waitBeforeWork: Boolean = false,
+    val custom: Boolean = false, // "Custom" preset chosen: the schedule steppers are shown
 )
 
 data class Preset(val name: String, val work: Int, val brk: Int, val cycles: Int)
@@ -41,12 +42,13 @@ data class Activity(
     val tracks: List<String> = emptyList(), // YouTube / YouTube Music links; one is picked at random on play
     val playLabel: String = "",
     val app: String? = null, // package launched by the activity's button
+    val quickMin: Int? = null, // offered as a one-off quick timer on home, for this long
 )
 
 const val SKETCH_SEED = "com.shivam.sketchseed"
 
 val ACTIVITIES = listOf(
-    Activity("breathing", "🫁", "Box breathing", "Recover", "Inhale 4 · hold 4 · exhale 4 · hold 4"),
+    Activity("breathing", "🫁", "Box breathing", "Recover", "Inhale 4 · hold 4 · exhale 4 · hold 4", quickMin = 5),
     Activity("meditation", "🧘", "Meditation", "Recover", "Eyes closed. Follow the breath. Let thoughts pass.", "bowl"),
     Activity(
         "nsdr", "😌", "NSDR", "Recover", "Lie down, press play and follow the voice. 20-minute Non-Sleep Deep Rest.",
@@ -56,8 +58,9 @@ val ACTIVITIES = listOf(
             "https://music.youtube.com/watch?v=iRR2yCoIaYY", // 20 Minute NSDR — Dr. Andrew Huberman
         ),
         playLabel = "Play NSDR on YouTube Music",
+        quickMin = 20,
     ),
-    Activity("nap", "💤", "Power nap", "Recover", "Sleep. The gong will wake you.", minutes = 20),
+    Activity("nap", "💤", "Power nap", "Recover", "Sleep. The gong will wake you.", minutes = 20, quickMin = 20),
     Activity(
         "stretch", "🧎", "Stretch", "Move", "Play a guided video, or follow the steps below.",
         minutes = 20,
@@ -68,13 +71,23 @@ val ACTIVITIES = listOf(
             "https://www.youtube.com/watch?v=FFYQ4MEvueY", // 20 min Deep Yoga Stretch — YOGATX
         ),
         playLabel = "Play a 20-min stretch video",
+        quickMin = 20,
         steps = listOf(
             Step("Neck rolls, slow circles", 40), Step("Shoulder rolls, back and down", 40),
             Step("Chest opener: hands clasped behind you", 40), Step("Side bend, left then right", 40),
             Step("Forward fold, knees soft", 40), Step("Hip flexor lunge, switch at halfway", 60),
         ),
     ),
-    Activity("walk", "🚶", "Walk", "Move", "Stand up and walk until the gong. Leave the phone."),
+    Activity("walk", "🚶", "Walk", "Move", "Stand up and walk until the gong. Leave the phone.", quickMin = 15),
+    Activity(
+        "exercise", "💪", "Exercise", "Move", "Bodyweight circuit: 40 s on, 20 s rest. Repeat until the gong.",
+        quickMin = 15,
+        steps = listOf(
+            Step("Squats", 40), Step("Rest", 20), Step("Push-ups (knees are fine)", 40), Step("Rest", 20),
+            Step("Reverse lunges, alternate legs", 40), Step("Rest", 20), Step("Plank", 40), Step("Rest", 20),
+            Step("Glute bridges", 40), Step("Rest", 20), Step("Jumping jacks", 40), Step("Rest", 20),
+        ),
+    ),
     Activity(
         "eyes", "👀", "Eye + neck reset", "Move", "Rest your eyes and release the neck.",
         steps = listOf(
@@ -85,7 +98,7 @@ val ACTIVITIES = listOf(
     ),
     Activity("ambient", "🌧", "Ambient sound", "Refresh", "Rain. Just listen.", "rain"),
     Activity("silence", "🤫", "Silence", "Refresh", "Nothing. Just be."),
-    Activity("sketch", "✏️", "Sketch", "Create", "Draw today's prompt in Sketch Seed.", app = SKETCH_SEED),
+    Activity("sketch", "✏️", "Sketch", "Create", "Draw today's prompt in Sketch Seed.", app = SKETCH_SEED, quickMin = 20),
 )
 
 /** The step of a guided routine at [elapsedMs] into the activity (routine loops), and seconds left in it. */
@@ -104,6 +117,12 @@ fun activity(id: String) = ACTIVITIES.firstOrNull { it.id == id } ?: ACTIVITIES[
 enum class Kind { WORK, PREP, ACTIVITY }
 
 data class Phase(val kind: Kind, val cycle: Int, val ms: Long)
+
+/** Home quick timers, in the order shown. */
+val QUICK = listOf("nsdr", "sketch", "stretch", "exercise", "walk", "nap", "breathing")
+
+/** A one-off quick timer is a single activity phase. */
+fun quickPlan(id: String): List<Phase> = listOf(Phase(Kind.ACTIVITY, 1, (activity(id).quickMin ?: 10) * MIN))
 
 /** Flattens the workday into phases: WORK, then a break split into PREP + ACTIVITY, per cycle. */
 fun plan(s: Settings): List<Phase> = buildList {
@@ -134,6 +153,7 @@ data class Session(
     val workMs: Long = 0,
     val breakMs: Long = 0,
     val cycles: Int = 0,
+    val quick: String? = null, // activity id when this is a one-off quick timer, not a workday
 ) {
     val idle get() = index < 0
     val paused get() = pausedLeft > 0

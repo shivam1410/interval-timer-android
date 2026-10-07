@@ -27,7 +27,7 @@ object Timer {
 
     val session = MutableStateFlow(Session())
     val settings = MutableStateFlow(Settings())
-    val plan get() = plan(settings.value)
+    val plan get() = session.value.quick?.let(::quickPlan) ?: plan(settings.value)
 
     private lateinit var app: Context
     private val prefs get() = app.getSharedPreferences("state", Context.MODE_PRIVATE)
@@ -38,8 +38,9 @@ object Timer {
         session.value = prefs.run {
             Session(getInt("index", -1), getLong("endsAt", 0), getLong("pausedLeft", 0), getLong("startedAt", 0), getLong("finishedAt", 0),
                 getLong("phaseMs", 0), getLong("bonus", 0),
-                getLong("workMs", 0), getLong("breakMs", 0), getInt("cycles_done", 0))
+                getLong("workMs", 0), getLong("breakMs", 0), getInt("cycles_done", 0), getString("quick", null))
         }
+        if (!session.value.running(plan)) resetFixedActivity()
         val nm = app.getSystemService(NotificationManager::class.java)
         // Both channels are silent: the gong and vibration are played by SoundService.
         // Status stays visible (not "Silent"); alerts pop up once per phase change.
@@ -60,7 +61,7 @@ object Timer {
             putInt("workMin", s.workMin); putInt("breakMin", s.breakMin); putInt("prepMin", s.prepMin)
             putInt("cycles", s.cycles); putString("activity", s.activity); putString("focusSound", s.focusSound)
             putBoolean("gong", s.gong); putBoolean("vibrate", s.vibrate); putInt("volume", s.volume)
-            putBoolean("waitBeforeWork", s.waitBeforeWork)
+            putBoolean("waitBeforeWork", s.waitBeforeWork); putBoolean("custom", s.custom)
         }.apply()
     }
 
@@ -70,14 +71,28 @@ object Timer {
                 getInt("workMin", d.workMin), getInt("breakMin", d.breakMin), getInt("prepMin", d.prepMin),
                 getInt("cycles", d.cycles), (getString("activity", d.activity) ?: d.activity), (getString("focusSound", d.focusSound) ?: d.focusSound),
                 getBoolean("gong", d.gong), getBoolean("vibrate", d.vibrate), getInt("volume", d.volume),
-                getBoolean("waitBeforeWork", d.waitBeforeWork),
+                getBoolean("waitBeforeWork", d.waitBeforeWork), getBoolean("custom", d.custom),
             )
         }
     }
 
     private fun now() = System.currentTimeMillis()
 
-    fun start() = commit(start(plan, now()), Cue.WORK)
+    fun start() {
+        resetFixedActivity()
+        commit(start(plan(settings.value), now()), Cue.WORK)
+    }
+
+    /**
+     * NSDR / nap / stretch (20 min) are chosen for one break only; every new break starts back on a
+     * regular activity, so the workday's planned end time isn't stretched by the last pick.
+     */
+    private fun resetFixedActivity() {
+        if (activity(settings.value.activity).minutes != null) saveSettings(settings.value.copy(activity = "breathing"))
+    }
+
+    /** One-off activity timer from home (NSDR, stretch, walk…): soft bell now, long gong at the end. */
+    fun startQuick(id: String) = commit(start(quickPlan(id), now()).copy(quick = id), Cue.SOFT)
     fun pause() = commit(pause(session.value, now()), null)
     fun resume() = commit(resume(session.value, now()), null)
     fun skip() {
@@ -109,7 +124,7 @@ object Timer {
         if (session.value.running(plan)) commit(session.value, null)
     }
 
-    private val chosen get() = activity(settings.value.activity)
+    private val chosen get() = activity(session.value.quick ?: settings.value.activity)
 
     /** Alarm fired, device booted, or app opened: settle into whatever phase "now" is. */
     fun sync(playCue: Boolean) {
@@ -128,12 +143,14 @@ object Timer {
     }
 
     private fun commit(s: Session, cue: Cue?, restartSound: Boolean = true) {
+        if (cue == Cue.WORK && s.quick == null) resetFixedActivity()
         if (s.done(plan) && session.value.running(plan)) History.record(s.startedAt, s)
         session.value = s
         prefs.edit().putInt("index", s.index).putLong("endsAt", s.endsAt).putLong("pausedLeft", s.pausedLeft)
             .putLong("startedAt", s.startedAt).putLong("finishedAt", s.finishedAt)
             .putLong("phaseMs", s.phaseMs).putLong("bonus", s.bonus)
-            .putLong("workMs", s.workMs).putLong("breakMs", s.breakMs).putInt("cycles_done", s.cycles).apply()
+            .putLong("workMs", s.workMs).putLong("breakMs", s.breakMs).putInt("cycles_done", s.cycles)
+            .putString("quick", s.quick).apply()
 
         val am = app.getSystemService(AlarmManager::class.java)
         val alarm = PendingIntent.getBroadcast(app, 0, Intent(app, Receiver::class.java).setAction(Receiver.ALARM), PendingIntent.FLAG_IMMUTABLE)
@@ -173,7 +190,7 @@ object Timer {
 
     fun title(s: Session): String {
         val pl = plan
-        if (s.done(pl)) return "Workday complete"
+        if (s.done(pl)) return if (s.quick != null) "${activity(s.quick).name} complete" else "Workday complete"
         val p = pl[s.index]
         val head = when (p.kind) {
             Kind.WORK -> "Work · cycle ${p.cycle}/${settings.value.cycles}"
@@ -185,6 +202,7 @@ object Timer {
 
     fun subtitle(s: Session, now: Long): String {
         val pl = plan
+        if (s.done(pl) && s.quick != null) return "${fmtDur(s.breakMs)} · nicely done"
         if (s.done(pl)) return "${fmtDur(s.workMs)} focused · ${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"}"
         val p = pl[s.index]
         return when (p.kind) {
