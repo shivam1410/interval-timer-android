@@ -8,7 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,6 +33,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -164,13 +164,7 @@ private fun Setup(s: Settings, now: Long) {
                 Text("Volume ${s.volume}%", style = MaterialTheme.typography.bodyMedium)
                 Slider(s.volume.toFloat(), { v -> set { copy(volume = v.toInt()) } }, valueRange = 10f..100f)
             }
-            val updateStatus by Updater.status.collectAsState()
-            val ctx = LocalContext.current
-            Text(
-                "v${BuildConfig.VERSION_NAME} · ${updateStatus.ifEmpty { "tap to check for updates" }}",
-                Modifier.fillMaxWidth().clickable { Updater.check(ctx) }.padding(vertical = 16.dp), textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline,
-            )
+            Spacer(Modifier.height(16.dp))
         }
         Button(
             onClick = { Timer.start() },
@@ -206,12 +200,27 @@ private fun Toggle(label: String, value: Boolean, onChange: (Boolean) -> Unit) {
     }
 }
 
+/** Lives on the tertiary break card, so chips are solid fills rather than outlines on a tinted card. */
 @Composable
 private fun ActivityPicker(selected: String, onPick: (String) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val colors = FilterChipDefaults.filterChipColors(
+        containerColor = cs.surface,
+        labelColor = cs.onSurface,
+        selectedContainerColor = cs.tertiary,
+        selectedLabelColor = cs.onTertiary,
+    )
     ACTIVITIES.groupBy { it.group }.forEach { (group, items) ->
-        Text(group, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(group, style = MaterialTheme.typography.labelLarge, color = cs.onTertiaryContainer, modifier = Modifier.padding(top = 4.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items.forEach { a -> FilterChip(selected == a.id, { onPick(a.id) }, { Text("${a.emoji} ${a.name}") }) }
+            items.forEach { a ->
+                val on = selected == a.id
+                FilterChip(
+                    on, { onPick(a.id) }, { Text("${a.emoji} ${a.name}") },
+                    colors = colors,
+                    border = FilterChipDefaults.filterChipBorder(enabled = true, selected = on, borderColor = Color.Transparent),
+                )
+            }
         }
     }
 }

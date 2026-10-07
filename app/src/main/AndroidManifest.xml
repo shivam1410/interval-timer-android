@@ -19,7 +19,7 @@
         android:dataExtractionRules="@xml/backup_rules"
         android:icon="@drawable/ic_launcher"
         android:label="Interval Timer"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@style/AppTheme">
 
         <activity
             android:name=".MainActivity"

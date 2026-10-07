@@ -20,18 +20,13 @@ object Updater {
 
     val ready = MutableStateFlow<String?>(null) // tag of a downloaded, installable update
     val error = MutableStateFlow<String?>(null)
-    val status = MutableStateFlow("")
     private var apk: File? = null
 
     fun check(ctx: Context) = thread {
         try {
             val release = JSONObject(fetch(API))
             val tag = release.getString("tag_name")
-            if (!isNewer(tag, BuildConfig.VERSION_NAME)) {
-                status.value = "Up to date"
-                return@thread
-            }
-            status.value = "Downloading $tag…"
+            if (!isNewer(tag, BuildConfig.VERSION_NAME)) return@thread
             val assets = release.getJSONArray("assets")
             val url = (0 until assets.length()).map { assets.getJSONObject(it) }
                 .firstOrNull { it.getString("name").endsWith(".apk") }?.getString("browser_download_url") ?: return@thread
@@ -41,7 +36,6 @@ object Updater {
             ready.value = tag
         } catch (e: IOException) {
             Log.w("Updater", "Update check failed", e)
-            status.value = "Update check failed"
         } catch (e: JSONException) {
             Log.w("Updater", "Unexpected release payload", e)
         }

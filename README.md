@@ -17,6 +17,18 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Local-first**: settings and session go to Android's Google backup; no account, no analytics
 - **Auto-update** from GitHub Releases
 
+## Screenshots
+
+| Setup | Work + focus music | Break · prepare | Box breathing |
+|:-:|:-:|:-:|:-:|
+| <img src="docs/screenshots/setup.png" width="200"> | <img src="docs/screenshots/work.png" width="200"> | <img src="docs/screenshots/break-prepare.png" width="200"> | <img src="docs/screenshots/break-breathing.png" width="200"> |
+
+| Dark: work | Dark: break | Phase-change notification | In-app update |
+|:-:|:-:|:-:|:-:|
+| <img src="docs/screenshots/work-dark.png" width="200"> | <img src="docs/screenshots/break-dark.png" width="200"> | <img src="docs/screenshots/notifications.png" width="200"> | <img src="docs/screenshots/update.png" width="200"> |
+
+Light and dark follow the system theme, with Material You colours from the wallpaper.
+
 ## How it stays light
 
 No background ticking. Each phase end is one `AlarmManager` exact alarm; the notification shows
