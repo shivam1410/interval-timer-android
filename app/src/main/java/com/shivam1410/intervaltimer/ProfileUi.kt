@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -77,16 +78,19 @@ private fun AccountDialog(p: Drive.Profile?, onClose: () -> Unit) {
     AlertDialog(
         onDismissRequest = onClose,
         icon = { Avatar(p, 64.dp) },
-        title = { Text(p?.name?.ifEmpty { null } ?: if (p == null) "Back up to Google Drive" else p.email, textAlign = TextAlign.Center) },
+        title = {
+            val t = p?.name?.ifEmpty { null } ?: if (p == null) "Back up to Google Drive" else "Google account"
+            Text(t, Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        },
         text = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (p == null) {
                     Text("Sign in with Google to keep your history and streaks in your Drive's private app folder and restore them on any phone.", textAlign = TextAlign.Center)
                 } else {
-                    Text(p.email, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (p.email.isNotEmpty()) Text(p.email, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     val synced = if (p.lastSync == 0L) "Not synced yet"
                     else "Last synced " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(p.lastSync))
-                    Text(synced, style = MaterialTheme.typography.bodySmall)
+                    Text(synced, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                 }
                 if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
             }

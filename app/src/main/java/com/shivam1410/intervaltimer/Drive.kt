@@ -86,29 +86,39 @@ object Drive {
     }
 
     private fun onAuthorized(r: AuthorizationResult) {
-        val account = r.toGoogleSignInAccount()
         val token = r.accessToken
-        if (account == null || token == null) {
-            status.value = "Sign-in failed: no account returned"
+        if (token == null) {
+            status.value = "Sign-in failed: no access token"
             return
         }
-        prefs.edit().putString("name", account.displayName.orEmpty()).putString("email", account.email.orEmpty()).apply()
-        profile.value = Profile(account.displayName.orEmpty(), account.email.orEmpty(), null, prefs.getLong("lastSync", 0))
-        thread {
-            account.photoUrl?.let { url ->
-                try {
-                    download(url.toString(), avatar)
-                    profile.value = profile.value?.copy(photo = avatar)
-                } catch (e: IOException) {
-                    Log.w(TAG, "Avatar download failed", e)
-                }
-            }
+        // Placeholder until userinfo answers; toGoogleSignInAccount() leaves name/email/photo blank.
+        if (profile.value == null) {
+            prefs.edit().putString("email", "").apply()
+            profile.value = Profile("", "", null, prefs.getLong("lastSync", 0))
         }
         syncWith(token)
     }
 
+    /** Name, email and photo from Google's userinfo endpoint (granted by the email + profile scopes). */
+    private fun refreshProfile(token: String) {
+        try {
+            val me = JSONObject(call("GET", "$API/oauth2/v3/userinfo", token))
+            val name = me.optString("name")
+            val email = me.optString("email")
+            prefs.edit().putString("name", name).putString("email", email).apply()
+            val photoUrl = me.optString("picture").takeIf { it.isNotEmpty() }
+            if (photoUrl != null) download(photoUrl.replace("=s96-c", "=s256-c"), avatar)
+            profile.value = Profile(name, email, avatar.takeIf { it.exists() }, prefs.getLong("lastSync", 0))
+        } catch (e: IOException) {
+            Log.w(TAG, "Profile fetch failed", e)
+        } catch (e: JSONException) {
+            Log.w(TAG, "Unexpected userinfo response", e)
+        }
+    }
+
     private fun syncWith(token: String) = thread {
         status.value = "Syncing…"
+        refreshProfile(token)
         try {
             val q = URLEncoder.encode("name='$FILE'", "UTF-8")
             val found = JSONObject(call("GET", "$API/drive/v3/files?spaces=appDataFolder&fields=files(id)&q=$q", token)).getJSONArray("files")
