@@ -35,11 +35,11 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 
 ## Screenshots
 
-| Home | Work + focus music | Break · prepare | Box breathing |
+| Home + quick timers | Work + focus music | Break · pick an activity | Stretch (video + steps) |
 |:-:|:-:|:-:|:-:|
-| <img src="docs/screenshots/setup.png" width="200"> | <img src="docs/screenshots/work.png" width="200"> | <img src="docs/screenshots/break-prepare.png" width="200"> | <img src="docs/screenshots/break-breathing.png" width="200"> |
+| <img src="docs/screenshots/setup.png" width="200"> | <img src="docs/screenshots/work.png" width="200"> | <img src="docs/screenshots/break-prepare.png" width="200"> | <img src="docs/screenshots/break-activity.png" width="200"> |
 
-| History (sample data) | Settings | Dark: work | Dark: break |
+| History (sample data) | Settings | Dark: work | Dark: break tiles |
 |:-:|:-:|:-:|:-:|
 | <img src="docs/screenshots/history.png" width="200"> | <img src="docs/screenshots/settings.png" width="200"> | <img src="docs/screenshots/work-dark.png" width="200"> | <img src="docs/screenshots/break-dark.png" width="200"> |
 
