@@ -79,6 +79,25 @@ fun SettingsScreen(s: Settings, onBack: () -> Unit) {
             Slider(s.volume.toFloat(), { v -> set { copy(volume = v.toInt()) } }, valueRange = 10f..100f)
         }
 
+        Section("Lock screen") {
+            val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
+            val allowed = nm.canUseFullScreenIntent()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Show phase changes on the lock screen", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        if (allowed) "On · black-and-white, display only" else "Android needs your OK for full-screen alerts",
+                        style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                    )
+                }
+                if (!allowed) FilledTonalButton({
+                    ctx.startActivity(
+                        android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, android.net.Uri.parse("package:${ctx.packageName}"))
+                    )
+                }) { Text("Allow") }
+            }
+        }
+
         Section("Workday") {
             Toggle(R.drawable.ic_hourglass, "Wait before each work block", s.waitBeforeWork) { v -> set { copy(waitBeforeWork = v) } }
         }

@@ -14,6 +14,8 @@
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
     <!-- Silence activity: measures loudness while its screen is open; nothing is recorded. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Phase changes light up the lock screen with a black-and-white, display-only page. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <!-- The Sketch activity opens Sketch Seed when it is installed. -->
     <queries>
@@ -37,6 +39,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".TransitionActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity=""
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
 
         <receiver android:name=".Receiver" android:exported="false">
             <intent-filter>

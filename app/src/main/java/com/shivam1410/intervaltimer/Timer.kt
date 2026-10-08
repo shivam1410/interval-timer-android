@@ -144,6 +144,8 @@ object Timer {
 
     private fun commit(s: Session, cue: Cue?, restartSound: Boolean = true) {
         if (cue == Cue.WORK && s.quick == null) resetFixedActivity()
+        // Alerts (heads-up + lock-screen page) are for phase changes, not for the moment you press Start.
+        val transition = session.value.running(plan)
         if (s.done(plan) && session.value.running(plan)) History.record(s.startedAt, s)
         session.value = s
         prefs.edit().putInt("index", s.index).putLong("endsAt", s.endsAt).putLong("pausedLeft", s.pausedLeft)
@@ -160,7 +162,7 @@ object Timer {
         val nm = app.getSystemService(NotificationManager::class.java)
         nm.cancel(ALERT_ID)
         if (s.idle) nm.cancel(NOTIF_ID) else nm.notify(NOTIF_ID, notification())
-        if (cue != null && cue != Cue.SOFT && !s.done(plan)) nm.notify(ALERT_ID, alert(cue, s))
+        if (cue != null && transition && !s.done(plan)) nm.notify(ALERT_ID, alert(cue, s))
 
         if (!restartSound) return
         val music = musicFor(s)
@@ -217,6 +219,11 @@ object Timer {
         }
     }
 
+    /** Launched by the system over the lock screen (screen off/locked); unlocked users get the heads-up. */
+    private val lockScreen get() = PendingIntent.getActivity(
+        app, 3, Intent(app, TransitionActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+
     private val openApp get() = PendingIntent.getActivity(app, 0, Intent(app, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
 
     /** Heads-up shown at a phase change, e.g. "Work session complete · 50m focused → 10m recovery". */
@@ -225,6 +232,7 @@ object Timer {
         val p = pl[s.index]
         val breakMs = pl.drop(s.index).takeWhile { it.kind != Kind.WORK }.sumOf { it.ms }
         val (title, text) = when (cue) {
+            Cue.SOFT -> "${chosen.name} started" to chosen.hint
             Cue.WORK -> "Break complete" to "Work cycle ${p.cycle}/${settings.value.cycles} · ${fmtDur(p.ms)}" +
                 if (s.paused) " · tap Start when ready" else " started"
             else -> "Work session complete" to "${fmtDur(settings.value.workMin * MIN)} focused → ${fmtDur(breakMs)} recovery. " +
@@ -240,6 +248,7 @@ object Timer {
             .setTimeoutAfter(2 * MIN)
             .setCategory(Notification.CATEGORY_ALARM)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setFullScreenIntent(lockScreen, true)
             .addAction(if (s.paused) action(Receiver.RESUME, "Start") else action(Receiver.SKIP, "Skip"))
             .apply { if (cue == Cue.BREAK) addAction(action(Receiver.EXTEND, "+10 min")) }
             .build()
@@ -257,6 +266,7 @@ object Timer {
             .setOnlyAlertOnce(!s.done(pl))
             .setCategory(Notification.CATEGORY_STOPWATCH)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
+        if (s.done(pl)) b.setFullScreenIntent(lockScreen, true)
         if (s.running(pl)) {
             b.setOngoing(true)
             if (!s.paused) b.setUsesChronometer(true).setChronometerCountDown(true).setWhen(s.endsAt).setShowWhen(true)

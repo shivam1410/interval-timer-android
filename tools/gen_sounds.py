@@ -133,20 +133,20 @@ if __name__ == "__main__":
     # Ocean and whales are real recordings from Wikimedia Commons (see README credits), not synthesized.
     manifest = {
         "sounds": [
-            {"id": "gong", "name": "Gong", "file": "gong.wav"},
-            {"id": "gong_double", "name": "Double gong", "file": "gong_double.wav"},
-            {"id": "gong_long", "name": "Long gong", "file": "gong_long.wav"},
-            {"id": "bell", "name": "Soft bell", "file": "bell.wav"},
-            {"id": "brown_noise", "name": "Brown noise", "file": "brown_noise.wav", "loop": True},
-            {"id": "rain", "name": "Rain", "file": "rain.wav", "loop": True},
-            {"id": "ocean", "name": "Ocean", "file": "ocean_luftrum.ogg", "loop": True},
-            {"id": "bowl", "name": "Singing bowls", "file": "bowl.wav", "loop": True},
-            {"id": "whales", "name": "Whales", "file": "whales_nueva_esparta.ogg", "loop": True},
-            {"id": "white_noise", "name": "White noise", "file": "white_noise.wav", "loop": True},
-            {"id": "pink_noise", "name": "Pink noise", "file": "pink_noise.wav", "loop": True},
-            {"id": "grey_noise", "name": "Grey noise", "file": "grey_noise.wav", "loop": True},
+            {"id": "gong", "emoji": "🔔", "name": "Gong", "file": "gong.wav"},
+            {"id": "gong_double", "emoji": "🔔", "name": "Double gong", "file": "gong_double.wav"},
+            {"id": "gong_long", "emoji": "🔔", "name": "Long gong", "file": "gong_long.wav"},
+            {"id": "bell", "emoji": "🛎", "name": "Soft bell", "file": "bell.wav"},
+            {"id": "brown_noise", "emoji": "🟤", "name": "Brown noise", "file": "brown_noise.wav", "loop": True},
+            {"id": "rain", "emoji": "🌧", "name": "Rain", "file": "rain.wav", "loop": True},
+            {"id": "ocean", "emoji": "🌊", "name": "Ocean", "file": "ocean_luftrum.ogg", "loop": True},
+            {"id": "bowl", "emoji": "🥣", "name": "Singing bowls", "file": "bowl.wav", "loop": True},
+            {"id": "whales", "emoji": "🐋", "name": "Whales", "file": "whales_nueva_esparta.ogg", "loop": True},
+            {"id": "white_noise", "emoji": "⚪", "name": "White noise", "file": "white_noise.wav", "loop": True},
+            {"id": "pink_noise", "emoji": "🌸", "name": "Pink noise", "file": "pink_noise.wav", "loop": True},
+            {"id": "grey_noise", "emoji": "🌫", "name": "Grey noise", "file": "grey_noise.wav", "loop": True},
         ]
     }
     with open(os.path.join(OUT, "manifest.json"), "w") as f:
-        json.dump(manifest, f, indent=2)
+        json.dump(manifest, f, indent=2, ensure_ascii=False)
         f.write("\n")

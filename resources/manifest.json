@@ -3,70 +3,82 @@
     {
       "id": "gong",
       "name": "Gong",
-      "file": "gong.wav"
+      "file": "gong.wav",
+      "emoji": "🔔"
     },
     {
       "id": "gong_double",
       "name": "Double gong",
-      "file": "gong_double.wav"
+      "file": "gong_double.wav",
+      "emoji": "🔔"
     },
     {
       "id": "gong_long",
       "name": "Long gong",
-      "file": "gong_long.wav"
+      "file": "gong_long.wav",
+      "emoji": "🔔"
     },
     {
       "id": "bell",
       "name": "Soft bell",
-      "file": "bell.wav"
+      "file": "bell.wav",
+      "emoji": "🛎"
     },
     {
       "id": "brown_noise",
       "name": "Brown noise",
       "file": "brown_noise.wav",
-      "loop": true
+      "loop": true,
+      "emoji": "🟤"
     },
     {
       "id": "rain",
       "name": "Rain",
       "file": "rain.wav",
-      "loop": true
+      "loop": true,
+      "emoji": "🌧"
     },
     {
       "id": "ocean",
       "name": "Ocean",
       "file": "ocean_luftrum.ogg",
-      "loop": true
+      "loop": true,
+      "emoji": "🌊"
     },
     {
       "id": "bowl",
       "name": "Singing bowls",
       "file": "bowl.wav",
-      "loop": true
+      "loop": true,
+      "emoji": "🥣"
     },
     {
       "id": "whales",
       "name": "Whales",
       "file": "whales_nueva_esparta.ogg",
-      "loop": true
+      "loop": true,
+      "emoji": "🐋"
     },
     {
       "id": "white_noise",
       "name": "White noise",
       "file": "white_noise.wav",
-      "loop": true
+      "loop": true,
+      "emoji": "⚪"
     },
     {
       "id": "pink_noise",
       "name": "Pink noise",
       "file": "pink_noise.wav",
-      "loop": true
+      "loop": true,
+      "emoji": "🌸"
     },
     {
       "id": "grey_noise",
       "name": "Grey noise",
       "file": "grey_noise.wav",
-      "loop": true
+      "loop": true,
+      "emoji": "🌫"
     }
   ]
 }

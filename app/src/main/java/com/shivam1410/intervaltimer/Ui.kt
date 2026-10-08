@@ -1,5 +1,15 @@
 package com.shivam1410.intervaltimer
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.LinearEasing
@@ -15,7 +25,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -258,7 +267,7 @@ private fun QuickTimers(onQuick: (String) -> Unit) {
 
 /** 4-column grid of equal-height tiles; every item visible, no horizontal scroll. */
 @Composable
-private fun TileGrid(items: List<Activity>, tile: @Composable RowScope.(Activity) -> Unit) {
+private fun <T> TileGrid(items: List<T>, tile: @Composable RowScope.(T) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.chunked(4).forEach { row ->
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -271,14 +280,21 @@ private fun TileGrid(items: List<Activity>, tile: @Composable RowScope.(Activity
 
 /** Emoji, name and a small caption in a rounded tile — shared by quick timers and the break picker. */
 @Composable
-private fun RowScope.ActivityTile(a: Activity, caption: String, bg: Color, fg: Color, sub: Color, label: String, onClick: () -> Unit) {
+private fun RowScope.ActivityTile(a: Activity, caption: String, bg: Color, fg: Color, sub: Color, label: String, onClick: () -> Unit) =
+    Tile(a.emoji, a.name, caption, bg, fg, sub, label, onClick = onClick)
+
+@Composable
+private fun RowScope.Tile(
+    emoji: String, name: String, caption: String, bg: Color, fg: Color, sub: Color, label: String,
+    compact: Boolean = false, onClick: () -> Unit,
+) {
     Column(
-        Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(20.dp)).background(bg)
-            .clickable(onClickLabel = label, onClick = onClick).padding(vertical = 14.dp, horizontal = 4.dp),
+        Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(if (compact) 16.dp else 20.dp)).background(bg)
+            .clickable(onClickLabel = label, onClick = onClick).padding(vertical = if (compact) 10.dp else 14.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(a.emoji, fontSize = 28.sp)
-        Text(a.name, style = MaterialTheme.typography.labelMedium, color = fg, maxLines = 2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+        Text(emoji, fontSize = if (compact) 22.sp else 28.sp)
+        Text(name, style = MaterialTheme.typography.labelMedium, color = fg, maxLines = 2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
         if (caption.isNotEmpty()) Text(caption, style = MaterialTheme.typography.labelSmall, color = sub)
     }
 }
@@ -291,12 +307,49 @@ fun Section(title: String, content: @Composable () -> Unit) {
     }
 }
 
+/** Type a value instead of tapping −/+ many times; rejects anything outside [range]. */
+@Composable
+private fun NumberDialog(label: String, value: Int, unit: String, range: IntRange, onDismiss: () -> Unit, onSet: (Int) -> Unit) {
+    // Opens focused with the whole value selected, so typing replaces it.
+    var field by remember { mutableStateOf(TextFieldValue(value.toString(), TextRange(0, value.toString().length))) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    val text = field.text
+    val n = text.toIntOrNull()
+    val ok = n != null && n in range
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(label) },
+        text = {
+            OutlinedTextField(
+                field, { field = it.copy(text = it.text.filter(Char::isDigit).take(3)) },
+                modifier = Modifier.focusRequester(focus),
+                singleLine = true,
+                suffix = { if (unit.isNotEmpty()) Text(unit) },
+                supportingText = { Text("${range.first}–${range.last}") },
+                isError = !ok,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (ok) n?.let(onSet) }),
+            )
+        },
+        confirmButton = { TextButton({ n?.let(onSet) }, enabled = ok) { Text("Set") } },
+        dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
+    )
+}
+
 @Composable
 private fun Stepper(label: String, value: Int, unit: String, range: IntRange, onChange: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f))
         IconButton({ onChange((value - 1).coerceIn(range)) }, enabled = value > range.first) { Text("−", fontSize = 22.sp) }
-        Text("$value $unit".trim(), Modifier.width(64.dp), textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold)
+        // Tap the number to type it; −/+ stay for small nudges.
+        var editing by remember { mutableStateOf(false) }
+        Text(
+            "$value $unit".trim(),
+            Modifier.width(72.dp).clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "Edit $label") { editing = true }.padding(vertical = 8.dp),
+            textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold,
+        )
+        if (editing) NumberDialog(label, value, unit, range, onDismiss = { editing = false }) { onChange(it); editing = false }
         IconButton({ onChange((value + 1).coerceIn(range)) }, enabled = value < range.last) { Text("+", fontSize = 22.sp) }
     }
 }
@@ -469,10 +522,15 @@ private fun FocusMusic(selected: String) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text("🎵 Focus music", style = MaterialTheme.typography.titleSmall)
-            FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected.isEmpty(), { Timer.chooseFocus("") }, { Text("Off") })
-                loops.forEach { snd -> FilterChip(selected == snd.id, { Timer.chooseFocus(snd.id) }, { Text(snd.name) }) }
+            Text("🎵 Focus music", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 8.dp))
+            val cs = MaterialTheme.colorScheme
+            // Same tiles as the activities; emoji comes from resources/manifest.json, so new sounds bring their own.
+            TileGrid(listOf(Media.Sound("", "Off", "", true, "🔇")) + loops) { snd ->
+                val on = selected == snd.id
+                Tile(
+                    snd.emoji, snd.name, "", if (on) cs.primary else cs.surface, if (on) cs.onPrimary else cs.onSurface,
+                    cs.onSurfaceVariant, "Focus music ${snd.name}", compact = true,
+                ) { Timer.chooseFocus(snd.id) }
             }
             if (loops.isEmpty()) {
                 Text(

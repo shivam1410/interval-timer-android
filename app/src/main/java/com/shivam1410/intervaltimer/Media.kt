@@ -22,7 +22,13 @@ object Media {
     // caches for 5 min. Files themselves are immutable by name, so the cached URL is fine for them.
     private const val MANIFEST = "https://api.github.com/repos/$REPO/contents/resources/manifest.json"
 
-    data class Sound(val id: String, val name: String, val file: String, val loop: Boolean)
+    // Fallback for lists cached before the manifest carried emoji; new sounds bring their own.
+    private val EMOJI = mapOf(
+        "rain" to "🌧", "ocean" to "🌊", "whales" to "🐋", "bowl" to "🥣", "white_noise" to "⚪",
+        "pink_noise" to "🌸", "brown_noise" to "🟤", "grey_noise" to "🌫",
+    )
+
+    data class Sound(val id: String, val name: String, val file: String, val loop: Boolean, val emoji: String = "🎵")
 
     val sounds = MutableStateFlow<List<Sound>>(emptyList())
     val downloading = MutableStateFlow(false)
@@ -59,7 +65,7 @@ object Media {
     private fun parse(json: String): List<Sound> {
         val arr = JSONObject(json).getJSONArray("sounds")
         return List(arr.length()) { i ->
-            arr.getJSONObject(i).run { Sound(getString("id"), getString("name"), getString("file"), optBoolean("loop")) }
+            arr.getJSONObject(i).run { Sound(getString("id"), getString("name"), getString("file"), optBoolean("loop"), optString("emoji").ifEmpty { EMOJI[getString("id")] ?: "🎵" }) }
         }
     }
 }
