@@ -74,7 +74,7 @@ object Timer {
             putInt("workMin", s.workMin); putInt("breakMin", s.breakMin); putInt("prepMin", s.prepMin)
             putInt("cycles", s.cycles); putString("activity", s.activity); putString("focusSound", s.focusSound)
             putBoolean("gong", s.gong); putBoolean("vibrate", s.vibrate); putInt("volume", s.volume)
-            putBoolean("waitBeforeWork", s.waitBeforeWork); putBoolean("custom", s.custom)
+            putBoolean("waitBeforeWork", s.waitBeforeWork); putBoolean("custom", s.custom); putBoolean("lockPage", s.lockPage)
         }.apply()
     }
 
@@ -84,7 +84,7 @@ object Timer {
                 getInt("workMin", d.workMin), getInt("breakMin", d.breakMin), getInt("prepMin", d.prepMin),
                 getInt("cycles", d.cycles), (getString("activity", d.activity) ?: d.activity), (getString("focusSound", d.focusSound) ?: d.focusSound),
                 getBoolean("gong", d.gong), getBoolean("vibrate", d.vibrate), getInt("volume", d.volume),
-                getBoolean("waitBeforeWork", d.waitBeforeWork), getBoolean("custom", d.custom),
+                getBoolean("waitBeforeWork", d.waitBeforeWork), getBoolean("custom", d.custom), getBoolean("lockPage", d.lockPage),
             )
         }
     }
@@ -266,7 +266,7 @@ object Timer {
             .setTimeoutAfter(2 * MIN)
             .setCategory(Notification.CATEGORY_ALARM)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .setFullScreenIntent(lockScreen, true)
+            .apply { if (settings.value.lockPage) setFullScreenIntent(lockScreen, true) }
             // Own group: otherwise Android auto-groups it with the status notification, marks it SILENT,
             // and a silent alert never shows its heads-up or lock-screen page.
             .setGroup("phase-alert")

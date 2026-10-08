@@ -82,15 +82,17 @@ fun SettingsScreen(s: Settings, onBack: () -> Unit) {
         Section("Lock screen") {
             val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
             val allowed = nm.canUseFullScreenIntent()
+            Toggle(R.drawable.ic_lock, "Show phase changes on the lock screen", s.lockPage) { v -> set { copy(lockPage = v) } }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Show phase changes on the lock screen", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        if (allowed) "On · black-and-white, display only" else "Android needs your OK for full-screen alerts",
-                        style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
-                    )
-                }
-                if (!allowed) FilledTonalButton({
+                Text(
+                    when {
+                        !s.lockPage -> "Off · phase changes only show as a normal alert"
+                        allowed -> "Black-and-white, display only · screen on ~12 s per change"
+                        else -> "Android needs your OK for full-screen alerts"
+                    },
+                    Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                )
+                if (s.lockPage && !allowed) FilledTonalButton({
                     ctx.startActivity(
                         android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, android.net.Uri.parse("package:${ctx.packageName}"))
                     )

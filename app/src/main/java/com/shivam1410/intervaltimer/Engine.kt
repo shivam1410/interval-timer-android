@@ -18,6 +18,7 @@ data class Settings(
     val volume: Int = 70,
     val waitBeforeWork: Boolean = false,
     val custom: Boolean = false, // "Custom" preset chosen: the schedule steppers are shown
+    val lockPage: Boolean = true, // wake the screen with the black-and-white page at phase changes
 )
 
 data class Preset(val name: String, val work: Int, val brk: Int, val cycles: Int)
