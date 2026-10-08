@@ -22,7 +22,9 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - Breathing animation, walk
 - **Focus music** is picked on the work screen (brown noise, rain, ocean, singing bowls) and
   keeps playing with the screen off
-- **Actionable notification** with countdown, Pause and Skip — no need to open the app
+- **Actionable notification** with countdown, Pause and Skip — no need to open the app; on Android 16
+  QPR+ it's a **Live Update** (status-bar chip with the countdown, pinned on the lock screen)
+- **Lock-screen page** at every phase change: black-and-white, display only, closes itself after ~12 s
 - **Restart-proof**: phases are absolute timestamps, rebuilt after reboot
 - **History & streaks**: current/best streak, last-7-days focus chart, 12-week consistency heatmap,
   all-time totals. Time is what you actually spent (skips and pauses don't inflate it); a day
@@ -39,9 +41,13 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 |:-:|:-:|:-:|:-:|
 | <img src="docs/screenshots/setup.png" width="200"> | <img src="docs/screenshots/countdown.png" width="200"> | <img src="docs/screenshots/work.png" width="200"> | <img src="docs/screenshots/break-prepare.png" width="200"> |
 
-| Breathing | History (sample data) | Settings | Dark: break |
+| Lock screen at a phase change | Live Update (Android 16 QPR+) | Custom: type a value | Breathing |
 |:-:|:-:|:-:|:-:|
-| <img src="docs/screenshots/break-activity.png" width="200"> | <img src="docs/screenshots/history.png" width="200"> | <img src="docs/screenshots/settings.png" width="200"> | <img src="docs/screenshots/break-dark.png" width="200"> |
+| <img src="docs/screenshots/lock-screen.png" width="200"> | <img src="docs/screenshots/live-update.png" width="200"> | <img src="docs/screenshots/custom-edit.png" width="200"> | <img src="docs/screenshots/break-activity.png" width="200"> |
+
+| History (sample data) | Settings | Dark: break |
+|:-:|:-:|:-:|
+| <img src="docs/screenshots/history.png" width="200"> | <img src="docs/screenshots/settings.png" width="200"> | <img src="docs/screenshots/break-dark.png" width="200"> |
 
 Light and dark follow the system theme, with Material You colours from the wallpaper.
 
@@ -49,6 +55,12 @@ Light and dark follow the system theme, with Material You colours from the wallp
 
 No background ticking. Each phase end is one `AlarmManager` exact alarm; the notification shows
 a system-rendered countdown. A foreground service exists only while audio is playing.
+
+Measured on the emulator with gong and music off: **0.14 s of CPU over 129 s** of a running workday,
+including two phase changes and the lock-screen page. The countdown in the notification and the
+Live Update chip is drawn by Android, not the app. What does cost battery is optional and visible:
+the lock-screen page turns the screen on for ~12 s per phase change (about 5 min a day for a full
+8-cycle workday), and focus music plays audio like any music app.
 
 ## Resources
 
