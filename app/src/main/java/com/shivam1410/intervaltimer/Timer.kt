@@ -23,7 +23,8 @@ object Timer {
     const val NOTIF_ID = 1
     private const val ALERT_ID = 2
     private const val CH_STATUS = "status"
-    private const val CH_ALERT = "alert"
+    // "phase" replaced "alert": channel settings are frozen once created, and this one needs a (silent) sound.
+    private const val CH_ALERT = "phase"
 
     val session = MutableStateFlow(Session())
     val settings = MutableStateFlow(Settings())
@@ -42,17 +43,29 @@ object Timer {
         }
         if (!session.value.running(plan)) resetFixedActivity()
         val nm = app.getSystemService(NotificationManager::class.java)
-        // Both channels are silent: the gong and vibration are played by SoundService.
+        // The gong and vibration are played by SoundService; channels add no audible sound of their own.
         // Status stays visible (not "Silent"); alerts pop up once per phase change.
-        listOf(
-            NotificationChannel(CH_STATUS, "Current phase", NotificationManager.IMPORTANCE_DEFAULT),
-            NotificationChannel(CH_ALERT, "Phase changes", NotificationManager.IMPORTANCE_HIGH),
-        ).forEach {
-            it.setSound(null, null)
-            it.enableVibration(false)
-            it.setShowBadge(false)
-            nm.createNotificationChannel(it)
-        }
+        nm.createNotificationChannel(
+            NotificationChannel(CH_STATUS, "Current phase", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                setSound(null, null)
+                enableVibration(false)
+                setShowBadge(false)
+            }
+        )
+        // A channel with no sound makes Android treat phase alerts as silent, and silent alerts never
+        // launch their full-screen (lock-screen) page. Half a second of silence keeps them "alerting"
+        // without adding any noise; the audible gong is still SoundService's job.
+        nm.createNotificationChannel(
+            NotificationChannel(CH_ALERT, "Phase changes", NotificationManager.IMPORTANCE_HIGH).apply {
+                setSound(
+                    android.net.Uri.parse("android.resource://${app.packageName}/${R.raw.silence}"),
+                    android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_EVENT).build(),
+                )
+                enableVibration(false)
+                setShowBadge(false)
+            }
+        )
+        nm.deleteNotificationChannel("alert") // old soundless channel from ≤ v1.5.0
     }
 
     fun saveSettings(s: Settings) {
@@ -162,7 +175,8 @@ object Timer {
         val nm = app.getSystemService(NotificationManager::class.java)
         nm.cancel(ALERT_ID)
         if (s.idle) nm.cancel(NOTIF_ID) else nm.notify(NOTIF_ID, notification())
-        if (cue != null && transition && !s.done(plan)) nm.notify(ALERT_ID, alert(cue, s))
+        // A fresh post each time: Android only launches the lock-screen page for new notifications.
+        if (cue != null && transition) nm.notify(ALERT_ID, alert(cue, s))
 
         if (!restartSound) return
         val music = musicFor(s)
@@ -229,14 +243,18 @@ object Timer {
     /** Heads-up shown at a phase change, e.g. "Work session complete · 50m focused → 10m recovery". */
     private fun alert(cue: Cue, s: Session): Notification {
         val pl = plan
-        val p = pl[s.index]
+        val done = s.done(pl)
+        val p = pl.getOrNull(s.index) ?: pl.last()
         val breakMs = pl.drop(s.index).takeWhile { it.kind != Kind.WORK }.sumOf { it.ms }
-        val (title, text) = when (cue) {
+        val (title, text) = when {
+            done -> title(s) to subtitle(s, now())
+            else -> when (cue) {
             Cue.SOFT -> "${chosen.name} started" to chosen.hint
             Cue.WORK -> "Break complete" to "Work cycle ${p.cycle}/${settings.value.cycles} · ${fmtDur(p.ms)}" +
                 if (s.paused) " · tap Start when ready" else " started"
             else -> "Work session complete" to "${fmtDur(settings.value.workMin * MIN)} focused → ${fmtDur(breakMs)} recovery. " +
                 "Lie down and get comfortable. Open to choose your recovery."
+            }
         }
         return Notification.Builder(app, CH_ALERT)
             .setSmallIcon(R.drawable.ic_gong)
@@ -249,24 +267,29 @@ object Timer {
             .setCategory(Notification.CATEGORY_ALARM)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setFullScreenIntent(lockScreen, true)
-            .addAction(if (s.paused) action(Receiver.RESUME, "Start") else action(Receiver.SKIP, "Skip"))
-            .apply { if (cue == Cue.BREAK) addAction(action(Receiver.EXTEND, "+10 min")) }
+            // Own group: otherwise Android auto-groups it with the status notification, marks it SILENT,
+            // and a silent alert never shows its heads-up or lock-screen page.
+            .setGroup("phase-alert")
+            .apply {
+                if (done) return@apply // nothing left to skip or extend
+                addAction(if (s.paused) action(Receiver.RESUME, "Start") else action(Receiver.SKIP, "Skip"))
+                if (cue == Cue.BREAK) addAction(action(Receiver.EXTEND, "+10 min"))
+            }
             .build()
     }
 
     fun notification(): Notification {
         val s = session.value
         val pl = plan
-        // The end-of-day summary is the one status post that should pop up.
-        val b = Notification.Builder(app, if (s.done(pl)) CH_ALERT else CH_STATUS)
+        val b = Notification.Builder(app, CH_STATUS)
             .setSmallIcon(R.drawable.ic_gong)
             .setContentTitle(title(s))
             .setContentText(subtitle(s, now()))
             .setContentIntent(openApp)
-            .setOnlyAlertOnce(!s.done(pl))
+            .setOnlyAlertOnce(true)
+            .setGroup("phase-status")
             .setCategory(Notification.CATEGORY_STOPWATCH)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
-        if (s.done(pl)) b.setFullScreenIntent(lockScreen, true)
         if (s.running(pl)) {
             b.setOngoing(true)
             if (!s.paused) b.setUsesChronometer(true).setChronometerCountDown(true).setWhen(s.endsAt).setShowWhen(true)
