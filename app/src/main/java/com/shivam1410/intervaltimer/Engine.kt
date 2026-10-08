@@ -279,3 +279,12 @@ fun dbfs(buf: ShortArray, n: Int): Float {
 /** Fraction of measured moments at or below the quiet line. */
 fun quietShare(levels: List<Float>, threshold: Float = QUIET_DB): Float =
     if (levels.isEmpty()) 1f else levels.count { it <= threshold }.toFloat() / levels.size
+
+/**
+ * Equal-power crossfade at progress [t] in 0..1: (outgoing, incoming) gains. Their powers sum to 1,
+ * so loudness stays even through the blend instead of dipping in the middle like a linear fade.
+ */
+fun crossfadeGains(t: Float): Pair<Float, Float> {
+    val x = t.coerceIn(0f, 1f) * (Math.PI / 2)
+    return kotlin.math.cos(x).toFloat() to kotlin.math.sin(x).toFloat()
+}

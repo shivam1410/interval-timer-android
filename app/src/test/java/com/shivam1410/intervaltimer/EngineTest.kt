@@ -138,6 +138,14 @@ class EngineTest {
         assertEquals(20 * MIN, done.breakMs)
     }
 
+    @Test fun crossfadeKeepsPowerEven() {
+        assertEquals(1f to 0f, crossfadeGains(0f))
+        val (o, i) = crossfadeGains(0.5f)
+        assertEquals(1f, o * o + i * i, 0.001f) // no dip in the middle
+        assertEquals(0f, crossfadeGains(1f).first, 0.001f)
+        assertEquals(1f, crossfadeGains(2f).second, 0.001f) // clamped
+    }
+
     @Test fun versionCompare() {
         assertTrue(isNewer("v1.0.10", "1.0.9"))
         assertFalse(isNewer("v1.0.0", "1.0.0"))

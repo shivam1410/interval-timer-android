@@ -20,7 +20,7 @@ import java.io.IOException
  */
 class SoundService : Service() {
     private var cue: MediaPlayer? = null
-    private var music: MediaPlayer? = null
+    private var music: CrossfadeLoop? = null
     private var musicId: String? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -49,7 +49,8 @@ class SoundService : Service() {
     private fun startMusicOrStop() {
         val id = musicId
         if (id != null && music == null) {
-            music = player(AudioAttributes.USAGE_MEDIA, Timer.settings.value.volume / 200f, loop = true, id)?.apply { start() }
+            val vol = Timer.settings.value.volume / 200f
+            music = CrossfadeLoop({ player(AudioAttributes.USAGE_MEDIA, vol, loop = true, id) }, vol).takeIf { it.start() }
         }
         if (music == null && cue?.isPlaying != true) {
             stopForeground(STOP_FOREGROUND_DETACH)
@@ -66,8 +67,7 @@ class SoundService : Service() {
                 loop -> return null // no ambient fallback; it simply stays quiet until downloaded
                 else -> setDataSource(this@SoundService, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
             }
-            setVolume(volume, volume)
-            isLooping = loop
+            setVolume(volume, volume) // looped music is looped by CrossfadeLoop, not isLooping
             setWakeMode(this@SoundService, PowerManager.PARTIAL_WAKE_LOCK)
             prepare()
         }
