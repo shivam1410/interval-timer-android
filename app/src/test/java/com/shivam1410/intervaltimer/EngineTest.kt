@@ -16,48 +16,74 @@ class EngineTest {
         assertEquals(8 * MIN, p[2].ms)
     }
 
+    /** Work ends at 50 min and Next is pressed right away; time then flows to minute [min] (prepare runs on). */
+    private fun breakAt(min: Long) = catchUp(p, skip(p, start(p, 0), 50 * MIN), min * MIN)
+
+    @Test fun workHoldsAtZeroAndCountsUp() {
+        val held = catchUp(p, start(p, 0), 75 * MIN) // phone off, back 25 min after work ended
+        assertEquals(0, held.index)
+        assertEquals(0L, held.left(75 * MIN))
+        assertEquals(25 * MIN, overtimeMs(p, held, 75 * MIN))
+    }
+
+    @Test fun prepFlowsIntoActivityWhichThenHolds() {
+        val s1 = breakAt(51)
+        assertEquals(Kind.PREP, p[s1.index].kind)
+        assertEquals(null, overtimeMs(p, s1, 51 * MIN))
+        val s2 = breakAt(80)
+        assertEquals(Kind.ACTIVITY, p[s2.index].kind) // prepare didn't hold, the activity does
+        assertEquals(20 * MIN, overtimeMs(p, s2, 80 * MIN))
+    }
+
+    @Test fun plusTenFromOvertimeRestartsCountdown() {
+        val over = catchUp(p, start(p, 0), 55 * MIN)
+        val more = extend(p, over, 10 * MIN, 55 * MIN)
+        assertEquals(65 * MIN, more.endsAt)
+        assertEquals(null, overtimeMs(p, more, 60 * MIN))
+        val next = skip(p, catchUp(p, more, 65 * MIN), 65 * MIN)
+        assertEquals(65 * MIN, next.workMs) // overtime counts as work
+        assertEquals(1, next.cycles)
+    }
+
+    @Test fun overtimeCountsAsWork() {
+        val held = catchUp(p, start(p, 0), 70 * MIN)
+        assertEquals(70 * MIN, totals(p, held, 70 * MIN).first)
+    }
+
     @Test fun extendDuringActivityShiftsRestOfDay() {
-        val inBreak = catchUp(p, start(p, 0), 53 * MIN) // cycle 1 activity, ends at 60
-        val longer = extend(p, inBreak, 10 * MIN)
+        val inBreak = breakAt(53) // activity ends at 60
+        val longer = extend(p, inBreak, 10 * MIN, 53 * MIN)
         assertEquals(70 * MIN, longer.endsAt)
-        val nextWork = catchUp(p, longer, 70 * MIN)
+        val nextWork = skip(p, catchUp(p, longer, 70 * MIN), 70 * MIN)
         assertEquals(Kind.WORK, p[nextWork.index].kind)
         assertEquals(120 * MIN, nextWork.endsAt)
         assertEquals(0, nextWork.bonus)
     }
 
     @Test fun extendDuringPrepLengthensActivity() {
-        val prep = catchUp(p, start(p, 0), 51 * MIN)
-        val act = catchUp(p, extend(p, prep, 10 * MIN), 52 * MIN)
+        val prep = breakAt(51)
+        val act = catchUp(p, extend(p, prep, 10 * MIN, 51 * MIN), 52 * MIN)
         assertEquals(Kind.ACTIVITY, p[act.index].kind)
         assertEquals(18 * MIN, act.phaseMs)
         assertEquals(70 * MIN, act.endsAt)
     }
 
-    @Test fun extendDuringWorkDoesNothing() {
+    @Test fun extendDuringWorkCountdownDoesNothing() {
         val st = start(p, 0)
-        assertEquals(st, extend(p, st, 10 * MIN))
+        assertEquals(st, extend(p, st, 10 * MIN, 5 * MIN))
     }
 
     @Test fun zeroPrepSkipsPrepPhase() {
         assertFalse(plan(s.copy(prepMin = 0)).any { it.kind == Kind.PREP })
     }
 
-    @Test fun catchUpReconstructsPhaseAfterReboot() {
-        // 9:00 start, phone off 9:37 -> 10:15. Expect cycle 2 work with 35 min left.
-        val t0 = 0L
-        val after = catchUp(p, start(p, t0), t0 + 75 * MIN)
-        assertEquals(Kind.WORK, p[after.index].kind)
-        assertEquals(2, p[after.index].cycle)
-        assertEquals(35 * MIN, after.left(t0 + 75 * MIN))
-    }
-
-    @Test fun catchUpFinishesDay() {
-        val done = catchUp(p, start(p, 0), 9 * 60 * MIN)
-        assertTrue(done.done(p))
-        assertEquals(8 * 60 * MIN, done.finishedAt)
-        assertEquals(8, done.cycles)
-        assertEquals(400 * MIN, done.workMs)
+    @Test fun dayFinishesWhenNextIsPressedAtEachEnd() {
+        var st = start(p, 0)
+        // Next at each work/break end; prepare runs into the activity by itself.
+        while (!st.done(p)) st = if (holds(p, st)) skip(p, st, st.endsAt) else catchUp(p, st, st.endsAt)
+        assertEquals(8 * 60 * MIN, st.finishedAt)
+        assertEquals(8, st.cycles)
+        assertEquals(400 * MIN, st.workMs)
     }
 
     @Test fun pauseShiftsSchedule() {
@@ -68,13 +94,6 @@ class EngineTest {
         assertEquals(75 * MIN, resumed.endsAt)
     }
 
-    @Test fun waitBeforeWorkStopsAtWork() {
-        val s2 = catchUp(p, start(p, 0), 61 * MIN, waitBeforeWork = true)
-        assertEquals(3, s2.index)
-        assertTrue(s2.paused)
-        assertEquals(50 * MIN, s2.pausedLeft)
-    }
-
     @Test fun skipMovesToNextPhaseNow() {
         val sk = skip(p, start(p, 0), 5 * MIN)
         assertEquals(1, sk.index)
@@ -82,17 +101,16 @@ class EngineTest {
     }
 
     @Test fun totalsCountElapsed() {
-        val st = catchUp(p, start(p, 0), 70 * MIN)
-        assertEquals(70 * MIN, totals(p, st, 70 * MIN).let { it.first + it.second })
-        assertEquals(60 * MIN, totals(p, st, 70 * MIN).first)
+        val st = breakAt(56)
+        assertEquals(56 * MIN, totals(p, st, 56 * MIN).let { it.first + it.second })
+        assertEquals(50 * MIN, totals(p, st, 56 * MIN).first)
     }
 
     @Test fun skippedWorkCountsOnlyElapsedAndNoCycle() {
         val sk = skip(p, start(p, 0), 20 * MIN)
         assertEquals(20 * MIN, sk.workMs)
         assertEquals(0, sk.cycles)
-        val full = catchUp(p, start(p, 0), 50 * MIN)
-        assertEquals(1, full.cycles)
+        assertEquals(1, skip(p, start(p, 0), 50 * MIN).cycles)
     }
 
     @Test fun pausedTimeIsNotCounted() {
@@ -108,7 +126,7 @@ class EngineTest {
     }
 
     @Test fun resizeShiftsCurrentPhase() {
-        val act = catchUp(p, start(p, 0), 53 * MIN)
+        val act = breakAt(53)
         val r = resize(act, 12 * MIN)
         assertEquals(72 * MIN, r.endsAt)
         assertEquals(20 * MIN, r.phaseMs)

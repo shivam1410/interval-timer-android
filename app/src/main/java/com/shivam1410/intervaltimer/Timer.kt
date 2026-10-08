@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import java.text.DateFormat
 import java.util.Date
 
-enum class Cue(val sound: String) { BREAK("gong"), WORK("gong_double"), DONE("gong_long"), SOFT("bell") }
+enum class Cue(val sound: String) { BREAK("gong"), WORK("gong_double"), DONE("gong_long"), SOFT("bell"), OVER("gong") }
 
 /**
  * Side-effect boundary: persists the session, arms the next AlarmManager wake-up,
@@ -74,7 +74,7 @@ object Timer {
             putInt("workMin", s.workMin); putInt("breakMin", s.breakMin); putInt("prepMin", s.prepMin)
             putInt("cycles", s.cycles); putString("activity", s.activity); putString("focusSound", s.focusSound)
             putBoolean("gong", s.gong); putBoolean("vibrate", s.vibrate); putInt("volume", s.volume)
-            putBoolean("waitBeforeWork", s.waitBeforeWork); putBoolean("custom", s.custom); putBoolean("lockPage", s.lockPage)
+            putBoolean("custom", s.custom); putBoolean("lockPage", s.lockPage)
         }.apply()
     }
 
@@ -84,7 +84,7 @@ object Timer {
                 getInt("workMin", d.workMin), getInt("breakMin", d.breakMin), getInt("prepMin", d.prepMin),
                 getInt("cycles", d.cycles), (getString("activity", d.activity) ?: d.activity), (getString("focusSound", d.focusSound) ?: d.focusSound),
                 getBoolean("gong", d.gong), getBoolean("vibrate", d.vibrate), getInt("volume", d.volume),
-                getBoolean("waitBeforeWork", d.waitBeforeWork), getBoolean("custom", d.custom), getBoolean("lockPage", d.lockPage),
+                getBoolean("custom", d.custom), getBoolean("lockPage", d.lockPage),
             )
         }
     }
@@ -130,7 +130,8 @@ object Timer {
         if (after.running(plan)) commit(after, null)
     }
     fun chooseFocus(id: String) = choose(settings.value.copy(focusSound = id))
-    fun extendBreak() = commit(extend(plan, session.value, 10 * MIN), null)
+    /** +10 min: lengthens a break, or restarts a 10-min countdown from overtime (work or break). */
+    fun extendBreak() = commit(extend(plan, session.value, 10 * MIN, now()), null)
 
     private fun choose(s: Settings) {
         saveSettings(s)
@@ -143,8 +144,18 @@ object Timer {
     fun sync(playCue: Boolean) {
         val before = session.value
         if (!before.running(plan)) return
-        val after = catchUp(plan, before, now(), settings.value.waitBeforeWork)
-        commit(after, if (playCue) cueFor(before, after) else null, restartSound = playCue)
+        val t = now()
+        var after = catchUp(plan, before, t)
+        var cue = cueFor(before, after)
+        // Reaching 0 on work or a break activity doesn't advance: one "time's up" gong + alert, then it counts up.
+        if (overtimeMs(plan, after, t) != null && !after.overAlerted) {
+            after = after.copy(overAlerted = true)
+            cue = Cue.OVER
+        }
+        // Nothing changed: skip (the UI's per-second check lands here during overtime). Boot/update
+        // (playCue = false) still re-commits, because the system dropped our alarm.
+        if (after == before && playCue) return
+        commit(after, if (playCue) cue else null, restartSound = playCue)
     }
 
     private fun cueFor(before: Session, after: Session): Cue? = when {
@@ -170,7 +181,8 @@ object Timer {
         val am = app.getSystemService(AlarmManager::class.java)
         val alarm = PendingIntent.getBroadcast(app, 0, Intent(app, Receiver::class.java).setAction(Receiver.ALARM), PendingIntent.FLAG_IMMUTABLE)
         am.cancel(alarm)
-        if (s.running(plan) && !s.paused) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, s.endsAt, alarm)
+        // No alarm once in overtime: nothing happens until you press Next or +10.
+        if (s.running(plan) && !s.paused && s.endsAt > now()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, s.endsAt, alarm)
 
         val nm = app.getSystemService(NotificationManager::class.java)
         nm.cancel(ALERT_ID)
@@ -213,7 +225,11 @@ object Timer {
             Kind.PREP -> "Break · prepare"
             Kind.ACTIVITY -> "${chosen.emoji} ${chosen.name}"
         }
-        return if (s.paused) "Paused · $head" else head
+        return when {
+            s.paused -> "Paused · $head"
+            overtimeMs(pl, s, now()) != null -> "$head · time's up"
+            else -> head
+        }
     }
 
     fun subtitle(s: Session, now: Long): String {
@@ -221,6 +237,7 @@ object Timer {
         if (s.done(pl) && s.quick != null) return "${fmtDur(s.breakMs)} · nicely done"
         if (s.done(pl)) return "${fmtDur(s.workMs)} focused · ${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"}"
         val p = pl[s.index]
+        if (overtimeMs(pl, s, now) != null) return "Still going? Tap Next when you're done, or +10 min."
         return when (p.kind) {
             Kind.PREP -> "Lie down. Put your phone aside. Close your eyes."
             Kind.ACTIVITY -> chosen.hint
@@ -250,6 +267,8 @@ object Timer {
             done -> title(s) to subtitle(s, now())
             else -> when (cue) {
             Cue.SOFT -> "${chosen.name} started" to chosen.hint
+            Cue.OVER -> (if (p.kind == Kind.WORK) "Work time's up" else "${chosen.name} is over") to
+                "Still going? It's counting up now. Tap Next when you're done, or +10 min."
             Cue.WORK -> "Break complete" to "Work cycle ${p.cycle}/${settings.value.cycles} · ${fmtDur(p.ms)}" +
                 if (s.paused) " · tap Start when ready" else " started"
             else -> "Work session complete" to "${fmtDur(settings.value.workMin * MIN)} focused → ${fmtDur(breakMs)} recovery. " +
@@ -272,8 +291,8 @@ object Timer {
             .setGroup("phase-alert")
             .apply {
                 if (done) return@apply // nothing left to skip or extend
-                addAction(if (s.paused) action(Receiver.RESUME, "Start") else action(Receiver.SKIP, "Skip"))
-                if (cue == Cue.BREAK) addAction(action(Receiver.EXTEND, "+10 min"))
+                addAction(if (s.paused) action(Receiver.RESUME, "Start") else action(Receiver.SKIP, if (cue == Cue.OVER) "Next" else "Skip"))
+                if (cue == Cue.BREAK || cue == Cue.OVER) addAction(action(Receiver.EXTEND, "+10 min"))
             }
             .build()
     }
@@ -292,15 +311,22 @@ object Timer {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
         if (s.running(pl)) {
             b.setOngoing(true)
+            val over = overtimeMs(pl, s, now()) != null
             if (!s.paused) {
-                b.setUsesChronometer(true).setChronometerCountDown(true).setWhen(s.endsAt).setShowWhen(true)
+                // Counts down to 0, then (overtime) Android counts up from the same moment — still no app ticks.
+                b.setUsesChronometer(true).setChronometerCountDown(!over).setWhen(s.endsAt).setShowWhen(true)
                 // Live Update: Android shows this as a status-bar chip + top of the lock screen and draws the
                 // countdown itself, so the app still never wakes to tick. Ignored where unsupported.
                 // No short text: the chip then shows the system-drawn countdown (e.g. "47:12") next to the icon.
                 b.extras.putBoolean("android.requestPromotedOngoing", true) // Notification.EXTRA_REQUEST_PROMOTED_ONGOING (API 36.1)
             }
-            b.addAction(action(if (s.paused) Receiver.RESUME else Receiver.PAUSE, if (s.paused) "Resume" else "Pause"))
-            b.addAction(action(Receiver.SKIP, "Skip"))
+            if (over) {
+                b.addAction(action(Receiver.EXTEND, "+10 min"))
+                b.addAction(action(Receiver.SKIP, "Next"))
+            } else {
+                b.addAction(action(if (s.paused) Receiver.RESUME else Receiver.PAUSE, if (s.paused) "Resume" else "Pause"))
+                b.addAction(action(Receiver.SKIP, "Skip"))
+            }
         } else {
             b.setAutoCancel(true)
         }

@@ -16,7 +16,6 @@ data class Settings(
     val gong: Boolean = true,
     val vibrate: Boolean = true,
     val volume: Int = 70,
-    val waitBeforeWork: Boolean = false,
     val custom: Boolean = false, // "Custom" preset chosen: the schedule steppers are shown
     val lockPage: Boolean = true, // wake the screen with the black-and-white page at phase changes
 )
@@ -164,6 +163,7 @@ data class Session(
     val breakMs: Long = 0,
     val cycles: Int = 0,
     val quick: String? = null, // activity id when this is a one-off quick timer, not a workday
+    val overAlerted: Boolean = false, // the "time's up" gong/alert for the current phase already fired
 ) {
     val idle get() = index < 0
     val paused get() = pausedLeft > 0
@@ -181,12 +181,19 @@ fun resume(s: Session, now: Long) = s.copy(endsAt = now + s.pausedLeft, pausedLe
 /** Jump to the next phase immediately. */
 fun skip(plan: List<Phase>, s: Session, now: Long): Session = enter(plan, s, s.index + 1, now)
 
-/** Banks the time spent in the current phase, as if it ended at [at]. */
+/** Work blocks and break activities wait at 0 and count up until you pick Next or +10; prepare flows on, quick timers finish. */
+fun holds(plan: List<Phase>, s: Session) = s.quick == null && s.running(plan) && plan[s.index].kind != Kind.PREP
+
+/** Time past the end of a held phase (ms), or null when not in overtime. */
+fun overtimeMs(plan: List<Phase>, s: Session, now: Long): Long? =
+    if (holds(plan, s) && !s.paused && now >= s.endsAt) now - s.endsAt else null
+
+/** Banks the time spent in the current phase (overtime included), as if it ended at [at]. */
 fun credit(plan: List<Phase>, s: Session, at: Long): Session {
     if (!s.running(plan)) return s
-    val left = if (s.paused) s.pausedLeft else (s.endsAt - at).coerceAtLeast(0)
+    val left = if (s.paused) s.pausedLeft else s.endsAt - at // negative in overtime
     val spent = (s.phaseMs - left).coerceAtLeast(0)
-    return if (plan[s.index].kind == Kind.WORK) s.copy(workMs = s.workMs + spent, cycles = s.cycles + if (left == 0L) 1 else 0)
+    return if (plan[s.index].kind == Kind.WORK) s.copy(workMs = s.workMs + spent, cycles = s.cycles + if (left <= 0L) 1 else 0)
     else s.copy(breakMs = s.breakMs + spent)
 }
 
@@ -194,12 +201,20 @@ private fun enter(plan: List<Phase>, prev: Session, i: Int, startAt: Long): Sess
     val s = credit(plan, prev, startAt)
     if (i >= plan.size) return s.copy(index = plan.size, endsAt = startAt, pausedLeft = 0, finishedAt = startAt, bonus = 0)
     val ms = plan[i].ms + if (plan[i].kind == Kind.ACTIVITY) s.bonus else 0
-    return s.copy(index = i, endsAt = startAt + ms, pausedLeft = 0, phaseMs = ms, bonus = if (plan[i].kind == Kind.WORK) 0 else s.bonus)
+    return s.copy(index = i, endsAt = startAt + ms, pausedLeft = 0, phaseMs = ms, bonus = if (plan[i].kind == Kind.WORK) 0 else s.bonus, overAlerted = false)
 }
 
-/** Lengthens the current break; everything after it shifts later. No effect during work. */
-fun extend(plan: List<Phase>, s: Session, ms: Long): Session {
+/**
+ * +10: in overtime (work or break) restarts a countdown of [ms] from now; otherwise lengthens the
+ * current break. Everything after shifts later.
+ */
+fun extend(plan: List<Phase>, s: Session, ms: Long, now: Long): Session {
     if (!s.running(plan)) return s
+    if (overtimeMs(plan, s, now) != null) {
+        val end = now + ms
+        val work = plan[s.index].kind == Kind.WORK
+        return s.copy(endsAt = end, phaseMs = s.phaseMs + (end - s.endsAt), bonus = if (work) s.bonus else s.bonus + ms, overAlerted = false)
+    }
     return when (plan[s.index].kind) {
         Kind.WORK -> s
         Kind.PREP -> s.copy(bonus = s.bonus + ms)
@@ -223,17 +238,14 @@ fun resize(s: Session, deltaMs: Long): Session = s.copy(
 fun extraMin(s: Session) = s.bonus / MIN
 
 /**
- * Advances through every phase boundary that has passed. Restart-proof: after a reboot
- * or a missed alarm this reconstructs the correct phase from timestamps alone.
- * With [waitBeforeWork], stops (paused, full duration) at the start of the next WORK phase.
+ * Advances through every passed boundary that doesn't hold (prepare → activity, quick timer → done).
+ * Work and break activities stay put in overtime. Restart-proof: after a reboot this rebuilds the
+ * right phase from timestamps alone.
  */
-fun catchUp(plan: List<Phase>, s: Session, now: Long, waitBeforeWork: Boolean = false): Session {
+fun catchUp(plan: List<Phase>, s: Session, now: Long): Session {
     var cur = s
-    while (cur.running(plan) && !cur.paused && now >= cur.endsAt) {
+    while (cur.running(plan) && !cur.paused && now >= cur.endsAt && !holds(plan, cur)) {
         cur = enter(plan, cur, cur.index + 1, cur.endsAt)
-        if (waitBeforeWork && cur.running(plan) && plan[cur.index].kind == Kind.WORK) {
-            return cur.copy(pausedLeft = cur.phaseMs)
-        }
     }
     return cur
 }

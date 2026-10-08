@@ -45,7 +45,7 @@ class TransitionActivity : ComponentActivity() {
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(big, color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Light, letterSpacing = 8.sp)
+                    Text(big, color = Color.White, fontSize = if (big.length > 6) 44.sp else 64.sp, fontWeight = FontWeight.Light, letterSpacing = 8.sp)
                     Text(line, color = Color(0xFFDDDDDD), fontSize = 24.sp, textAlign = TextAlign.Center)
                     if (until.isNotEmpty()) Text(until, color = Color(0xFF9E9E9E), fontSize = 20.sp)
                     if (small.isNotEmpty()) Text(small, color = Color(0xFF6E6E6E), fontSize = 14.sp, modifier = Modifier.padding(top = 24.dp))
@@ -67,6 +67,9 @@ class TransitionActivity : ComponentActivity() {
         val p = plan[s.index]
         val until = if (s.paused) "Waiting for you" else "until " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(s.endsAt))
         val a = activity(s.quick ?: st.activity)
+        if (overtimeMs(plan, s, System.currentTimeMillis()) != null) {
+            return listOf("TIME'S UP", if (p.kind == Kind.WORK) "Work · ${fmtDur(s.phaseMs)} done" else "${a.name} is over", "Counting up · Next when you're ready", "")
+        }
         return when (p.kind) {
             Kind.WORK -> listOf("WORK", "${fmtDur(s.phaseMs)} focus", until, "Cycle ${p.cycle} of ${st.cycles}")
             Kind.PREP -> listOf("BREAK", "Prepare, then ${a.name}", until, "Lie down · put the phone aside")

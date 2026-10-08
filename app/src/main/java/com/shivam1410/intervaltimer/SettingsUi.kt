@@ -100,9 +100,6 @@ fun SettingsScreen(s: Settings, onBack: () -> Unit) {
             }
         }
 
-        Section("Workday") {
-            Toggle(R.drawable.ic_hourglass, "Wait before each work block", s.waitBeforeWork) { v -> set { copy(waitBeforeWork = v) } }
-        }
 
         Section("About") {
             Row(verticalAlignment = Alignment.CenterVertically) {

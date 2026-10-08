@@ -388,7 +388,8 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
     val left = s.left(now)
     val quick = s.quick != null
     val chosen = activity(s.quick ?: settings.activity)
-    if (p.kind == Kind.ACTIVITY && chosen.id == "nap" && !s.paused) return NapScreen(s)
+    val over = overtimeMs(plan, s, now) // past 0 on work / a break activity: counting up
+    if (p.kind == Kind.ACTIVITY && chosen.id == "nap" && !s.paused && over == null) return NapScreen(s)
     val isWork = p.kind == Kind.WORK
     val accent = if (isWork) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
     var confirmEnd by remember { mutableStateOf(false) }
@@ -400,7 +401,7 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
         p.kind == Kind.WORK -> "WORK"
         p.kind == Kind.PREP -> "$brk · PREPARE"
         else -> brk
-    }
+    } + if (over != null) " · OVERTIME" else ""
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -412,12 +413,21 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
             Canvas(Modifier.fillMaxSize()) {
                 val stroke = Stroke(14.dp.toPx(), cap = StrokeCap.Round)
                 drawArc(track, 0f, 360f, false, style = stroke)
-                drawArc(accent, -90f, 360f * left / phaseMs, false, style = stroke)
+                // Countdown: the ring empties. Overtime: it fills once a minute and starts over.
+                val sweep = if (over != null) 360f * (over % MIN) / MIN else 360f * left / phaseMs
+                drawArc(accent, -90f, sweep, false, style = stroke)
             }
             if (p.kind == Kind.ACTIVITY && chosen.id == "breathing" && !s.paused) Breathing(accent)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(fmt(left), fontSize = 64.sp, fontWeight = FontWeight.Light)
-                Text(if (quick) "Quick timer" else "Cycle ${p.cycle} / ${settings.cycles}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(if (over != null) "+" + fmt(over) else fmt(left), fontSize = 64.sp, fontWeight = FontWeight.Light)
+                Text(
+                    when {
+                        over != null -> "Time's up · counting up"
+                        quick -> "Quick timer"
+                        else -> "Cycle ${p.cycle} / ${settings.cycles}"
+                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 
@@ -434,12 +444,25 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
         }
 
         Row(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(
+            if (over != null) {
+                // Overtime: no pause; add 10 more minutes (countdown again) or move on.
+                Button({ Timer.extendBreak() }, Modifier.weight(1f).height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
+                    Text("+10 min", fontSize = 18.sp)
+                }
+                FilledTonalButton(
+                    { Timer.skip() }, Modifier.weight(1f).height(56.dp),
+                    colors = if (isWork) ButtonDefaults.filledTonalButtonColors()
+                    else ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    ),
+                ) { Text("Next", fontSize = 18.sp) }
+            } else Button(
                 { if (s.paused) Timer.resume() else Timer.pause() },
                 Modifier.weight(1f).height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = accent),
             ) { Text(if (s.paused) (if (s.pausedLeft == phaseMs) "Start" else "Resume") else "Pause", fontSize = 18.sp) }
-            if (!quick) FilledTonalButton(
+            if (!quick && over == null) FilledTonalButton(
                 { Timer.skip() }, Modifier.weight(1f).height(56.dp),
                 colors = if (isWork) ButtonDefaults.filledTonalButtonColors()
                 else ButtonDefaults.filledTonalButtonColors(
