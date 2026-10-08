@@ -292,7 +292,13 @@ object Timer {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
         if (s.running(pl)) {
             b.setOngoing(true)
-            if (!s.paused) b.setUsesChronometer(true).setChronometerCountDown(true).setWhen(s.endsAt).setShowWhen(true)
+            if (!s.paused) {
+                b.setUsesChronometer(true).setChronometerCountDown(true).setWhen(s.endsAt).setShowWhen(true)
+                // Live Update: Android shows this as a status-bar chip + top of the lock screen and draws the
+                // countdown itself, so the app still never wakes to tick. Ignored where unsupported.
+                // No short text: the chip then shows the system-drawn countdown (e.g. "47:12") next to the icon.
+                b.extras.putBoolean("android.requestPromotedOngoing", true) // Notification.EXTRA_REQUEST_PROMOTED_ONGOING (API 36.1)
+            }
             b.addAction(action(if (s.paused) Receiver.RESUME else Receiver.PAUSE, if (s.paused) "Resume" else "Pause"))
             b.addAction(action(Receiver.SKIP, "Skip"))
         } else {

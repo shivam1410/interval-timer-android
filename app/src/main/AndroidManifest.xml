@@ -16,6 +16,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Phase changes light up the lock screen with a black-and-white, display-only page. -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Android 16 Live Update: the running phase as a status-bar chip with a system-drawn countdown. -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
 
     <!-- The Sketch activity opens Sketch Seed when it is installed. -->
     <queries>
