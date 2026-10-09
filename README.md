@@ -24,6 +24,9 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   keeps playing with the screen off
 - **Actionable notification** with countdown, Pause and Skip — no need to open the app; on Android 16
   QPR+ it's a **Live Update** (status-bar chip with the countdown, pinned on the lock screen)
+- **Overtime**: when a work block or break activity hits 0 it doesn't move on — one gong, then it
+  counts up (+00:01…) with the ring filling every minute; **+10 min** for another countdown or
+  **Next** when you're done (overtime counts as work). Prepare still flows into the activity
 - **Lock-screen page** at every phase change: black-and-white, display only, closes itself after ~12 s
 - **Restart-proof**: phases are absolute timestamps, rebuilt after reboot
 - **History & streaks**: current/best streak, last-7-days focus chart, 12-week consistency heatmap,
@@ -41,13 +44,13 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 |:-:|:-:|:-:|:-:|
 | <img src="docs/screenshots/setup.png" width="200"> | <img src="docs/screenshots/countdown.png" width="200"> | <img src="docs/screenshots/work.png" width="200"> | <img src="docs/screenshots/break-prepare.png" width="200"> |
 
-| Lock screen at a phase change | Live Update (Android 16 QPR+) | Custom: type a value | Breathing |
+| Overtime: counts up at 0 | Lock screen: time's up | Live Update (Android 16 QPR+) | Custom: type a value |
 |:-:|:-:|:-:|:-:|
-| <img src="docs/screenshots/lock-screen.png" width="200"> | <img src="docs/screenshots/live-update.png" width="200"> | <img src="docs/screenshots/custom-edit.png" width="200"> | <img src="docs/screenshots/break-activity.png" width="200"> |
+| <img src="docs/screenshots/overtime.png" width="200"> | <img src="docs/screenshots/lock-overtime.png" width="200"> | <img src="docs/screenshots/live-update.png" width="200"> | <img src="docs/screenshots/custom-edit.png" width="200"> |
 
-| History (sample data) | Settings | Dark: break |
-|:-:|:-:|:-:|
-| <img src="docs/screenshots/history.png" width="200"> | <img src="docs/screenshots/settings.png" width="200"> | <img src="docs/screenshots/break-dark.png" width="200"> |
+| Breathing | History (sample data) | Settings | Dark: break |
+|:-:|:-:|:-:|:-:|
+| <img src="docs/screenshots/break-activity.png" width="200"> | <img src="docs/screenshots/history.png" width="200"> | <img src="docs/screenshots/settings.png" width="200"> | <img src="docs/screenshots/break-dark.png" width="200"> |
 
 Light and dark follow the system theme, with Material You colours from the wallpaper.
 
