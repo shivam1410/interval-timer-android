@@ -15,6 +15,9 @@ class Receiver : BroadcastReceiver() {
             RESUME -> Timer.resume()
             SKIP -> Timer.skip()
             EXTEND -> Timer.extendBreak()
+            REMINDER -> Timer.remind()
+            START_DAY -> Timer.startWorkday()
+            AMBIENT_OFF -> Timer.playAmbient(null)
             Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> Timer.sync(playCue = false)
             INSTALL_STATUS -> onInstallStatus(ctx, intent)
         }
@@ -40,6 +43,9 @@ class Receiver : BroadcastReceiver() {
         const val RESUME = "it.RESUME"
         const val SKIP = "it.SKIP"
         const val EXTEND = "it.EXTEND"
+        const val REMINDER = "it.REMINDER"
+        const val START_DAY = "it.START_DAY"
+        const val AMBIENT_OFF = "it.AMBIENT_OFF"
         const val INSTALL_STATUS = "it.INSTALL_STATUS"
     }
 }

@@ -25,9 +25,14 @@ object Timer {
     private const val CH_STATUS = "status"
     // "phase" replaced "alert": channel settings are frozen once created, and this one needs a (silent) sound.
     private const val CH_ALERT = "phase"
+    private const val REMINDER_ID = 3
+    private const val CH_REMINDER = "reminder"
+    private const val REMINDER_HOUR = 10
 
     val session = MutableStateFlow(Session())
     val settings = MutableStateFlow(Settings())
+    /** Ambient loop played from home with no session running; null = silent. */
+    val ambient = MutableStateFlow<String?>(null)
     val plan get() = session.value.quick?.let(::quickPlan) ?: plan(settings.value)
 
     private lateinit var app: Context
@@ -66,6 +71,47 @@ object Timer {
             }
         )
         nm.deleteNotificationChannel("alert") // old soundless channel from ≤ v1.5.0
+        nm.createNotificationChannel(NotificationChannel(CH_REMINDER, "Daily start reminder", NotificationManager.IMPORTANCE_HIGH))
+        armReminder()
+    }
+
+    // ponytail: fixed 10:00 every day; turn it off via the "Daily start reminder" channel. Add a setting if the hour needs to change.
+    /** Re-armed on every process start (boot, update, app open) and each time it fires. */
+    private fun armReminder() {
+        val pi = PendingIntent.getBroadcast(app, 1, Intent(app, Receiver::class.java).setAction(Receiver.REMINDER), PendingIntent.FLAG_IMMUTABLE)
+        app.getSystemService(AlarmManager::class.java).setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextDaily(now(), REMINDER_HOUR), pi)
+    }
+
+    /** 10:00 nudge to start the 8-hour 50:10 workday, unless something is already running. */
+    fun remind() {
+        armReminder()
+        if (!session.value.idle) return
+        val p = PRESETS[0]
+        app.getSystemService(NotificationManager::class.java).notify(
+            REMINDER_ID,
+            Notification.Builder(app, CH_REMINDER)
+                .setSmallIcon(R.drawable.ic_gong)
+                .setContentTitle("Time to start your workday")
+                .setContentText("${p.cycles * (p.work + p.brk) / 60} hours · ${p.cycles} × ${p.work}:${p.brk}")
+                .setContentIntent(openApp)
+                .setAutoCancel(true)
+                .addAction(action(Receiver.START_DAY, "Start"))
+                .build(),
+        )
+    }
+
+    /** Reminder's Start button: switch to the Workday preset and go. */
+    fun startWorkday() {
+        val p = PRESETS[0]
+        saveSettings(settings.value.copy(workMin = p.work, breakMin = p.brk, cycles = p.cycles, custom = false))
+        start()
+    }
+
+    /** Home-screen ambient tile; null stops it. Ignored while a session runs (it has its own music). */
+    fun playAmbient(id: String?) {
+        if (!session.value.idle) return
+        ambient.value = id
+        commit(session.value, null)
     }
 
     fun saveSettings(s: Settings) {
@@ -93,6 +139,8 @@ object Timer {
 
     fun start() {
         resetFixedActivity()
+        ambient.value = null
+        app.getSystemService(NotificationManager::class.java).cancel(REMINDER_ID)
         commit(start(plan(settings.value), now()), Cue.WORK)
     }
 
@@ -105,7 +153,10 @@ object Timer {
     }
 
     /** One-off activity timer from home (NSDR, stretch, walk…): soft bell now, long gong at the end. */
-    fun startQuick(id: String) = commit(start(quickPlan(id), now()).copy(quick = id), Cue.SOFT)
+    fun startQuick(id: String) {
+        ambient.value = null
+        commit(start(quickPlan(id), now()).copy(quick = id), Cue.SOFT)
+    }
     fun pause() = commit(pause(session.value, now()), null)
     fun resume() = commit(resume(session.value, now()), null)
     fun skip() {
@@ -207,6 +258,7 @@ object Timer {
     }
 
     fun musicFor(s: Session): String? {
+        if (s.idle) return ambient.value
         if (!s.running(plan) || s.paused) return null
         val p = plan[s.index]
         return when (p.kind) {
@@ -300,6 +352,7 @@ object Timer {
     fun notification(): Notification {
         val s = session.value
         val pl = plan
+        if (s.idle) return ambientNotification()
         val b = Notification.Builder(app, CH_STATUS)
             .setSmallIcon(R.drawable.ic_gong)
             .setContentTitle(title(s))
@@ -331,6 +384,18 @@ object Timer {
             b.setAutoCancel(true)
         }
         return b.build()
+    }
+
+    private fun ambientNotification(): Notification {
+        val snd = Media.sounds.value.firstOrNull { it.id == ambient.value }
+        return Notification.Builder(app, CH_STATUS)
+            .setSmallIcon(R.drawable.ic_gong)
+            .setContentTitle("${snd?.emoji.orEmpty()} ${snd?.name ?: "Ambient sound"}".trim())
+            .setContentText("Ambient sound")
+            .setContentIntent(openApp)
+            .setOngoing(true)
+            .addAction(action(Receiver.AMBIENT_OFF, "Stop"))
+            .build()
     }
 
     private fun action(act: String, label: String) = Notification.Action.Builder(

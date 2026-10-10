@@ -169,4 +169,12 @@ class EngineTest {
         assertFalse(isNewer("v1.0.0", "1.0.0"))
         assertFalse(isNewer("v0.9.9", "1.0.0"))
     }
+
+    @Test fun reminderIsTodayBeforeTenElseTomorrow() {
+        val utc = java.util.TimeZone.getTimeZone("UTC")
+        val day = 20_000L * 24 * 60 * MIN // a UTC midnight
+        assertEquals(day + 600 * MIN, nextDaily(day + 9 * 60 * MIN, 10, utc))
+        assertEquals(day + 24 * 60 * MIN + 600 * MIN, nextDaily(day + 600 * MIN, 10, utc)) // exactly 10:00 → tomorrow
+        assertEquals(day + 24 * 60 * MIN + 600 * MIN, nextDaily(day + 15 * 60 * MIN, 10, utc))
+    }
 }

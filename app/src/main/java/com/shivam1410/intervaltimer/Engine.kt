@@ -300,3 +300,13 @@ fun crossfadeGains(t: Float): Pair<Float, Float> {
     val x = t.coerceIn(0f, 1f) * (Math.PI / 2)
     return kotlin.math.cos(x).toFloat() to kotlin.math.sin(x).toFloat()
 }
+
+/** Next [hour]:00 strictly after [now] in [zone]: today if still ahead, else tomorrow. */
+fun nextDaily(now: Long, hour: Int, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): Long =
+    java.util.Calendar.getInstance(zone).run {
+        timeInMillis = now
+        set(java.util.Calendar.HOUR_OF_DAY, hour); set(java.util.Calendar.MINUTE, 0)
+        set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+        if (timeInMillis <= now) add(java.util.Calendar.DAY_OF_MONTH, 1)
+        timeInMillis
+    }

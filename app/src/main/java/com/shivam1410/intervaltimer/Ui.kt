@@ -216,6 +216,10 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
             }
 
             QuickTimers(onQuick)
+            val ambient by Timer.ambient.collectAsState()
+            Text("Ambient sounds", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+            // Tap to play, tap again to stop; starting a timer stops it.
+            SoundTiles(ambient.orEmpty(), off = false, MaterialTheme.colorScheme.surfaceContainer, "Ambient") { Timer.playAmbient(it.takeIf { it != ambient }) }
             Spacer(Modifier.height(16.dp))
         }
         Button(
@@ -537,32 +541,37 @@ private fun BreakChoices(p: Phase, s: Session, chosen: Activity, elapsedMs: Long
 
 @Composable
 private fun FocusMusic(selected: String) {
-    val sounds by Media.sounds.collectAsState()
-    val downloading by Media.downloading.collectAsState()
-    val loops = sounds.filter { it.loop }
     Card(
         Modifier.fillMaxWidth().padding(top = 20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Column(Modifier.padding(16.dp)) {
             Text("🎵 Focus music", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 8.dp))
-            val cs = MaterialTheme.colorScheme
-            // Same tiles as the activities; emoji comes from resources/manifest.json, so new sounds bring their own.
-            TileGrid(listOf(Media.Sound("", "Off", "", true, "🔇")) + loops) { snd ->
-                val on = selected == snd.id
-                Tile(
-                    snd.emoji, snd.name, "", if (on) cs.primary else cs.surface, if (on) cs.onPrimary else cs.onSurface,
-                    cs.onSurfaceVariant, "Focus music ${snd.name}", compact = true,
-                ) { Timer.chooseFocus(snd.id) }
-            }
-            if (loops.isEmpty()) {
-                Text(
-                    if (downloading) "Downloading sounds from GitHub…" else "Sounds not downloaded yet",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (!downloading) TextButton({ Media.sync() }) { Text("Retry download") }
-            }
+            SoundTiles(selected, off = true, MaterialTheme.colorScheme.surface, "Focus music") { Timer.chooseFocus(it) }
         }
+    }
+}
+
+/** Looped sounds as compact tiles (focus music, home ambient); emoji comes from resources/manifest.json. */
+@Composable
+private fun SoundTiles(selected: String, off: Boolean, bg: Color, label: String, onPick: (String) -> Unit) {
+    val sounds by Media.sounds.collectAsState()
+    val downloading by Media.downloading.collectAsState()
+    val loops = sounds.filter { it.loop }
+    val cs = MaterialTheme.colorScheme
+    TileGrid((if (off) listOf(Media.Sound("", "Off", "", true, "🔇")) else emptyList()) + loops) { snd ->
+        val on = selected == snd.id
+        Tile(
+            snd.emoji, snd.name, "", if (on) cs.primary else bg, if (on) cs.onPrimary else cs.onSurface,
+            cs.onSurfaceVariant, "$label ${snd.name}", compact = true,
+        ) { onPick(snd.id) }
+    }
+    if (loops.isEmpty()) {
+        Text(
+            if (downloading) "Downloading sounds from GitHub…" else "Sounds not downloaded yet",
+            style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+        )
+        if (!downloading) TextButton({ Media.sync() }) { Text("Retry download") }
     }
 }
 
