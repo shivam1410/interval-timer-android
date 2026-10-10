@@ -437,6 +437,21 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
 
         if (!quick) Segments(plan, s, accent)
 
+        // Overtime: no pause; add 10 more minutes (countdown again) or move on. Right under the ring, where the eye already is.
+        if (over != null) Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button({ Timer.extendBreak() }, Modifier.weight(1f).height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
+                Text("+10 min", fontSize = 18.sp)
+            }
+            FilledTonalButton(
+                { Timer.skip() }, Modifier.weight(1f).height(56.dp),
+                colors = if (isWork) ButtonDefaults.filledTonalButtonColors()
+                else ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                ),
+            ) { Text("Next", fontSize = 18.sp) }
+        }
+
         if (isWork) FocusMusic(settings.focusSound) else BreakChoices(p, s, chosen, s.phaseMs - left)
 
         if (!quick) Row(
@@ -444,24 +459,11 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Stat("Today", "${fmtDur(workDone)} work", "${fmtDur(breakDone)} breaks", Modifier.weight(1f).fillMaxHeight())
-            Stat("Next", Timer.subtitle(s, now).removePrefix("Next: ").takeIf { isWork } ?: nextLabel(plan, s), "", Modifier.weight(1f).fillMaxHeight())
+            Stat("Next", Timer.subtitle(s, now).removePrefix("Next: ").takeIf { isWork && over == null } ?: nextLabel(plan, s, at = over == null), "", Modifier.weight(1f).fillMaxHeight())
         }
 
         Row(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (over != null) {
-                // Overtime: no pause; add 10 more minutes (countdown again) or move on.
-                Button({ Timer.extendBreak() }, Modifier.weight(1f).height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
-                    Text("+10 min", fontSize = 18.sp)
-                }
-                FilledTonalButton(
-                    { Timer.skip() }, Modifier.weight(1f).height(56.dp),
-                    colors = if (isWork) ButtonDefaults.filledTonalButtonColors()
-                    else ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                    ),
-                ) { Text("Next", fontSize = 18.sp) }
-            } else Button(
+            if (over == null) Button(
                 { if (s.paused) Timer.resume() else Timer.pause() },
                 Modifier.weight(1f).height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = accent),
@@ -493,13 +495,14 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
     }
 }
 
-private fun nextLabel(plan: List<Phase>, s: Session): String {
+/** [at]: append the start time; off in overtime, where the next phase starts whenever you tap Next. */
+private fun nextLabel(plan: List<Phase>, s: Session, at: Boolean = true): String {
     val n = plan.getOrNull(s.index + 1) ?: return "Day complete"
     return when (n.kind) {
         Kind.WORK -> "Work · ${fmtDur(n.ms)}"
         Kind.PREP -> "Break · ${fmtDur(plan.drop(s.index + 1).takeWhile { it.kind != Kind.WORK }.sumOf { it.ms })}"
         Kind.ACTIVITY -> activity(Timer.settings.value.activity).let { "${it.emoji} ${it.name} · ${fmtDur(n.ms + s.bonus)}" }
-    } + " at ${clock(s.endsAt)}"
+    } + if (at) " at ${clock(s.endsAt)}" else ""
 }
 
 /** Chosen during the break itself: what to do, and whether to make it a long one. */
