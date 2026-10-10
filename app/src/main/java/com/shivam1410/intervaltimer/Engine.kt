@@ -18,6 +18,8 @@ data class Settings(
     val volume: Int = 70,
     val custom: Boolean = false, // "Custom" preset chosen: the schedule steppers are shown
     val lockPage: Boolean = true, // wake the screen with the black-and-white page at phase changes
+    val reminder: Boolean = true, // daily nudge to start the workday
+    val reminderMin: Int = 10 * 60, // its time, as minutes after midnight
 )
 
 data class Preset(val name: String, val work: Int, val brk: Int, val cycles: Int)
@@ -301,11 +303,11 @@ fun crossfadeGains(t: Float): Pair<Float, Float> {
     return kotlin.math.cos(x).toFloat() to kotlin.math.sin(x).toFloat()
 }
 
-/** Next [hour]:00 strictly after [now] in [zone]: today if still ahead, else tomorrow. */
-fun nextDaily(now: Long, hour: Int, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): Long =
+/** Next [minuteOfDay] (e.g. 600 = 10:00) strictly after [now] in [zone]: today if still ahead, else tomorrow. */
+fun nextDaily(now: Long, minuteOfDay: Int, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): Long =
     java.util.Calendar.getInstance(zone).run {
         timeInMillis = now
-        set(java.util.Calendar.HOUR_OF_DAY, hour); set(java.util.Calendar.MINUTE, 0)
+        set(java.util.Calendar.HOUR_OF_DAY, minuteOfDay / 60); set(java.util.Calendar.MINUTE, minuteOfDay % 60)
         set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
         if (timeInMillis <= now) add(java.util.Calendar.DAY_OF_MONTH, 1)
         timeInMillis

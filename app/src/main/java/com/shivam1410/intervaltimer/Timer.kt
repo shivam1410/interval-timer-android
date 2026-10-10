@@ -27,7 +27,6 @@ object Timer {
     private const val CH_ALERT = "phase"
     private const val REMINDER_ID = 3
     private const val CH_REMINDER = "reminder"
-    private const val REMINDER_HOUR = 10
 
     val session = MutableStateFlow(Session())
     val settings = MutableStateFlow(Settings())
@@ -75,17 +74,18 @@ object Timer {
         armReminder()
     }
 
-    // ponytail: fixed 10:00 every day; turn it off via the "Daily start reminder" channel. Add a setting if the hour needs to change.
-    /** Re-armed on every process start (boot, update, app open) and each time it fires. */
+    /** Re-armed on every process start (boot, update, app open), each time it fires, and when its setting changes. */
     private fun armReminder() {
         val pi = PendingIntent.getBroadcast(app, 1, Intent(app, Receiver::class.java).setAction(Receiver.REMINDER), PendingIntent.FLAG_IMMUTABLE)
-        app.getSystemService(AlarmManager::class.java).setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextDaily(now(), REMINDER_HOUR), pi)
+        val am = app.getSystemService(AlarmManager::class.java)
+        val s = settings.value
+        if (s.reminder) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextDaily(now(), s.reminderMin), pi) else am.cancel(pi)
     }
 
-    /** 10:00 nudge to start the 8-hour 50:10 workday, unless something is already running. */
+    /** Daily nudge (10:00 by default) to start the 8-hour 50:10 workday, unless something is already running. */
     fun remind() {
         armReminder()
-        if (!session.value.idle) return
+        if (!settings.value.reminder || !session.value.idle) return
         val p = PRESETS[0]
         app.getSystemService(NotificationManager::class.java).notify(
             REMINDER_ID,
@@ -115,13 +115,16 @@ object Timer {
     }
 
     fun saveSettings(s: Settings) {
+        val old = settings.value
         settings.value = s
         prefs.edit().apply {
             putInt("workMin", s.workMin); putInt("breakMin", s.breakMin); putInt("prepMin", s.prepMin)
             putInt("cycles", s.cycles); putString("activity", s.activity); putString("focusSound", s.focusSound)
             putBoolean("gong", s.gong); putBoolean("vibrate", s.vibrate); putInt("volume", s.volume)
             putBoolean("custom", s.custom); putBoolean("lockPage", s.lockPage)
+            putBoolean("reminder", s.reminder); putInt("reminderMin", s.reminderMin)
         }.apply()
+        if (s.reminder != old.reminder || s.reminderMin != old.reminderMin) armReminder()
     }
 
     private fun loadSettings() = Settings().let { d ->
@@ -131,6 +134,7 @@ object Timer {
                 getInt("cycles", d.cycles), (getString("activity", d.activity) ?: d.activity), (getString("focusSound", d.focusSound) ?: d.focusSound),
                 getBoolean("gong", d.gong), getBoolean("vibrate", d.vibrate), getInt("volume", d.volume),
                 getBoolean("custom", d.custom), getBoolean("lockPage", d.lockPage),
+                getBoolean("reminder", d.reminder), getInt("reminderMin", d.reminderMin),
             )
         }
     }
