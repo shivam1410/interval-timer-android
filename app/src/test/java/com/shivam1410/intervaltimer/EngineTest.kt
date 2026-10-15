@@ -88,7 +88,7 @@ class EngineTest {
 
     @Test fun pauseShiftsSchedule() {
         val st = start(p, 0)
-        val paused = pause(st, 10 * MIN)
+        val paused = pause(p, st, 10 * MIN)
         assertEquals(paused, catchUp(p, paused, 500 * MIN)) // paused never advances
         val resumed = resume(paused, 35 * MIN)
         assertEquals(75 * MIN, resumed.endsAt)
@@ -114,7 +114,7 @@ class EngineTest {
     }
 
     @Test fun pausedTimeIsNotCounted() {
-        val paused = pause(start(p, 0), 10 * MIN)
+        val paused = pause(p, start(p, 0), 10 * MIN)
         val resumed = resume(paused, 40 * MIN) // 30 min away
         assertEquals(15 * MIN, totals(p, resumed, 45 * MIN).first)
     }
@@ -177,5 +177,48 @@ class EngineTest {
         assertEquals(day + 24 * 60 * MIN + 600 * MIN, nextDaily(day + 600 * MIN, 600, utc)) // exactly 10:00 → tomorrow
         assertEquals(day + 24 * 60 * MIN + 600 * MIN, nextDaily(day + 15 * 60 * MIN, 600, utc))
         assertEquals(day + 8 * 60 * MIN + 45 * MIN, nextDaily(day + 8 * 60 * MIN, 8 * 60 + 45, utc)) // 08:45
+    }
+
+    // Timeline log: what the day graph draws.
+
+    @Test fun pauseLeavesAGapInTheLog() {
+        val resumed = resume(pause(p, start(p, 0), 10 * MIN), 40 * MIN)
+        val next = skip(p, resumed, 60 * MIN)
+        assertEquals(listOf(Segment(0, 10 * MIN, true), Segment(40 * MIN, 60 * MIN, true)), next.log)
+    }
+
+    @Test fun overtimeIsLoggedApartFromTheBlock() {
+        val next = skip(p, catchUp(p, start(p, 0), 62 * MIN), 62 * MIN)
+        assertEquals(listOf(Segment(0, 50 * MIN, true), Segment(50 * MIN, 62 * MIN, true, over = true)), next.log)
+    }
+
+    @Test fun plusTenInOvertimeKeepsTheOvertimeSoFar() {
+        val more = extend(p, catchUp(p, start(p, 0), 55 * MIN), 10 * MIN, 55 * MIN)
+        val next = skip(p, more, 60 * MIN)
+        assertEquals(
+            listOf(Segment(0, 50 * MIN, true), Segment(50 * MIN, 55 * MIN, true, over = true), Segment(55 * MIN, 60 * MIN, true)),
+            next.log,
+        )
+    }
+
+    @Test fun breakPhasesAreLoggedAsBreak() {
+        val inActivity = breakAt(53) // prepare 50-52 flowed into the activity
+        val back = skip(p, inActivity, 60 * MIN)
+        assertEquals(
+            listOf(Segment(0, 50 * MIN, true), Segment(50 * MIN, 52 * MIN, false), Segment(52 * MIN, 60 * MIN, false)),
+            back.log,
+        )
+    }
+
+    @Test fun loggedWorkMatchesFocusTime() {
+        var st = start(p, 0)
+        while (!st.done(p)) st = if (holds(p, st)) skip(p, st, st.endsAt) else catchUp(p, st, st.endsAt)
+        assertEquals(st.workMs, st.log.filter { it.work }.sumOf { it.ms })
+        assertEquals(st.breakMs, st.log.filter { !it.work }.sumOf { it.ms })
+    }
+
+    @Test fun closeBanksTheRunningStretch() {
+        val ended = close(p, start(p, 0), 20 * MIN)
+        assertEquals(listOf(Segment(0, 20 * MIN, true)), ended.log)
     }
 }

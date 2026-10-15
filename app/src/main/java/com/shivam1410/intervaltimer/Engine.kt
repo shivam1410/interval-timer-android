@@ -151,6 +151,8 @@ fun plan(s: Settings): List<Phase> = buildList {
  * pausedLeft > 0 means paused with that many ms left in the current phase.
  * phaseMs is the current phase's real length (planned + any break extension);
  * bonus is extra time requested during PREP, applied when the activity starts.
+ * runFrom is when the current stretch started running (phase start or resume); log holds the
+ * stretches already finished this session, for the day graph.
  */
 data class Session(
     val index: Int = -1,
@@ -166,6 +168,8 @@ data class Session(
     val cycles: Int = 0,
     val quick: String? = null, // activity id when this is a one-off quick timer, not a workday
     val overAlerted: Boolean = false, // the "time's up" gong/alert for the current phase already fired
+    val runFrom: Long = 0,
+    val log: List<Segment> = emptyList(),
 ) {
     val idle get() = index < 0
     val paused get() = pausedLeft > 0
@@ -174,11 +178,18 @@ data class Session(
     fun left(now: Long) = if (paused) pausedLeft else (endsAt - now).coerceAtLeast(0)
 }
 
-fun start(plan: List<Phase>, now: Long) = Session(0, now + plan[0].ms, 0, now, phaseMs = plan[0].ms)
+fun start(plan: List<Phase>, now: Long) = Session(0, now + plan[0].ms, 0, now, phaseMs = plan[0].ms, runFrom = now)
 
-fun pause(s: Session, now: Long) = s.copy(pausedLeft = (s.endsAt - now).coerceAtLeast(1))
+fun pause(plan: List<Phase>, s: Session, now: Long) = close(plan, s, now).copy(pausedLeft = (s.endsAt - now).coerceAtLeast(1))
 
-fun resume(s: Session, now: Long) = s.copy(endsAt = now + s.pausedLeft, pausedLeft = 0)
+fun resume(s: Session, now: Long) = s.copy(endsAt = now + s.pausedLeft, pausedLeft = 0, runFrom = now)
+
+/** Logs the stretch running since runFrom up to [at] (split where overtime began) and starts a new one there. */
+fun close(plan: List<Phase>, s: Session, at: Long): Session {
+    if (!s.running(plan) || s.paused) return s
+    val overFrom = if (holds(plan, s)) s.endsAt else null
+    return s.copy(log = s.log + splitRun(plan[s.index].kind == Kind.WORK, s.runFrom, at, overFrom), runFrom = at)
+}
 
 /** Jump to the next phase immediately. */
 fun skip(plan: List<Phase>, s: Session, now: Long): Session = enter(plan, s, s.index + 1, now)
@@ -200,10 +211,13 @@ fun credit(plan: List<Phase>, s: Session, at: Long): Session {
 }
 
 private fun enter(plan: List<Phase>, prev: Session, i: Int, startAt: Long): Session {
-    val s = credit(plan, prev, startAt)
+    val s = credit(plan, close(plan, prev, startAt), startAt)
     if (i >= plan.size) return s.copy(index = plan.size, endsAt = startAt, pausedLeft = 0, finishedAt = startAt, bonus = 0)
     val ms = plan[i].ms + if (plan[i].kind == Kind.ACTIVITY) s.bonus else 0
-    return s.copy(index = i, endsAt = startAt + ms, pausedLeft = 0, phaseMs = ms, bonus = if (plan[i].kind == Kind.WORK) 0 else s.bonus, overAlerted = false)
+    return s.copy(
+        index = i, endsAt = startAt + ms, pausedLeft = 0, phaseMs = ms, bonus = if (plan[i].kind == Kind.WORK) 0 else s.bonus,
+        overAlerted = false, runFrom = startAt,
+    )
 }
 
 /**
@@ -215,7 +229,8 @@ fun extend(plan: List<Phase>, s: Session, ms: Long, now: Long): Session {
     if (overtimeMs(plan, s, now) != null) {
         val end = now + ms
         val work = plan[s.index].kind == Kind.WORK
-        return s.copy(endsAt = end, phaseMs = s.phaseMs + (end - s.endsAt), bonus = if (work) s.bonus else s.bonus + ms, overAlerted = false)
+        // Bank the overtime so far first: once endsAt moves, it would otherwise read as a normal stretch.
+        return close(plan, s, now).copy(endsAt = end, phaseMs = s.phaseMs + (end - s.endsAt), bonus = if (work) s.bonus else s.bonus + ms, overAlerted = false)
     }
     return when (plan[s.index].kind) {
         Kind.WORK -> s

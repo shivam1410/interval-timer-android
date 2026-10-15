@@ -47,8 +47,11 @@ object Timer {
         session.value = prefs.run {
             Session(getInt("index", -1), getLong("endsAt", 0), getLong("pausedLeft", 0), getLong("startedAt", 0), getLong("finishedAt", 0),
                 getLong("phaseMs", 0), getLong("bonus", 0),
-                getLong("workMs", 0), getLong("breakMs", 0), getInt("cycles_done", 0), getString("quick", null))
+                getLong("workMs", 0), getLong("breakMs", 0), getInt("cycles_done", 0), getString("quick", null),
+                runFrom = getLong("runFrom", 0), log = decodeSegments(getString("log", null)))
         }
+        // Session saved by a version before the day graph: start its log from now rather than from 1970.
+        if (session.value.running(plan) && session.value.runFrom == 0L) session.value = session.value.copy(runFrom = now())
         if (!session.value.running(plan)) resetFixedActivity()
         val nm = app.getSystemService(NotificationManager::class.java)
         // The gong and vibration are played by SoundService; channels add no audible sound of their own.
@@ -165,7 +168,7 @@ object Timer {
         ambient.value = null
         commit(start(quickPlan(id), now()).copy(quick = id), Cue.SOFT)
     }
-    fun pause() = commit(pause(session.value, now()), null)
+    fun pause() = commit(pause(plan, session.value, now()), null)
     fun resume() = commit(resume(session.value, now()), null)
     fun skip() {
         val s = session.value
@@ -175,7 +178,7 @@ object Timer {
     /** Ends the day early; whatever was done so far still goes into history. */
     fun stop() {
         val s = session.value
-        if (s.running(plan)) History.record(s.startedAt, credit(plan, s, now()))
+        if (s.running(plan)) History.record(s.startedAt, credit(plan, close(plan, s, now()), now()))
         commit(Session(), null)
     }
 
@@ -235,7 +238,7 @@ object Timer {
             .putLong("startedAt", s.startedAt).putLong("finishedAt", s.finishedAt)
             .putLong("phaseMs", s.phaseMs).putLong("bonus", s.bonus)
             .putLong("workMs", s.workMs).putLong("breakMs", s.breakMs).putInt("cycles_done", s.cycles)
-            .putString("quick", s.quick).apply()
+            .putString("quick", s.quick).putLong("runFrom", s.runFrom).putString("log", encodeSegments(s.log)).apply()
 
         val am = app.getSystemService(AlarmManager::class.java)
         val alarm = PendingIntent.getBroadcast(app, 0, Intent(app, Receiver::class.java).setAction(Receiver.ALARM), PendingIntent.FLAG_IMMUTABLE)

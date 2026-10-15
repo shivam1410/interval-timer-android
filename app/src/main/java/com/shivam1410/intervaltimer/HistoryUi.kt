@@ -1,6 +1,8 @@
 package com.shivam1410.intervaltimer
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +28,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +48,19 @@ import java.util.Locale
 
 @Composable
 fun HistoryScreen(onBack: () -> Unit) {
+    var day by rememberSaveable { mutableStateOf<String?>(null) } // ISO date of the open day
+    var calendar by rememberSaveable { mutableStateOf(false) }
+    BackHandler(day != null || calendar) { if (day != null) day = null else calendar = false }
+    val open = day
+    when {
+        open != null -> DayScreen(LocalDate.parse(open)) { day = null }
+        calendar -> CalendarScreen(onPick = { day = it.toString() }) { calendar = false }
+        else -> Overview(onBack, onDay = { day = it.toString() }, onCalendar = { calendar = true })
+    }
+}
+
+@Composable
+private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar: () -> Unit) {
     val days by History.days.collectAsState()
     val today = History.today()
     val byDate = days.associateBy { it.date }
@@ -52,7 +70,8 @@ fun HistoryScreen(onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
             IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
-            Text("History", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
+            Text("History", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp).weight(1f))
+            IconButton(onCalendar, Modifier.offset(x = 24.dp)) { Icon(painterResource(R.drawable.ic_calendar), "Calendar", tint = cs.onSurface) }
         }
 
         Row(Modifier.fillMaxWidth().padding(top = 12.dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -66,7 +85,7 @@ fun HistoryScreen(onBack: () -> Unit) {
 
         val week = (6 downTo 0).map { today.minusDays(it.toLong()) }
         Panel("Last 7 days · ${fmtDur(week.sumOf { byDate[it]?.workMs ?: 0 })} focused") { WeekBars(week, byDate) }
-        Panel("Consistency · last 12 weeks") { Heatmap(today, byDate) }
+        Panel("Consistency · last 12 weeks · tap a day") { Heatmap(today, byDate, onDay) }
 
         val active = days.filter { it.active }
         val total = days.sumOf { it.workMs }
@@ -82,8 +101,11 @@ fun HistoryScreen(onBack: () -> Unit) {
                 Text("No workdays recorded yet. Finish or end a workday and it shows up here.", color = cs.onSurfaceVariant)
             }
             val fmt = DateTimeFormatter.ofPattern("EEE, MMM d")
-            days.sortedByDescending { it.date }.take(14).forEach { d ->
-                Line(if (d.date == today) "Today" else d.date.format(fmt), "${fmtDur(d.workMs)} · ${d.cycles} ${if (d.cycles == 1) "cycle" else "cycles"}")
+            days.sortedByDescending { it.date }.take(10).forEach { d ->
+                Line(
+                    if (d.date == today) "Today" else d.date.format(fmt), "${fmtDur(d.workMs)} · ${d.cycles} ${if (d.cycles == 1) "cycle" else "cycles"}",
+                    Modifier.clickable { onDay(d.date) },
+                )
             }
         }
         Box(Modifier.height(24.dp))
@@ -91,7 +113,7 @@ fun HistoryScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun Big(label: String, value: String, modifier: Modifier, bg: Color, fg: Color) {
+internal fun Big(label: String, value: String, modifier: Modifier, bg: Color, fg: Color) {
     Card(modifier, colors = CardDefaults.cardColors(containerColor = bg, contentColor = fg)) {
         Column(Modifier.padding(16.dp)) {
             Text(label, style = MaterialTheme.typography.labelLarge)
@@ -101,7 +123,7 @@ private fun Big(label: String, value: String, modifier: Modifier, bg: Color, fg:
 }
 
 @Composable
-private fun Panel(title: String, content: @Composable () -> Unit) {
+internal fun Panel(title: String, content: @Composable () -> Unit) {
     Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
@@ -109,8 +131,8 @@ private fun Panel(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Line(k: String, v: String) {
-    Row {
+internal fun Line(k: String, v: String, modifier: Modifier = Modifier) {
+    Row(modifier) {
         Text(k, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(v, fontWeight = FontWeight.SemiBold)
     }
@@ -140,17 +162,26 @@ private fun WeekBars(week: List<LocalDate>, byDate: Map<LocalDate, Day>) {
     }
 }
 
-/** GitHub-style grid: one column per week (Mon at top), shade by cycles finished. */
+/** Heatmap / calendar colour for a day with [cycles] finished. */
 @Composable
-private fun Heatmap(today: LocalDate, byDate: Map<LocalDate, Day>) {
+internal fun shade(cycles: Int): Color {
+    val cs = MaterialTheme.colorScheme
+    return if (cycles == 0) cs.surfaceContainerHighest else cs.primary.copy(alpha = 0.3f + 0.7f * (cycles.coerceAtMost(8) / 8f))
+}
+
+/** Text colour on a [shade]d cell. */
+@Composable
+internal fun onShade(cycles: Int): Color = if (cycles >= 5) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+
+/** GitHub-style grid: one column per week (Mon at top), shade and number = cycles finished; tap opens the day. */
+@Composable
+private fun Heatmap(today: LocalDate, byDate: Map<LocalDate, Day>, onDay: (LocalDate) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val start = today.with(DayOfWeek.MONDAY).minusWeeks(11)
-    fun shade(cycles: Int): Color =
-        if (cycles == 0) cs.surfaceContainerHighest else cs.primary.copy(alpha = 0.3f + 0.7f * (cycles.coerceAtMost(8) / 8f))
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf("M", "", "W", "", "F", "", "S").forEach {
-                Box(Modifier.size(width = 14.dp, height = 18.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(width = 14.dp, height = 22.dp), contentAlignment = Alignment.Center) {
                     Text(it, style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                 }
             }
@@ -159,8 +190,16 @@ private fun Heatmap(today: LocalDate, byDate: Map<LocalDate, Day>) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 repeat(7) { d ->
                     val date = start.plusDays((w * 7 + d).toLong())
-                    val color = if (date.isAfter(today)) Color.Transparent else shade(byDate[date]?.cycles ?: 0)
-                    Box(Modifier.fillMaxWidth().height(18.dp).clip(RoundedCornerShape(4.dp)).background(color))
+                    val cycles = byDate[date]?.cycles ?: 0
+                    val future = date.isAfter(today)
+                    Box(
+                        Modifier.fillMaxWidth().height(22.dp).clip(RoundedCornerShape(4.dp))
+                            .background(if (future) Color.Transparent else shade(cycles))
+                            .then(if (future) Modifier else Modifier.clickable { onDay(date) }),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (cycles > 0) Text("$cycles", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = onShade(cycles))
+                    }
                 }
             }
         }

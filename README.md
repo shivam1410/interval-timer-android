@@ -30,8 +30,9 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   **Next** when you're done (overtime counts as work). Prepare still flows into the activity
 - **Lock-screen page** at every phase change: black-and-white, display only, closes itself after ~12 s
 - **Restart-proof**: phases are absolute timestamps, rebuilt after reboot
-- **History & streaks**: current/best streak, last-7-days focus chart, 12-week consistency heatmap,
-  all-time totals. Time is what you actually spent (skips and pauses don't inflate it); a day
+- **History & streaks**: current/best streak, last-7-days focus chart, 12-week consistency heatmap
+  (with cycle counts), a month calendar, all-time totals. Tap any day for **how the day went**: a
+  work/break wave over the hours (pauses as gaps, overtime in its own colour) and every stretch. Time is what you actually spent (skips and pauses don't inflate it); a day
   counts toward the streak once one full work block is finished
 - **Google account + Drive sync** (optional): sign in from the avatar on the home screen; history
   syncs to your Drive's private app folder (`drive.appdata`, invisible to you and other apps) and

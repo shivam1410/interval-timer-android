@@ -19,6 +19,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.time.LocalDate
 import kotlin.concurrent.thread
 
 /**
@@ -29,6 +30,8 @@ import kotlin.concurrent.thread
 object Drive {
     private const val TAG = "Drive"
     private const val FILE = "history.json"
+    // A file of its own, so app versions from before the day graph never overwrite the timelines.
+    private const val TIMELINE_FILE = "timeline.json"
     private const val API = "https://www.googleapis.com"
 
     data class Profile(val name: String, val email: String, val photo: File?, val lastSync: Long) {
@@ -123,19 +126,16 @@ object Drive {
         status.value = "Syncing…"
         refreshProfile(token)
         try {
-            val q = URLEncoder.encode("name='$FILE'", "UTF-8")
-            val found = JSONObject(call("GET", "$API/drive/v3/files?spaces=appDataFolder&fields=files(id)&q=$q", token)).getJSONArray("files")
-            var id = if (found.length() > 0) found.getJSONObject(0).getString("id") else null
-            val remote = id?.let { decode(call("GET", "$API/drive/v3/files/$it?alt=media", token)) }.orEmpty()
-
-            val merged = merge(History.days.value, remote)
-            History.replaceAll(merged)
-
-            if (id == null) {
-                val meta = JSONObject().put("name", FILE).put("parents", org.json.JSONArray().put("appDataFolder"))
-                id = JSONObject(call("POST", "$API/drive/v3/files?fields=id", token, meta.toString())).getString("id")
+            exchange(token, FILE) { remote ->
+                val merged = merge(History.days.value, remote?.let(::decode).orEmpty())
+                History.replaceAll(merged)
+                encode(merged)
             }
-            call("PATCH", "$API/upload/drive/v3/files/$id?uploadType=media", token, encode(merged))
+            exchange(token, TIMELINE_FILE) { remote ->
+                val merged = mergeTimelines(History.timelines.value, remote?.let(::decodeTimelines).orEmpty())
+                History.replaceTimelines(merged)
+                encodeTimelines(merged)
+            }
 
             val now = System.currentTimeMillis()
             prefs.edit().putLong("lastSync", now).apply()
@@ -148,6 +148,19 @@ object Drive {
         }
     }
 
+    /** Downloads [name] from the app folder (null if it isn't there yet), merges via [merge], uploads the result. */
+    private fun exchange(token: String, name: String, merge: (String?) -> String) {
+        val q = URLEncoder.encode("name='$name'", "UTF-8")
+        val found = JSONObject(call("GET", "$API/drive/v3/files?spaces=appDataFolder&fields=files(id)&q=$q", token)).getJSONArray("files")
+        var id = if (found.length() > 0) found.getJSONObject(0).getString("id") else null
+        val body = merge(id?.let { call("GET", "$API/drive/v3/files/$it?alt=media", token) })
+        if (id == null) {
+            val meta = JSONObject().put("name", name).put("parents", org.json.JSONArray().put("appDataFolder"))
+            id = JSONObject(call("POST", "$API/drive/v3/files?fields=id", token, meta.toString())).getString("id")
+        }
+        call("PATCH", "$API/upload/drive/v3/files/$id?uploadType=media", token, body)
+    }
+
     private fun fail(msg: String, e: Exception) {
         Log.w(TAG, msg, e)
         status.value = "$msg: ${e.message ?: e.javaClass.simpleName}"
@@ -158,6 +171,16 @@ object Drive {
     private fun decode(json: String): List<Day> {
         val o = JSONObject(json)
         return o.keys().asSequence().mapNotNull { Day.decode(it, o.getString(it)) }.toList()
+    }
+
+    private fun encodeTimelines(all: Map<LocalDate, List<Segment>>) =
+        JSONObject().apply { all.forEach { (date, segs) -> put(date.toString(), encodeSegments(segs)) } }.toString()
+
+    private fun decodeTimelines(json: String): Map<LocalDate, List<Segment>> {
+        val o = JSONObject(json)
+        return o.keys().asSequence().mapNotNull { k ->
+            runCatching { LocalDate.parse(k) }.getOrNull()?.let { it to decodeSegments(o.optString(k)) }
+        }.toMap()
     }
 
     /** HttpURLConnection has no PATCH; Google APIs accept the method override header. */
