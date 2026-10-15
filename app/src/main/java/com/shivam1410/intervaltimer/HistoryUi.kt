@@ -173,7 +173,7 @@ internal fun shade(cycles: Int): Color {
 @Composable
 internal fun onShade(cycles: Int): Color = if (cycles >= 5) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
 
-/** GitHub-style grid: one column per week (Mon at top), shade and number = cycles finished; tap opens the day. */
+/** GitHub-style grid: one column per week (Mon at top), shade by cycles finished; tap opens the day. */
 @Composable
 private fun Heatmap(today: LocalDate, byDate: Map<LocalDate, Day>, onDay: (LocalDate) -> Unit) {
     val cs = MaterialTheme.colorScheme
@@ -196,10 +196,7 @@ private fun Heatmap(today: LocalDate, byDate: Map<LocalDate, Day>, onDay: (Local
                         Modifier.fillMaxWidth().height(22.dp).clip(RoundedCornerShape(4.dp))
                             .background(if (future) Color.Transparent else shade(cycles))
                             .then(if (future) Modifier else Modifier.clickable { onDay(date) }),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (cycles > 0) Text("$cycles", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = onShade(cycles))
-                    }
+                    )
                 }
             }
         }
