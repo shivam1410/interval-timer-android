@@ -54,6 +54,10 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 |:-:|:-:|:-:|:-:|
 | <img src="docs/screenshots/break-activity.png" width="200"> | <img src="docs/screenshots/history.png" width="200"> | <img src="docs/screenshots/settings.png" width="200"> | <img src="docs/screenshots/break-dark.png" width="200"> |
 
+| A day in History (sample data) | Calendar |
+|:-:|:-:|
+| <img src="docs/screenshots/history-day.png" width="200"> | <img src="docs/screenshots/history-calendar.png" width="200"> |
+
 Light and dark follow the system theme, with Material You colours from the wallpaper.
 
 ## How it stays light
