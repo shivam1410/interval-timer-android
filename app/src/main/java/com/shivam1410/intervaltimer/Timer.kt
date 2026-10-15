@@ -383,7 +383,11 @@ object Timer {
                 b.extras.putBoolean("android.requestPromotedOngoing", true) // Notification.EXTRA_REQUEST_PROMOTED_ONGOING (API 36.1)
             }
             // Android 17+: the countdown becomes a big system-ticked metric, and it stays a Live Update.
-            if (Build.VERSION.SDK_INT >= 37) b.setStyle(Notification.MetricStyle().addMetric(phaseMetric(s, over)))
+            // The metric drives the chip too, so the small header clock would only repeat it.
+            if (Build.VERSION.SDK_INT >= 37) {
+                b.setStyle(Notification.MetricStyle().addMetric(phaseMetric(s, over)))
+                    .setUsesChronometer(false).setShowWhen(false)
+            }
             if (over) {
                 b.addAction(action(Receiver.EXTEND, "+10 min"))
                 b.addAction(action(Receiver.SKIP, "Next"))
