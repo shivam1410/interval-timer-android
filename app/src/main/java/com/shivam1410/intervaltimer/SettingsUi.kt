@@ -124,7 +124,7 @@ fun SettingsScreen(s: Settings, onBack: () -> Unit) {
                     Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
                 }
                 if (update != null) Button({ Updater.install(ctx) }) { Text("Install $update") }
-                else FilledTonalButton({ Updater.check(ctx) }) { Text("Check for updates") }
+                else FilledTonalButton({ Updater.check(ctx, manual = true) }) { Text("Check for updates") }
             }
         }
         Box(Modifier.height(24.dp))

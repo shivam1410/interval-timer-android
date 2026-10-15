@@ -5,8 +5,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings as AndroidSettings
 import android.util.Log
+import android.widget.Toast
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONException
 import org.json.JSONObject
@@ -22,22 +25,33 @@ object Updater {
     val error = MutableStateFlow<String?>(null)
     private var apk: File? = null
 
-    fun check(ctx: Context) = thread {
+    /** [manual]: the Settings button, which says how the check went; the launch check stays quiet. */
+    fun check(ctx: Context, manual: Boolean = false) = thread {
+        fun say(msg: String) {
+            if (manual) Handler(Looper.getMainLooper()).post { Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show() }
+        }
         try {
             val release = JSONObject(fetch(API))
             val tag = release.getString("tag_name")
-            if (!isNewer(tag, BuildConfig.VERSION_NAME)) return@thread
+            if (!isNewer(tag, BuildConfig.VERSION_NAME)) return@thread say("You're up to date (v${BuildConfig.VERSION_NAME})")
             val assets = release.getJSONArray("assets")
             val url = (0 until assets.length()).map { assets.getJSONObject(it) }
-                .firstOrNull { it.getString("name").endsWith(".apk") }?.getString("browser_download_url") ?: return@thread
+                .firstOrNull { it.getString("name").endsWith(".apk") }?.getString("browser_download_url")
+                ?: return@thread say("Update $tag has no app file yet; try again later")
             val f = File(ctx.cacheDir, "update-$tag.apk")
-            if (!f.exists()) download(url, f)
+            if (!f.exists()) {
+                say("Update $tag found, downloading…")
+                download(url, f)
+            }
             apk = f
             ready.value = tag
+            say("Update $tag ready: tap Install")
         } catch (e: IOException) {
             Log.w("Updater", "Update check failed", e)
+            say("Couldn't check for updates: no connection?")
         } catch (e: JSONException) {
             Log.w("Updater", "Unexpected release payload", e)
+            say("Couldn't check for updates")
         }
     }
 
