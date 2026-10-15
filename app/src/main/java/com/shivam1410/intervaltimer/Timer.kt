@@ -338,7 +338,7 @@ object Timer {
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setContentIntent(openApp)
             .setAutoCancel(true)
-            .setTimeoutAfter(2 * MIN)
+            .setTimeoutAfter(15_000) // heads-up only: the status notification carries on in the shade
             .setCategory(Notification.CATEGORY_ALARM)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .apply { if (settings.value.lockPage) setFullScreenIntent(lockScreen, true) }
@@ -347,8 +347,9 @@ object Timer {
             .setGroup("phase-alert")
             .apply {
                 if (done) return@apply // nothing left to skip or extend
-                addAction(if (s.paused) action(Receiver.RESUME, "Start") else action(Receiver.SKIP, if (cue == Cue.OVER) "Next" else "Skip"))
+                // Same order as the status notification: +10 min, then Next/Skip.
                 if (cue == Cue.BREAK || cue == Cue.OVER) addAction(action(Receiver.EXTEND, "+10 min"))
+                addAction(if (s.paused) action(Receiver.RESUME, "Start") else action(Receiver.SKIP, if (cue == Cue.OVER) "Next" else "Skip"))
             }
             .build()
     }

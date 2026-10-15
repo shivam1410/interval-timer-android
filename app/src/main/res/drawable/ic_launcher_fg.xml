@@ -5,24 +5,24 @@
     <path android:pathData="M54,24A30,30 0 1,1 28.02,39.00" android:strokeColor="#F3E3C3" android:strokeWidth="4" android:strokeLineCap="round" android:fillColor="#00000000" />
     <path android:pathData="M24.419237886466842,39.0a3.6,3.6 0 1,0 7.2,0a3.6,3.6 0 1,0 -7.2,0z" android:fillColor="#F3E3C3" />
     <!-- cord -->
-    <path android:pathData="M54,24V40" android:strokeColor="#F3E3C3" android:strokeWidth="1.8" android:strokeLineCap="round" />
+    <path android:pathData="M54,24V36" android:strokeColor="#F3E3C3" android:strokeWidth="1.8" android:strokeLineCap="round" />
     <!-- gong disc with radial gold gradient -->
-    <path android:pathData="M36,58a18,18 0 1,0 36,0a18,18 0 1,0 -36,0z">
+    <path android:pathData="M36,54a18,18 0 1,0 36,0a18,18 0 1,0 -36,0z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="radial" android:centerX="49" android:centerY="52" android:gradientRadius="26"
+            <gradient android:type="radial" android:centerX="49" android:centerY="48" android:gradientRadius="26"
                 android:startColor="#FFE4A3" android:centerColor="#D9A54E" android:endColor="#8C5A1E" />
         </aapt:attr>
     </path>
     <!-- hammered grooves -->
-    <path android:pathData="M40.5,58a13.5,13.5 0 1,0 27.0,0a13.5,13.5 0 1,0 -27.0,0z" android:strokeColor="#5C3A12" android:strokeAlpha="0.35" android:strokeWidth="1.1" android:fillColor="#00000000" />
-    <path android:pathData="M45,58a9,9 0 1,0 18,0a9,9 0 1,0 -18,0z" android:strokeColor="#5C3A12" android:strokeAlpha="0.3" android:strokeWidth="1" android:fillColor="#00000000" />
+    <path android:pathData="M40.5,54a13.5,13.5 0 1,0 27.0,0a13.5,13.5 0 1,0 -27.0,0z" android:strokeColor="#5C3A12" android:strokeAlpha="0.35" android:strokeWidth="1.1" android:fillColor="#00000000" />
+    <path android:pathData="M45,54a9,9 0 1,0 18,0a9,9 0 1,0 -18,0z" android:strokeColor="#5C3A12" android:strokeAlpha="0.3" android:strokeWidth="1" android:fillColor="#00000000" />
     <!-- boss -->
-    <path android:pathData="M49,58a5,5 0 1,0 10,0a5,5 0 1,0 -10,0z">
+    <path android:pathData="M49,54a5,5 0 1,0 10,0a5,5 0 1,0 -10,0z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="radial" android:centerX="52.5" android:centerY="56.5" android:gradientRadius="6"
+            <gradient android:type="radial" android:centerX="52.5" android:centerY="52.5" android:gradientRadius="6"
                 android:startColor="#FFF3CF" android:endColor="#C58A35" />
         </aapt:attr>
     </path>
     <!-- highlight -->
-    <path android:pathData="M42,50a14,14 0 0,1 9,-7" android:strokeColor="#FFFFFF" android:strokeAlpha="0.45" android:strokeWidth="1.6" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <path android:pathData="M42,46a14,14 0 0,1 9,-7" android:strokeColor="#FFFFFF" android:strokeAlpha="0.45" android:strokeWidth="1.6" android:strokeLineCap="round" android:fillColor="#00000000" />
 </vector>
