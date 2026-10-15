@@ -34,7 +34,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -121,13 +120,10 @@ private fun DayCell(date: LocalDate?, today: LocalDate, cycles: Int, modifier: M
         contentAlignment = Alignment.Center,
     ) {
         if (date != null) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    "${date.dayOfMonth}", fontWeight = if (date == today) FontWeight.Bold else FontWeight.Normal,
-                    color = if (usable) onShade(cycles) else cs.onSurface.copy(alpha = 0.3f),
-                )
-                if (cycles > 0) Text("$cycles", fontSize = 9.sp, color = onShade(cycles).copy(alpha = 0.8f))
-            }
+            Text(
+                "${date.dayOfMonth}", fontWeight = if (date == today) FontWeight.Bold else FontWeight.Normal,
+                color = if (usable) onShade(cycles) else cs.onSurface.copy(alpha = 0.3f),
+            )
         }
     }
 }
