@@ -23,7 +23,8 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Focus music** is picked on the work screen (brown noise, rain, ocean, singing bowls) and
   keeps playing with the screen off
 - **Actionable notification** with countdown, Pause and Skip — no need to open the app; on Android 16
-  QPR+ it's a **Live Update** (status-bar chip with the countdown, pinned on the lock screen)
+  QPR+ it's a **Live Update** (status-bar chip with the countdown, pinned on the lock screen); on
+  Android 17 the countdown is shown **big**, like the Clock app's timer, with the break time beside it
 - **Overtime**: when a work block or break activity hits 0 it doesn't move on — one gong, then it
   counts up (+00:01…) with the ring filling every minute; **+10 min** for another countdown or
   **Next** when you're done (overtime counts as work). Prepare still flows into the activity

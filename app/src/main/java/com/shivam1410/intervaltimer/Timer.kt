@@ -7,9 +7,13 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.text.DateFormat
+import java.time.Duration
+import java.time.Instant
 import java.util.Date
 
 enum class Cue(val sound: String) { BREAK("gong"), WORK("gong_double"), DONE("gong_long"), SOFT("bell"), OVER("gong") }
@@ -378,6 +382,8 @@ object Timer {
                 // No short text: the chip then shows the system-drawn countdown (e.g. "47:12") next to the icon.
                 b.extras.putBoolean("android.requestPromotedOngoing", true) // Notification.EXTRA_REQUEST_PROMOTED_ONGOING (API 36.1)
             }
+            // Android 17+: the countdown becomes a big system-ticked metric, and it stays a Live Update.
+            if (Build.VERSION.SDK_INT >= 37) b.setStyle(Notification.MetricStyle().addMetric(phaseMetric(s, over)))
             if (over) {
                 b.addAction(action(Receiver.EXTEND, "+10 min"))
                 b.addAction(action(Receiver.SKIP, "Next"))
@@ -389,6 +395,29 @@ object Timer {
             b.setAutoCancel(true)
         }
         return b.build()
+    }
+
+    @RequiresApi(37)
+    private fun phaseMetric(s: Session, over: Boolean): Notification.Metric {
+        val fmt = Notification.Metric.TimeDifference.FORMAT_CHRONOMETER
+        val end = Instant.ofEpochMilli(s.endsAt)
+        val value = when {
+            s.paused -> Notification.Metric.TimeDifference.forPausedTimer(Duration.ofMillis(s.pausedLeft), fmt)
+            over -> Notification.Metric.TimeDifference.forStopwatch(end, fmt)
+            else -> Notification.Metric.TimeDifference.forTimer(end, fmt)
+        }
+        // The style shows no body text, so a running work block's label carries the break time instead.
+        // Labels should stay short (~10 characters); the title already names the activity.
+        val label = when {
+            over -> "Overtime"
+            else -> when (plan[s.index].kind) {
+                Kind.WORK -> if (s.paused || s.index + 1 >= plan.size) "Work"
+                    else "Break " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(s.endsAt))
+                Kind.PREP -> "Prepare"
+                Kind.ACTIVITY -> "Break"
+            }
+        }
+        return Notification.Metric(value, label)
     }
 
     private fun ambientNotification(): Notification {

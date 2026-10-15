@@ -10,7 +10,7 @@ val versionCodeProp = versionNameProp.split(".").map(String::toInt).let { (a, b,
 
 android {
     namespace = "com.shivam1410.intervaltimer"
-    compileSdk = 36
+    compileSdk = 37 // MetricStyle (Android 17) for the big notification countdown; guarded at runtime
 
     defaultConfig {
         applicationId = "com.shivam1410.intervaltimer"
