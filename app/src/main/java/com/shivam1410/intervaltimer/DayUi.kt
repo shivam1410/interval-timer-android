@@ -97,6 +97,8 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
         if (segs.isNotEmpty() || work + rest > 0) {
             Panel("Summary") {
                 Line("Cycles completed", "$cycles")
+                val ambientMs = History.ambient.collectAsState().value[date] ?: 0
+                if (ambientMs > 0) Line("🎧 Ambient sounds (not break)", fmtDur(ambientMs))
                 if (segs.isNotEmpty()) {
                     Line("Started", clock(segs.first().start))
                     Line("Finished", if (live) "still going" else clock(segs.last().end))
@@ -117,7 +119,7 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
 
 private fun clock(ms: Long): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(ms))
 
-private fun kindLabel(s: Segment) = (if (s.work) "Work" else "Break") + if (s.over) " (overtime)" else ""
+private fun kindLabel(s: Segment) = (if (s.work) "Work" else if (s.label.isNotEmpty()) activityLabel(s.label) else "Break") + if (s.over) " (overtime)" else ""
 
 @Composable
 private fun segmentColor(s: Segment): Color {

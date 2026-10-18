@@ -14,6 +14,9 @@ import java.time.ZoneId
 object History {
     val days = MutableStateFlow<List<Day>>(emptyList())
     val timelines = MutableStateFlow<Map<LocalDate, List<Segment>>>(emptyMap())
+    /** Home ambient-sound listening per day (ms); not part of break time. */
+    val ambient = MutableStateFlow<Map<LocalDate, Long>>(emptyMap())
+    private val ambientPrefs get() = app.getSharedPreferences("ambient", Context.MODE_PRIVATE)
     private lateinit var app: Context
     private val prefs get() = app.getSharedPreferences("history", Context.MODE_PRIVATE)
     private val timelinePrefs get() = app.getSharedPreferences("timeline", Context.MODE_PRIVATE)
@@ -24,6 +27,16 @@ object History {
         timelines.value = timelinePrefs.all.mapNotNull { (k, v) ->
             runCatching { LocalDate.parse(k) }.getOrNull()?.let { it to decodeSegments(v as? String) }
         }.toMap()
+        ambient.value = ambientPrefs.all.mapNotNull { (k, v) -> runCatching { LocalDate.parse(k) }.getOrNull()?.let { d -> (v as? Long)?.let { d to it } } }.toMap()
+    }
+
+    fun addAmbient(start: Long, end: Long) {
+        val ms = (end - start).coerceIn(0, 12 * 60 * MIN) // a clock change can't log days of listening
+        if (ms < MIN) return
+        val date = dateOf(start)
+        val total = (ambient.value[date] ?: 0) + ms
+        ambientPrefs.edit().putLong(date.toString(), total).apply()
+        ambient.value = ambient.value + (date to total)
     }
 
     /** Adds a finished (or ended) session to the day it started on. */

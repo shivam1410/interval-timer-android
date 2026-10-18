@@ -61,4 +61,15 @@ class TimelineTest {
         val live = listOf(work(0, 50), Segment(50 * MIN, 50 * MIN + 20_000, work = false))
         assertEquals(live, dropBlips(live, keepLast = true))
     }
+
+    @Test fun activityLabelsRoundTripAndOldEntriesStillRead() {
+        val segs = listOf(work(0, 50), rest(52, 60).copy(label = "nsdr"), rest(60, 62, over = true).copy(label = "lib:a1"))
+        assertEquals(segs, decodeSegments(encodeSegments(segs)))
+        assertEquals("", decodeSegments("0,600000,B").single().label) // saved before labels existed
+    }
+
+    @Test fun activityTotalsSumBreakTimePerActivity() {
+        val segs = listOf(work(0, 50), rest(50, 52), rest(52, 60).copy(label = "nsdr"), rest(110, 130).copy(label = "nsdr"), rest(170, 180).copy(label = "walk"))
+        assertEquals(mapOf("nsdr" to 28 * MIN, "walk" to 10 * MIN), activityTotals(segs))
+    }
 }

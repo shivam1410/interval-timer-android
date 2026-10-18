@@ -97,6 +97,18 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
             Line("Average per active day", if (active.isEmpty()) "—" else fmtDur(active.sumOf { it.workMs } / active.size))
         }
 
+        // Break activities (from the timelines) and home ambient listening, last 30 days.
+        val timelines by History.timelines.collectAsState()
+        val ambient by History.ambient.collectAsState()
+        val since = today.minusDays(29)
+        val perActivity = activityTotals(timelines.filterKeys { !it.isBefore(since) }.values.flatten()).entries.sortedByDescending { it.value }
+        val ambientMs = ambient.filterKeys { !it.isBefore(since) }.values.sum()
+        Panel("Activities · last 30 days") {
+            if (perActivity.isEmpty() && ambientMs == 0L) Text("Breaks and quick timers show here by activity.", color = cs.onSurfaceVariant)
+            perActivity.forEach { (id, ms) -> Line(activityLabel(id), fmtDur(ms)) }
+            if (ambientMs > 0) Line("🎧 Ambient sounds (not break)", fmtDur(ambientMs))
+        }
+
         Panel("Recent days") {
             if (days.isEmpty()) {
                 Text("No workdays recorded yet. Finish or end a workday and it shows up here.", color = cs.onSurfaceVariant)

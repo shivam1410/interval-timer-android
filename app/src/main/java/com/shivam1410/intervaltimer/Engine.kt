@@ -129,6 +129,10 @@ private val RENAMED = mapOf("silence" to "meditation", "ambient" to "rain")
 
 fun activity(id: String) = (ACTIVITIES + extraActivities).firstOrNull { it.id == (RENAMED[id] ?: id) } ?: ACTIVITIES[0]
 
+/** "😌 NSDR" for an activity id in History; a deleted library item can't fall back to Breathing. */
+fun activityLabel(id: String): String =
+    (ACTIVITIES + extraActivities).firstOrNull { it.id == (RENAMED[id] ?: id) }?.let { "${it.emoji} ${it.name}" } ?: "▶️ Removed library item"
+
 enum class Kind { WORK, PREP, ACTIVITY }
 
 data class Phase(val kind: Kind, val cycle: Int, val ms: Long)
@@ -174,6 +178,7 @@ data class Session(
     val overAlerted: Boolean = false, // the "time's up" gong/alert for the current phase already fired
     val runFrom: Long = 0,
     val log: List<Segment> = emptyList(),
+    val act: String = "", // activity id of the break activity running now (set by Timer), labels its stretches
 ) {
     val idle get() = index < 0
     val paused get() = pausedLeft > 0
@@ -192,7 +197,8 @@ fun resume(s: Session, now: Long) = s.copy(endsAt = now + s.pausedLeft, pausedLe
 fun close(plan: List<Phase>, s: Session, at: Long): Session {
     if (!s.running(plan) || s.paused) return s
     val overFrom = if (holds(plan, s)) s.endsAt else null
-    return s.copy(log = s.log + splitRun(plan[s.index].kind == Kind.WORK, s.runFrom, at, overFrom), runFrom = at)
+    val kind = plan[s.index].kind
+    return s.copy(log = s.log + splitRun(kind == Kind.WORK, s.runFrom, at, overFrom, if (kind == Kind.ACTIVITY) s.act else ""), runFrom = at)
 }
 
 /** Jump to the next phase immediately. */

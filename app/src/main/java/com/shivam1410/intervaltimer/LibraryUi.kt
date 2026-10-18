@@ -17,10 +17,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -140,13 +142,9 @@ fun LibraryDialog(
                     }
                 }
                 OutlinedTextField(title, { title = it.take(80) }, Modifier.fillMaxWidth(), label = { Text("Title") }, singleLine = true)
-                OutlinedTextField(tag, { tag = it.take(30) }, Modifier.fillMaxWidth(), label = { Text("Tag") }, singleLine = true)
                 // Your Toggl tags first (the tag is what Toggl gets), then tags already used here.
                 val toggl by TogglSync.tags.collectAsState()
-                val choices = (toggl + existingTags).filter { it != "Untagged" }.distinct()
-                if (choices.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    choices.forEach { t -> AssistChip({ tag = t }, { Text(t) }) }
-                }
+                TagField(tag, (toggl + existingTags).filter { it != "Untagged" }.distinct()) { tag = it.take(30) }
                 Stepper("Length", minutes, "min", 1..120) { minutes = it; minutesSet = true }
                 if (busy.isNotEmpty()) Text(busy, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (error.isNotEmpty()) Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -165,4 +163,23 @@ fun LibraryDialog(
             }
         },
     )
+}
+
+/** Tag: a dropdown of known tags that narrows as you type; typing something new makes a new tag. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TagField(value: String, choices: List<String>, onChange: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val shown = choices.filter { it.contains(value, ignoreCase = true) && it != value }.ifEmpty { if (value.isEmpty()) choices else emptyList() }
+    ExposedDropdownMenuBox(open, { open = it }) {
+        OutlinedTextField(
+            value, { onChange(it); open = true },
+            Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable),
+            label = { Text("Tag") }, singleLine = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(open) },
+        )
+        if (shown.isNotEmpty()) ExposedDropdownMenu(open, { open = false }) {
+            shown.forEach { t -> DropdownMenuItem({ Text(t) }, { onChange(t); open = false }) }
+        }
+    }
 }

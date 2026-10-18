@@ -229,4 +229,12 @@ class EngineTest {
         assertEquals(listOf(10 * h, 11 * h, 12 * h), nextFullHours(9 * h + 20 * MIN, 3, utc))
         assertEquals(listOf(11 * h, 12 * h), nextFullHours(10 * h, 2, utc))
     }
+
+    @Test fun breakStretchesCarryTheirActivity() {
+        val atAct = catchUp(p, skip(p, start(p, 0), 50 * MIN), 52 * MIN).copy(act = "nsdr") // prepare flowed into the activity
+        val closed = close(p, atAct, 55 * MIN)
+        assertEquals("nsdr", closed.log.last().label)
+        val workClosed = close(p, start(p, 0).copy(act = "nsdr"), 10 * MIN)
+        assertEquals("", workClosed.log.last().label) // work is never labelled
+    }
 }

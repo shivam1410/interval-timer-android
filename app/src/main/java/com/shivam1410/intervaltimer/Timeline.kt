@@ -7,14 +7,17 @@ import java.time.temporal.ChronoUnit
 
 // Pure timeline logic (no Android), unit-tested in TimelineTest. Drawn as the day graph in DayUi.
 
-/** One uninterrupted stretch of a session: work or break, and whether it ran past the planned end. */
-data class Segment(val start: Long, val end: Long, val work: Boolean, val over: Boolean = false) {
+/**
+ * One uninterrupted stretch of a session: work or break, whether it ran past the planned end, and for
+ * break activities which one ([label] = activity id, "" for prepare / work / older records).
+ */
+data class Segment(val start: Long, val end: Long, val work: Boolean, val over: Boolean = false, val label: String = "") {
     val ms get() = end - start
 }
 
-/** "start,end,W;start,end,B+" (+ = overtime). */
+/** "start,end,W;start,end,B+,nsdr" (+ = overtime, then the activity id when there is one). */
 fun encodeSegments(segs: List<Segment>): String =
-    segs.joinToString(";") { "${it.start},${it.end},${if (it.work) "W" else "B"}${if (it.over) "+" else ""}" }
+    segs.joinToString(";") { "${it.start},${it.end},${if (it.work) "W" else "B"}${if (it.over) "+" else ""}${if (it.label.isNotEmpty()) "," + it.label else ""}" }
 
 fun decodeSegments(text: String?): List<Segment> =
     text.orEmpty().split(";").filter { it.isNotBlank() }.mapNotNull { item ->
@@ -23,16 +26,20 @@ fun decodeSegments(text: String?): List<Segment> =
         val end = p.getOrNull(1)?.toLongOrNull()
         val kind = p.getOrNull(2)
         if (start == null || end == null || kind == null || kind.isEmpty() || kind[0] !in "WB") null
-        else Segment(start, end, work = kind[0] == 'W', over = kind.endsWith("+"))
+        else Segment(start, end, work = kind[0] == 'W', over = kind.endsWith("+"), label = p.getOrNull(3).orEmpty())
     }
 
 /** Splits the run [from, to) at [overFrom] (the planned end of a phase that holds at 0), if it crosses it. */
-fun splitRun(work: Boolean, from: Long, to: Long, overFrom: Long?): List<Segment> = when {
+fun splitRun(work: Boolean, from: Long, to: Long, overFrom: Long?, label: String = ""): List<Segment> = when {
     to <= from -> emptyList()
-    overFrom == null || overFrom >= to -> listOf(Segment(from, to, work))
-    overFrom <= from -> listOf(Segment(from, to, work, over = true))
-    else -> listOf(Segment(from, overFrom, work), Segment(overFrom, to, work, over = true))
+    overFrom == null || overFrom >= to -> listOf(Segment(from, to, work, label = label))
+    overFrom <= from -> listOf(Segment(from, to, work, over = true, label = label))
+    else -> listOf(Segment(from, overFrom, work, label = label), Segment(overFrom, to, work, over = true, label = label))
 }
+
+/** Break time per activity id across [segs] (unlabelled stretches, e.g. prepare, left out). */
+fun activityTotals(segs: List<Segment>): Map<String, Long> =
+    segs.filter { !it.work && it.label.isNotEmpty() }.groupBy { it.label }.mapValues { (_, v) -> v.sumOf { it.ms } }
 
 /** Each phone logs its own sessions, so the union (minus copies already synced both ways) is the full day. */
 fun mergeTimelines(a: Map<LocalDate, List<Segment>>, b: Map<LocalDate, List<Segment>>): Map<LocalDate, List<Segment>> =

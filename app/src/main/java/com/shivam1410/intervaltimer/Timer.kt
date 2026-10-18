@@ -50,8 +50,9 @@ object Timer {
             Session(getInt("index", -1), getLong("endsAt", 0), getLong("pausedLeft", 0), getLong("startedAt", 0), getLong("finishedAt", 0),
                 getLong("phaseMs", 0), getLong("bonus", 0),
                 getLong("workMs", 0), getLong("breakMs", 0), getInt("cycles_done", 0), getString("quick", null),
-                runFrom = getLong("runFrom", 0), log = decodeSegments(getString("log", null)))
+                runFrom = getLong("runFrom", 0), log = decodeSegments(getString("log", null)), act = getString("act", "").orEmpty())
         }
+        prefs.edit().remove("ambientStart").apply() // a fresh process isn't playing ambient
         // Session saved by a version before the day graph: start its log from now rather than from 1970.
         if (session.value.running(plan) && session.value.runFrom == 0L) session.value = session.value.copy(runFrom = now())
         if (!session.value.running(plan)) resetFixedActivity()
@@ -144,8 +145,22 @@ object Timer {
     /** Home-screen ambient tile; null stops it. Ignored while a session runs (it has its own music). */
     fun playAmbient(id: String?) {
         if (!session.value.idle) return
-        ambient.value = id
+        setAmbient(id)
         commit(session.value, null)
+    }
+
+    /**
+     * Home ambient listening is logged per day (History.addAmbient), separate from break time: it
+     * plays in the background. A run cut short by the app being killed has no known end and is dropped.
+     */
+    private fun setAmbient(id: String?) {
+        val was = ambient.value
+        if (was == null && id != null) prefs.edit().putLong("ambientStart", now()).apply()
+        if (was != null && id == null) {
+            prefs.getLong("ambientStart", 0).takeIf { it > 0 }?.let { History.addAmbient(it, now()) }
+            prefs.edit().remove("ambientStart").apply()
+        }
+        ambient.value = id
     }
 
     fun saveSettings(s: Settings) {
@@ -178,7 +193,7 @@ object Timer {
     fun start() {
         if (scheduledAt.value != null) scheduleStart(null)
         resetFixedActivity()
-        ambient.value = null
+        setAmbient(null)
         app.getSystemService(NotificationManager::class.java).cancel(REMINDER_ID)
         commit(start(plan(settings.value), now()), Cue.WORK)
     }
@@ -193,7 +208,7 @@ object Timer {
 
     /** One-off activity timer from home (NSDR, stretch, walk…): soft bell now, long gong at the end. */
     fun startQuick(id: String) {
-        ambient.value = null
+        setAmbient(null)
         commit(start(quickPlan(id), now()).copy(quick = id), Cue.SOFT)
     }
     fun pause() = commit(pause(plan, session.value, now()), null)
@@ -221,7 +236,8 @@ object Timer {
         val before = plan
         saveSettings(settings.value.copy(activity = id))
         // NSDR / power nap are 20 min: if the activity is already running, stretch or shrink it now.
-        val after = s.takeIf { it.running(before) && before[it.index].kind == Kind.ACTIVITY }?.let { resize(it, plan[it.index].ms - before[it.index].ms) } ?: s
+        // The stretch so far is closed under the old activity, so History credits each one its own time.
+        val after = s.takeIf { it.running(before) && before[it.index].kind == Kind.ACTIVITY }?.let { resize(close(before, it, now()), plan[it.index].ms - before[it.index].ms) } ?: s
         if (after.running(plan)) commit(after, null)
     }
     fun chooseFocus(id: String) = choose(settings.value.copy(focusSound = id))
@@ -261,8 +277,15 @@ object Timer {
         else -> Cue.SOFT // prep -> activity
     }
 
-    private fun commit(s: Session, cue: Cue?, restartSound: Boolean = true) {
-        if (cue == Cue.WORK && s.quick == null) resetFixedActivity()
+    /** The break activity running in [s] (labels its stretches in History), or "". */
+    private fun actFor(s: Session): String {
+        val pl = s.quick?.let(::quickPlan) ?: plan(settings.value)
+        return if (s.running(pl) && pl[s.index].kind == Kind.ACTIVITY) activity(s.quick ?: settings.value.activity).id else ""
+    }
+
+    private fun commit(next: Session, cue: Cue?, restartSound: Boolean = true) {
+        if (cue == Cue.WORK && next.quick == null) resetFixedActivity()
+        val s = next.copy(act = actFor(next))
         // Alerts (heads-up + lock-screen page) are for phase changes, not for the moment you press Start.
         val transition = session.value.running(plan)
         if (s.done(plan) && session.value.running(plan)) History.record(s.startedAt, s)
@@ -272,7 +295,7 @@ object Timer {
             .putLong("startedAt", s.startedAt).putLong("finishedAt", s.finishedAt)
             .putLong("phaseMs", s.phaseMs).putLong("bonus", s.bonus)
             .putLong("workMs", s.workMs).putLong("breakMs", s.breakMs).putInt("cycles_done", s.cycles)
-            .putString("quick", s.quick).putLong("runFrom", s.runFrom).putString("log", encodeSegments(s.log)).apply()
+            .putString("quick", s.quick).putLong("runFrom", s.runFrom).putString("log", encodeSegments(s.log)).putString("act", s.act).apply()
 
         val am = app.getSystemService(AlarmManager::class.java)
         val alarm = PendingIntent.getBroadcast(app, 0, Intent(app, Receiver::class.java).setAction(Receiver.ALARM), PendingIntent.FLAG_IMMUTABLE)
