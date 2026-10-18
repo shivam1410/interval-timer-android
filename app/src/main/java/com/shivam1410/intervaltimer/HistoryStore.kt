@@ -14,9 +14,15 @@ import java.time.ZoneId
 object History {
     val days = MutableStateFlow<List<Day>>(emptyList())
     val timelines = MutableStateFlow<Map<LocalDate, List<Segment>>>(emptyMap())
-    /** Home ambient-sound listening per day (ms); not part of break time. */
+    /** Home ambient-sound listening per day (ms), all phones added up; not part of break time. */
     val ambient = MutableStateFlow<Map<LocalDate, Long>>(emptyMap())
+    /** Per phone: "2026-10-18|<phoneId>" -> ms; this is what syncs (see mergeAmbient). */
+    val ambientRaw = MutableStateFlow<Map<String, Long>>(emptyMap())
     private val ambientPrefs get() = app.getSharedPreferences("ambient", Context.MODE_PRIVATE)
+    /** Random per-install id (not a hardware id), so each phone's listening stays separate when merged. */
+    private val phoneId: String get() = app.getSharedPreferences("state", Context.MODE_PRIVATE).run {
+        getString("phoneId", null) ?: java.util.UUID.randomUUID().toString().take(8).also { edit().putString("phoneId", it).apply() }
+    }
     private lateinit var app: Context
     private val prefs get() = app.getSharedPreferences("history", Context.MODE_PRIVATE)
     private val timelinePrefs get() = app.getSharedPreferences("timeline", Context.MODE_PRIVATE)
@@ -27,16 +33,27 @@ object History {
         timelines.value = timelinePrefs.all.mapNotNull { (k, v) ->
             runCatching { LocalDate.parse(k) }.getOrNull()?.let { it to decodeSegments(v as? String) }
         }.toMap()
-        ambient.value = ambientPrefs.all.mapNotNull { (k, v) -> runCatching { LocalDate.parse(k) }.getOrNull()?.let { d -> (v as? Long)?.let { d to it } } }.toMap()
+        // v1.12.0 stored plain "2026-10-18" keys: those were this phone's listening.
+        val stored = ambientPrefs.all.mapNotNull { (k, v) -> (v as? Long)?.let { (if ('|' in k) k else "$k|$phoneId") to it } }.toMap()
+        if (ambientPrefs.all.keys.any { '|' !in it }) ambientPrefs.edit().clear().apply { stored.forEach { (k, v) -> putLong(k, v) } }.apply()
+        ambientRaw.value = stored
+        ambient.value = ambientByDate(stored)
     }
 
     fun addAmbient(start: Long, end: Long) {
         val ms = (end - start).coerceIn(0, 12 * 60 * MIN) // a clock change can't log days of listening
         if (ms < MIN) return
         val date = dateOf(start)
-        val total = (ambient.value[date] ?: 0) + ms
-        ambientPrefs.edit().putLong(date.toString(), total).apply()
-        ambient.value = ambient.value + (date to total)
+        val key = "$date|$phoneId"
+        replaceAmbient(ambientRaw.value + (key to (ambientRaw.value[key] ?: 0) + ms))
+        Drive.sync()
+    }
+
+    /** After adding listening or merging with the Drive copy. */
+    fun replaceAmbient(all: Map<String, Long>) {
+        ambientPrefs.edit().apply { all.forEach { (k, v) -> putLong(k, v) } }.apply()
+        ambientRaw.value = all
+        ambient.value = ambientByDate(all)
     }
 
     /** Adds a finished (or ended) session to the day it started on. */

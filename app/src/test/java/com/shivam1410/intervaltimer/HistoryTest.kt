@@ -49,4 +49,13 @@ class HistoryTest {
         )
         assertEquals(2, daysUsedInMonth(days, today))
     }
+
+    @Test fun ambientMergesPerPhoneWithoutDoubleCounting() {
+        val mine = mapOf("2026-10-18|a" to 10 * MIN)
+        val drive = mapOf("2026-10-18|a" to 6 * MIN, "2026-10-18|b" to 4 * MIN, "2026-10-17|b" to 30 * MIN)
+        val merged = mergeAmbient(mine, drive)
+        assertEquals(merged, mergeAmbient(merged, drive)) // syncing again changes nothing
+        assertEquals(mapOf(LocalDate.of(2026, 10, 18) to 14 * MIN, LocalDate.of(2026, 10, 17) to 30 * MIN), ambientByDate(merged))
+        assertEquals(emptyMap<LocalDate, Long>(), ambientByDate(mapOf("junk" to 5L)))
+    }
 }

@@ -49,3 +49,12 @@ fun merge(a: List<Day>, b: List<Day>): List<Day> =
 /** Days in [today]'s month with any time spent in the app (workday or quick timer), shown on home. */
 fun daysUsedInMonth(days: List<Day>, today: LocalDate): Int =
     days.count { it.date.year == today.year && it.date.month == today.month && it.workMs + it.breakMs > 0 }
+
+/** Ambient listening is logged per phone ("2026-10-18|<phoneId>" -> ms), so merging two copies takes the larger value per key. */
+fun mergeAmbient(a: Map<String, Long>, b: Map<String, Long>): Map<String, Long> =
+    (a.keys + b.keys).associateWith { maxOf(a[it] ?: 0, b[it] ?: 0) }
+
+/** Per-day totals across phones; malformed keys are skipped. */
+fun ambientByDate(raw: Map<String, Long>): Map<LocalDate, Long> =
+    raw.entries.mapNotNull { (k, v) -> runCatching { LocalDate.parse(k.substringBefore('|')) }.getOrNull()?.let { it to v } }
+        .groupBy({ it.first }, { it.second }).mapValues { (_, v) -> v.sum() }

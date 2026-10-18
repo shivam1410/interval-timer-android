@@ -60,7 +60,7 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   Save keeps what you've done in History; Discard throws the session away. Stretches under a minute (from skipping through unused slots) don't show in the day view
 - **Activities**: every break stretch remembers its activity, so a day lists "😌 NSDR 20 min" and History
   shows time per activity (library items included) over the last 30 days. Ambient sounds played
-  from home are logged as their own line, not as break time
+  from home are logged as their own line, not as break time, and sync across phones via Drive
 - **History & streaks**: current/best streak, last-7-days focus chart, 12-week consistency heatmap (square cells, every weekday labelled),
   a month calendar, all-time totals. Tap any day for **how the day went**: a
   work/break wave over the hours (pauses as gaps, overtime in its own colour) and every stretch. Time is what you actually spent (skips and pauses don't inflate it); a day
