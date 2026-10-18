@@ -231,7 +231,7 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
             }
 
             QuickTimers(onQuick)
-            MyLibrary(onQuick)
+            MyLibrary()
             val ambient by Timer.ambient.collectAsState()
             Text("Ambient sounds", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
             // Tap to play, tap again to stop; starting a timer stops it.

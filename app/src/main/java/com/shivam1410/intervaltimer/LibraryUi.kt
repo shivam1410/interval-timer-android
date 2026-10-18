@@ -41,9 +41,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Home section with your own quick exercises, grouped by tag; tap to start, long-press to edit, + to add. */
+/**
+ * No 5-4-3-2-1 for your own items: the timer starts and the video / track opens right away
+ * (YouTube or YouTube Music for links, "Play with…" for files), so it still counts in History.
+ */
+fun startLibraryItem(ctx: android.content.Context, item: LibraryItem) {
+    Timer.startQuick("lib:${item.id}")
+    if (item.isFile) LibraryFiles.play(ctx, item.file)?.let { android.widget.Toast.makeText(ctx, it, android.widget.Toast.LENGTH_SHORT).show() }
+    else openLink(ctx, item.url)
+}
+
+/** Home section with your own quick exercises, grouped by tag; tap to start and open, long-press to edit, + to add. */
 @Composable
-fun MyLibrary(onQuick: (String) -> Unit) {
+fun MyLibrary() {
+    val ctx = LocalContext.current
     val all by Library.items.collectAsState()
     val items = all.filterNot { it.deleted }
     var editing by remember { mutableStateOf<LibraryItem?>(null) }
@@ -61,7 +72,7 @@ fun MyLibrary(onQuick: (String) -> Unit) {
             TileGrid(if (i == rows.lastIndex) list + null else list) { item ->
                 if (item == null) Tile("➕", "Add", "YouTube link", cs.surfaceContainerHigh, cs.onSurface, cs.onSurfaceVariant, "Add to library") { adding = true }
                 else Tile(item.toActivity().emoji, item.title, "${item.minutes} min", cs.surfaceContainer, cs.onSurface, cs.onSurfaceVariant, "Start ${item.title}",
-                    onLongClick = { editing = item }) { onQuick("lib:${item.id}") }
+                    onLongClick = { editing = item }) { startLibraryItem(ctx, item) }
             }
         }
     }

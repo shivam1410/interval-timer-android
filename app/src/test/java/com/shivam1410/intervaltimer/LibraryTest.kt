@@ -60,12 +60,10 @@ class LibraryTest {
         val old = "a|1|0|10|T|https%3A%2F%2Fyoutu.be%2Fx|move" // 7 fields, before files
         assertEquals("", decodeLibrary(old).single().file)
         val a = f.toActivity()
-        assertEquals("audio plays in the app", "lib-f.mp3", a.sound)
-        assertEquals(null, a.media)
+        assertEquals("files open in the app you pick", "lib-f.mp3", a.media)
+        assertEquals(null, a.sound)
         assertEquals(emptyList<String>(), a.tracks)
-        val v = f.copy(file = "lib-f.mp4").toActivity()
-        assertEquals("video opens the player", "lib-f.mp4", v.media)
-        assertEquals(null, v.sound)
+        assertEquals("lib-f.mp4", f.copy(file = "lib-f.mp4").toActivity().media)
     }
 
     @Test fun fileNamesKeepASafeExtension() {
@@ -94,5 +92,12 @@ class LibraryTest {
         assertEquals(20, minutesFor(20 * MIN))
         assertEquals(1, minutesFor(10_000))
         assertEquals(120, minutesFor(5 * 60 * MIN)) // long mixes cap at the stepper's max
+    }
+
+    @Test fun linksOpenInTheMatchingYouTubeApp() {
+        assertEquals(YOUTUBE_MUSIC_APP, youTubeAppFor("https://music.youtube.com/watch?v=bk_lD69u204"))
+        assertEquals(YOUTUBE_APP, youTubeAppFor("https://youtu.be/AF9d2Icl4fA"))
+        assertEquals(YOUTUBE_APP, youTubeAppFor("https://www.youtube.com/watch?v=AF9d2Icl4fA"))
+        assertEquals(null, youTubeAppFor("https://example.com/x"))
     }
 }

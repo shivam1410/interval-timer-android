@@ -80,7 +80,7 @@ fun PrimaryAction(a: Activity, modifier: Modifier) {
     val solid = ButtonDefaults.buttonColors(containerColor = cs.tertiary, contentColor = cs.onTertiary)
     val pad = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)
     when {
-        a.tracks.isNotEmpty() -> Button({ open(ctx, a.tracks.random()) }, modifier, colors = solid, contentPadding = pad) { Text("▶  ${a.playLabel}", maxLines = 1) }
+        a.tracks.isNotEmpty() -> Button({ openLink(ctx, a.tracks.random()) }, modifier, colors = solid, contentPadding = pad) { Text("▶  ${a.playLabel}", maxLines = 1) }
         a.media != null -> Button({
             // Not on this phone yet (shared on the other one): Drive sync fetches it.
             LibraryFiles.play(ctx, a.media)?.let { why ->
@@ -95,6 +95,16 @@ fun PrimaryAction(a: Activity, modifier: Modifier) {
 }
 
 private fun open(ctx: Context, url: String) = ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+
+/** YouTube links in the YouTube app, music.youtube.com in YouTube Music; any app that takes the link if those aren't installed. */
+fun openLink(ctx: Context, url: String) {
+    val view = Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    try {
+        ctx.startActivity(Intent(view).setPackage(youTubeAppFor(url)))
+    } catch (e: android.content.ActivityNotFoundException) {
+        ctx.startActivity(view)
+    }
+}
 
 private fun installed(ctx: Context, pkg: String) = ctx.packageManager.getLaunchIntentForPackage(pkg) != null
 

@@ -22,13 +22,12 @@ data class LibraryItem(
 ) {
     val isFile get() = file.isNotEmpty()
 
-    /** Audio plays in the app like an ambient sound (looped, screen off is fine); video opens the phone's player. */
+    /** Links open in YouTube / YouTube Music; files (audio or video) in the app you pick. */
     fun toActivity() = Activity(
         id = "lib:$id", emoji = if (!isFile) "▶️" else if (isVideoFile(file)) "🎬" else "🎵", name = title, group = tag,
-        hint = if (isFile && !isVideoFile(file)) "Playing while the timer runs." else tag.ifBlank { "Play the video and follow along." },
-        sound = file.takeIf { isFile && !isVideoFile(it) },
-        tracks = if (isFile) emptyList() else listOf(url), media = file.takeIf { isFile && isVideoFile(it) },
-        playLabel = "Play video", quickMin = minutes,
+        hint = tag.ifBlank { if (isFile) "Plays in the app you pick." else "Play the video and follow along." },
+        tracks = if (isFile) emptyList() else listOf(url), media = file.ifEmpty { null },
+        playLabel = if (isFile) "Play" else "Play video", quickMin = minutes,
     )
 }
 
@@ -93,3 +92,13 @@ fun parseLengthSeconds(html: String): Int? =
 
 /** Whole minutes, rounded up so the timer covers the whole video or track; within the 1–120 stepper. */
 fun minutesFor(durationMs: Long): Int = ((durationMs + MIN - 1) / MIN).toInt().coerceIn(1, 120)
+
+const val YOUTUBE_APP = YOUTUBE
+const val YOUTUBE_MUSIC_APP = "com.google.android.apps.youtube.music"
+
+/** music.youtube.com opens in YouTube Music, other YouTube links in YouTube; null for anything else. */
+fun youTubeAppFor(url: String): String? = when {
+    !isYouTubeUrl(url) -> null
+    URI(url.trim()).host.equals("music.youtube.com", ignoreCase = true) -> YOUTUBE_MUSIC_APP
+    else -> YOUTUBE_APP
+}

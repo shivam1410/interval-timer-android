@@ -79,17 +79,19 @@ object LibraryFiles {
     fun mimeOf(name: String): String =
         MimeTypeMap.getSingleton().getMimeTypeFromExtension(name.substringAfterLast('.')) ?: "audio/*"
 
-    /** Opens a library video in the phone's player; returns why not, or null when it opened. */
+    /** "Play with…": you pick the app for a library file. Returns why it couldn't open, or null when it did. */
     fun play(ctx: Context, name: String): String? {
         val f = file(ctx, name)
         if (!f.exists()) return "Downloading from Drive, try again in a moment"
         val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", f)
+        val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mimeOf(name)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            .apply { clipData = android.content.ClipData.newRawUri(name, uri) } // carries the read grant through the chooser
         return try {
-            ctx.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, mimeOf(name)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+            ctx.startActivity(Intent.createChooser(view, "Play with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             null
         } catch (e: ActivityNotFoundException) {
             Log.w(TAG, "No player for $name", e)
-            "No app on this phone can play this video"
+            "No app on this phone can play this file"
         }
     }
 }
