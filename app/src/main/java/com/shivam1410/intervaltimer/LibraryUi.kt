@@ -55,7 +55,8 @@ fun MyLibrary(onQuick: (String) -> Unit) {
 @Composable
 fun LibraryDialog(item: LibraryItem?, existingTags: List<String>, initialUrl: String = "", initialTitle: String = "", onDismiss: () -> Unit) {
     var url by remember { mutableStateOf(item?.url ?: initialUrl) }
-    var title by remember { mutableStateOf(item?.title ?: initialTitle) }
+    // Keyed on initialTitle: the shared link's title arrives from oEmbed a moment after the dialog opens.
+    var title by remember(initialTitle) { mutableStateOf(item?.title ?: initialTitle) }
     var tag by remember { mutableStateOf(item?.tag.orEmpty()) }
     var minutes by remember { mutableStateOf(item?.minutes ?: 10) }
     val urlOk = isYouTubeUrl(url)

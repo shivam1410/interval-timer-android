@@ -44,4 +44,12 @@ class LibraryTest {
         assertEquals(10, a.quickMin)
         assertEquals("move", a.group)
     }
+
+    @Test fun sharedTextYieldsTheYouTubeLink() {
+        assertEquals("https://youtu.be/AF9d2Icl4fA?si=abc", extractYouTubeUrl("https://youtu.be/AF9d2Icl4fA?si=abc"))
+        // YouTube Music shares "title + link"; trailing punctuation is not part of the link.
+        assertEquals("https://music.youtube.com/watch?v=bk_lD69u204", extractYouTubeUrl("Yog Nidra\nhttps://music.youtube.com/watch?v=bk_lD69u204."))
+        assertEquals(null, extractYouTubeUrl("look https://evil.com/watch?v=x"))
+        assertEquals(null, extractYouTubeUrl(null))
+    }
 }

@@ -51,3 +51,7 @@ fun isYouTubeUrl(url: String): Boolean {
     val u = runCatching { URI(url.trim()) }.getOrNull() ?: return false
     return u.scheme == "https" && u.host?.lowercase() in YOUTUBE_HOSTS
 }
+
+/** The first YouTube link in text shared from another app ("Title\nhttps://…" or just the link). */
+fun extractYouTubeUrl(text: String?): String? =
+    text.orEmpty().split(Regex("\\s+")).map { it.trimEnd('.', ',', ')', '"', '\'') }.firstOrNull(::isYouTubeUrl)

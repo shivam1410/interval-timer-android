@@ -10,6 +10,8 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **My library**: your own quick exercises on home: add a YouTube / YouTube Music link with a title,
   tag and length; tap to run it as a quick timer with a Play video button, long-press to edit or
   delete. Synced to Drive (`library.json`) with the rest of your history
+  - **Share into it**: in YouTube or YouTube Music tap Share -> Interval Timer; the link and its title
+    are filled in, you pick a tag and length
 - **Start at** a whole hour: pick one of the next three hours on home and the workday starts by
   itself then, once (the daily 10:00 reminder stays a notification; nothing auto-starts every day)
 - **Days this month**: the pill next to your photo counts the days you used the app this month;

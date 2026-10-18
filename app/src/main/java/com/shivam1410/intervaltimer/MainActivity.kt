@@ -1,6 +1,7 @@
 package com.shivam1410.intervaltimer
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
@@ -40,6 +41,13 @@ class MainActivity : ComponentActivity() {
         Updater.check(this)
         Drive.sync()
         setContent { AppTheme { Root(now.longValue) } }
+        if (savedInstanceState == null) Share.handle(intent) // not again on rotation
+    }
+
+    /** singleTask: a share while the app is open arrives here. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        Share.handle(intent)
     }
 
     override fun onStart() {

@@ -139,6 +139,8 @@ fun Root(now: Long) {
             Banner("Update $tag downloaded", "Install") { Updater.install(ctx) }
         }
         updateError?.let { Banner(it, "OK") { Updater.error.value = null } }
+        val share by Share.pending.collectAsState()
+        share?.let { LibraryDialog(null, Library.visible.map { it.tag }.filter { it.isNotBlank() }.distinct(), it.url, it.title) { Share.pending.value = null } }
         when {
             page == "history" -> HistoryScreen { page = "" }
             page == "settings" -> SettingsScreen(settings) { page = "" }
