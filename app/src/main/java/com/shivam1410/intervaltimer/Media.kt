@@ -57,6 +57,9 @@ object Media {
                 list.filter { !File(dir, it.file).exists() }.forEach { download(BASE + it.file, File(dir, it.file)) }
                 File(dir, "manifest.json").writeText(json)
                 sounds.value = list
+                // Sounds dropped or renamed in the manifest (e.g. the old synthetic rain) free their space.
+                val keep = list.map { it.file }.toSet() + "manifest.json"
+                dir.listFiles()?.filter { it.name !in keep }?.forEach { it.delete() }
             } catch (e: IOException) {
                 Log.w("Media", "Sound sync failed; will retry next launch", e)
             } finally {

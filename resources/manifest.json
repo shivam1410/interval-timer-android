@@ -34,16 +34,37 @@
     {
       "id": "rain",
       "name": "Rain",
-      "file": "rain.wav",
+      "file": "rain_bourne_woods.mp3",
       "loop": true,
       "emoji": "🌧"
     },
     {
       "id": "ocean",
       "name": "Ocean",
-      "file": "ocean_luftrum.ogg",
+      "file": "ocean_tropical_beach.ogg",
       "loop": true,
       "emoji": "🌊"
+    },
+    {
+      "id": "thunderstorm",
+      "name": "Thunderstorm",
+      "file": "thunderstorm_stephan.ogg",
+      "loop": true,
+      "emoji": "⛈"
+    },
+    {
+      "id": "stream",
+      "name": "Stream",
+      "file": "stream_jackthemurray.m4a",
+      "loop": true,
+      "emoji": "🏞"
+    },
+    {
+      "id": "fireplace",
+      "name": "Fireplace",
+      "file": "fireplace_glaneur.ogg",
+      "loop": true,
+      "emoji": "🔥"
     },
     {
       "id": "bowl",

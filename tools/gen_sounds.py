@@ -72,21 +72,6 @@ def brown(n, leak=0.02):
     return out
 
 
-def rain(n):
-    out, lp = [], 0.0
-    for _ in range(n):
-        w = random.uniform(-1, 1)
-        lp += 0.25 * (w - lp)
-        out.append(0.35 * (w - lp) + 0.25 * lp)  # hiss + softer body
-    for _ in range(n // 400):  # droplets
-        i, f = random.randrange(n), random.uniform(1500, 4000)
-        a = random.uniform(0.1, 0.5)
-        for j in range(int(0.02 * SR)):
-            if i + j < n:
-                out[i + j] += a * math.exp(-j / (0.003 * SR)) * math.sin(2 * math.pi * f * j / SR)
-    return out
-
-
 def white(n):
     return [random.uniform(-1, 1) for _ in range(n)]
 
@@ -125,12 +110,12 @@ if __name__ == "__main__":
     write("gong_long.wav", tone(12, [0, 2.5, 5.0], 165, decay=1.4))
     write("bell.wav", tone(4, [0], 523, gain=0.5, decay=0.6))
     write("brown_noise.wav", seamless(brown, 30))
-    write("rain.wav", seamless(rain, 30))
     write("bowl.wav", bowl_drone())
     write("white_noise.wav", seamless(white, 20))
     write("pink_noise.wav", seamless(pink, 30))
     write("grey_noise.wav", seamless(grey, 30))
-    # Ocean and whales are real recordings from Wikimedia Commons (see README credits), not synthesized.
+    # Rain, ocean, thunderstorm, stream, fireplace and whales are real recordings from Wikimedia Commons
+    # (see README credits), not synthesized.
     manifest = {
         "sounds": [
             {"id": "gong", "emoji": "🔔", "name": "Gong", "file": "gong.wav"},
@@ -138,8 +123,11 @@ if __name__ == "__main__":
             {"id": "gong_long", "emoji": "🔔", "name": "Long gong", "file": "gong_long.wav"},
             {"id": "bell", "emoji": "🛎", "name": "Soft bell", "file": "bell.wav"},
             {"id": "brown_noise", "emoji": "🟤", "name": "Brown noise", "file": "brown_noise.wav", "loop": True},
-            {"id": "rain", "emoji": "🌧", "name": "Rain", "file": "rain.wav", "loop": True},
-            {"id": "ocean", "emoji": "🌊", "name": "Ocean", "file": "ocean_luftrum.ogg", "loop": True},
+            {"id": "rain", "emoji": "🌧", "name": "Rain", "file": "rain_bourne_woods.mp3", "loop": True},
+            {"id": "ocean", "emoji": "🌊", "name": "Ocean", "file": "ocean_tropical_beach.ogg", "loop": True},
+            {"id": "thunderstorm", "emoji": "⛈", "name": "Thunderstorm", "file": "thunderstorm_stephan.ogg", "loop": True},
+            {"id": "stream", "emoji": "🏞", "name": "Stream", "file": "stream_jackthemurray.m4a", "loop": True},
+            {"id": "fireplace", "emoji": "🔥", "name": "Fireplace", "file": "fireplace_glaneur.ogg", "loop": True},
             {"id": "bowl", "emoji": "🥣", "name": "Singing bowls", "file": "bowl.wav", "loop": True},
             {"id": "whales", "emoji": "🐋", "name": "Whales", "file": "whales_nueva_esparta.ogg", "loop": True},
             {"id": "white_noise", "emoji": "⚪", "name": "White noise", "file": "white_noise.wav", "loop": True},

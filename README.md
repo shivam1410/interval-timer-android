@@ -46,7 +46,7 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - **Power nap** (20 min): black screen, hold to wake early; the gong wakes you
   - **Meditation**: sit in silence with a live stillness meter — how quiet you stayed (nothing recorded)
   - **Sketch**: opens [Sketch Seed](https://github.com/shivam1410/sketchseed) (the button shows its app icon)
-  - **Refresh**: rain, ocean, whales, white / pink / brown / grey noise
+  - **Refresh**: rain, thunderstorm, ocean, stream, fireplace, whales, white / pink / brown / grey noise (real recordings, see Credits)
   - Breathing animation, walk
 - **Focus music** is picked on the work screen (brown noise, rain, ocean, singing bowls) and
   keeps playing with the screen off
@@ -116,7 +116,7 @@ the lock-screen page turns the screen on for ~12 s per phase change (about 5 min
 
 Audio is **not bundled in the APK**. [`resources/`](resources) holds the sounds and
 `manifest.json`; the app downloads them from this repo on first launch and caches them offline.
-Sounds are synthesized by [`tools/gen_sounds.py`](tools/gen_sounds.py), except the ocean and whale recordings (see [Credits](#credits)). To add a sound, drop a file
+Sounds are synthesized by [`tools/gen_sounds.py`](tools/gen_sounds.py), except the nature recordings (see [Credits](#credits)). To add a sound, drop a file
 in `resources/` and add an entry to `manifest.json` (`"loop": true` makes it selectable as music).
 
 ## Google Drive sync setup (one-time, Google Cloud Console)
@@ -134,10 +134,19 @@ Drive token and your name/photo in one consent.
 
 ## Credits
 
-Real recordings in `resources/` (everything else there is synthesized by `tools/gen_sounds.py`):
+Real recordings in `resources/` (everything else there is synthesized by `tools/gen_sounds.py`), all from
+Wikimedia Commons:
 
-- **Ocean** — [“Oceanwavescrushing”](https://commons.wikimedia.org/wiki/File:Oceanwavescrushing.ogg)
-  by **Luftrum**, licensed [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/); used unmodified.
+- **Rain** — [“Bourne woods rain 2020-05-10 0800”](https://commons.wikimedia.org/wiki/File:Bourne_woods_rain_2020-05-10_0800.mp3)
+  by **Robert EA Harvey**, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); used unmodified.
+- **Thunderstorm** — [“Thunderstorm after hot summer day 17 minutes 02 of 04”](https://commons.wikimedia.org/wiki/File:Thunderstorm_after_hot_summer_day_17_minutes_02_of_04.ogg)
+  by stephan, public domain.
+- **Ocean** — [“Ocean Waves on a Tropical Beach”](https://commons.wikimedia.org/wiki/File:Ocean_Waves_on_a_Tropical_Beach.ogg)
+  by Jarrod Stanley, [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Stream** — [“stream-river-water-up-close”](https://commons.wikimedia.org/wiki/File:433589_jackthemurray_stream-river-water-up-close.wav)
+  by jackthemurray, [CC0](https://creativecommons.org/publicdomain/zero/1.0/); converted to AAC.
+- **Fireplace** — [“Campfire sound ambience”](https://commons.wikimedia.org/wiki/File:Campfire_sound_ambience.ogg)
+  by **Glaneur de sons**, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/); used unmodified.
 - **Whales** — [“Whales and Dolphins, Nueva Esparta”](https://commons.wikimedia.org/wiki/File:Whales_and_Dolphins_whale_nature_sounds_songs_nueva_esparta.ogg)
   by Wilfredo R. Rodriguez H., [CC0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain).
 
