@@ -105,3 +105,9 @@ fun youTubeAppFor(url: String): String? = when {
 
 /** YouTube's public 320×180 thumbnail for a link (no key), or null. */
 fun youTubeThumb(url: String): String? = youTubeId(url)?.let { "https://i.ytimg.com/vi/$it/mqdefault.jpg" }
+
+/** Name a player shows for a library file: your title plus the file's extension (storage name if untitled). */
+fun playerName(title: String, fileName: String): String {
+    val clean = title.trim().replace(Regex("[/\\\\:*?\"<>|]"), "_").take(80)
+    return if (clean.isEmpty()) fileName else "$clean.${fileName.substringAfterLast('.')}"
+}

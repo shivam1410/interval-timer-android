@@ -106,4 +106,10 @@ class LibraryTest {
         assertEquals("https://i.ytimg.com/vi/bk_lD69u204/mqdefault.jpg", youTubeThumb("https://music.youtube.com/watch?v=bk_lD69u204"))
         assertEquals(null, youTubeThumb("https://example.com/v.mp4"))
     }
+
+    @Test fun playersSeeTheTitleNotTheStorageName() {
+        assertEquals("Singing bowl.wav", playerName("Singing bowl", "lib-8be56fd9.wav"))
+        assertEquals("Yoga_ part 1.mp4", playerName("Yoga/ part 1", "lib-a.mp4")) // no path separators
+        assertEquals("lib-a.mp3", playerName("  ", "lib-a.mp3"))
+    }
 }

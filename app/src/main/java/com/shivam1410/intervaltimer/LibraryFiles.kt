@@ -76,6 +76,8 @@ object LibraryFiles {
         }
     }
 
+    private fun title(name: String) = Library.items.value.firstOrNull { it.file == name }?.title?.let { playerName(it, name) } ?: name
+
     fun mimeOf(name: String): String =
         MimeTypeMap.getSingleton().getMimeTypeFromExtension(name.substringAfterLast('.')) ?: "audio/*"
 
@@ -85,7 +87,7 @@ object LibraryFiles {
         if (!f.exists()) return "Downloading from Drive, try again in a moment"
         val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", f)
         val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mimeOf(name)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            .apply { clipData = android.content.ClipData.newRawUri(name, uri) } // carries the read grant through the chooser
+            .apply { clipData = android.content.ClipData.newRawUri(title(name), uri) } // carries the read grant through the chooser
         return try {
             ctx.startActivity(Intent.createChooser(view, "Play with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             null
