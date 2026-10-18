@@ -453,7 +453,11 @@ object Timer {
                 b.addAction(action(Receiver.SKIP, "Next"))
             } else {
                 b.addAction(action(if (s.paused) Receiver.RESUME else Receiver.PAUSE, if (s.paused) "Resume" else "Pause"))
-                b.addAction(action(Receiver.SKIP, "Skip"))
+                // A quick timer has nothing after it to skip to: +10 min or End (which saves, like End and Save).
+                if (s.quick != null) {
+                    b.addAction(action(Receiver.EXTEND, "+10 min"))
+                    b.addAction(action(Receiver.END, "End"))
+                } else b.addAction(action(Receiver.SKIP, "Skip"))
             }
         } else {
             b.setAutoCancel(true)
@@ -478,7 +482,7 @@ object Timer {
                 Kind.WORK -> if (s.paused || s.index + 1 >= plan.size) "Work"
                     else "Break " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(s.endsAt))
                 Kind.PREP -> "Prepare"
-                Kind.ACTIVITY -> "Break"
+                Kind.ACTIVITY -> if (s.quick != null) "Left" else "Break" // a quick timer isn't a break in a workday
             }
         }
         return Notification.Metric(value, label)

@@ -14,6 +14,7 @@ class Receiver : BroadcastReceiver() {
             PAUSE -> Timer.pause()
             RESUME -> Timer.resume()
             SKIP -> Timer.skip()
+            END -> Timer.stop()
             EXTEND -> Timer.extendBreak()
             REMINDER -> Timer.remind()
             START_DAY -> Timer.startWorkday()
@@ -44,6 +45,7 @@ class Receiver : BroadcastReceiver() {
         const val PAUSE = "it.PAUSE"
         const val RESUME = "it.RESUME"
         const val SKIP = "it.SKIP"
+        const val END = "it.END"
         const val EXTEND = "it.EXTEND"
         const val REMINDER = "it.REMINDER"
         const val START_DAY = "it.START_DAY"
