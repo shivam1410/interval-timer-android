@@ -82,8 +82,11 @@ fun LibraryDialog(
                 )
                 OutlinedTextField(title, { title = it.take(80) }, Modifier.fillMaxWidth(), label = { Text("Title") }, singleLine = true)
                 OutlinedTextField(tag, { tag = it.take(30) }, Modifier.fillMaxWidth(), label = { Text("Tag") }, singleLine = true)
-                if (existingTags.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    existingTags.filter { it != "Untagged" }.forEach { t -> AssistChip({ tag = t }, { Text(t) }) }
+                // Your Toggl tags first (the tag is what Toggl gets), then tags already used here.
+                val toggl by TogglSync.tags.collectAsState()
+                val choices = (toggl + existingTags).filter { it != "Untagged" }.distinct()
+                if (choices.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    choices.forEach { t -> AssistChip({ tag = t }, { Text(t) }) }
                 }
                 Stepper("Length", minutes, "min", 1..120) { minutes = it }
             }

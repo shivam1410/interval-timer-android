@@ -209,8 +209,11 @@ object Timer {
         if (s.running(plan)) History.record(s.startedAt, credit(plan, close(plan, s, now()), now()))
         commit(Session(), null)
     }
-    /** Ends without saving anything to History. */
-    fun discard() = commit(Session(), null)
+    /** Ends without saving anything to History (or Toggl). */
+    fun discard() {
+        TogglSync.discard(session.value.startedAt)
+        commit(Session(), null)
+    }
 
     /** In-session choices: switch the break activity or focus music right now, or lengthen this break. */
     fun chooseActivity(id: String) {
@@ -264,6 +267,7 @@ object Timer {
         val transition = session.value.running(plan)
         if (s.done(plan) && session.value.running(plan)) History.record(s.startedAt, s)
         session.value = s
+        TogglSync.onSession(plan, s, chosen)
         prefs.edit().putInt("index", s.index).putLong("endsAt", s.endsAt).putLong("pausedLeft", s.pausedLeft)
             .putLong("startedAt", s.startedAt).putLong("finishedAt", s.finishedAt)
             .putLong("phaseMs", s.phaseMs).putLong("bonus", s.bonus)

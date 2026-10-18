@@ -15,6 +15,11 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - **MP3 / MP4 files**: share one from Files, Downloads or any app -> Interval Timer. It's kept in the app
     (up to 500 MB) and backed up to your Drive's hidden app folder, so your other phone gets it too.
     Audio plays inside the app while the timer runs (screen off is fine); video opens your player
+- **Toggl Track** (Settings): paste your API token (stored encrypted on the phone, never synced). Work
+  blocks and break activities start and stop Toggl timers as the phases change; prepare, pauses and
+  ambient sounds don't. Pick a Toggl tag, or "Don't send", per activity; library items send their own
+  tag. Offline changes are queued and sent later with their real times; Discard deletes that session's
+  entries from Toggl too
 - **Start at** a whole hour: pick one of the next three hours on home and the workday starts by
   itself then, once (the daily 10:00 reminder stays a notification; nothing auto-starts every day)
 - **Days this month**: the pill next to your photo counts the days you used the app this month;

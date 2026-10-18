@@ -72,6 +72,8 @@ fun SettingsScreen(s: Settings, onBack: () -> Unit) {
             }
         }
 
+        TogglSection()
+
         Section("Alerts") {
             Toggle(R.drawable.ic_gong, "Gong", s.gong) { v -> set { copy(gong = v) } }
             Toggle(R.drawable.ic_vibrate, "Vibration", s.vibrate) { v -> set { copy(vibrate = v) } }
