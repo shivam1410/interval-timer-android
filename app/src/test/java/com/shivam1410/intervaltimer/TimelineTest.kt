@@ -53,4 +53,12 @@ class TimelineTest {
         val segs = listOf(work(0, 50), work(50, 55, over = true), rest(55, 57), rest(57, 65), work(80, 130))
         assertEquals(listOf(work(0, 50), work(50, 55, over = true), rest(55, 65), work(80, 130)), joined(segs))
     }
+
+    @Test fun blipsFromSkippingAreDropped() {
+        val segs = listOf(work(0, 50), Segment(50 * MIN, 50 * MIN + 20_000, work = false), Segment(50 * MIN + 20_000, 50 * MIN + 25_000, work = true), rest(51, 60))
+        assertEquals(listOf(work(0, 50), rest(51, 60)), dropBlips(segs, keepLast = false))
+        // A stretch that just started today stays visible.
+        val live = listOf(work(0, 50), Segment(50 * MIN, 50 * MIN + 20_000, work = false))
+        assertEquals(live, dropBlips(live, keepLast = true))
+    }
 }

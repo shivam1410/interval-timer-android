@@ -221,4 +221,12 @@ class EngineTest {
         val ended = close(p, start(p, 0), 20 * MIN)
         assertEquals(listOf(Segment(0, 20 * MIN, true)), ended.log)
     }
+
+    @Test fun fullHoursAfterNow() {
+        val utc = java.util.TimeZone.getTimeZone("UTC")
+        val h = 60 * MIN
+        // 09:20 -> 10:00, 11:00, 12:00; exactly 10:00 -> 11:00 onward (never "now").
+        assertEquals(listOf(10 * h, 11 * h, 12 * h), nextFullHours(9 * h + 20 * MIN, 3, utc))
+        assertEquals(listOf(11 * h, 12 * h), nextFullHours(10 * h, 2, utc))
+    }
 }

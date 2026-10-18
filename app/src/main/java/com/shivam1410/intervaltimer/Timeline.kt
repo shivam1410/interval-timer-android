@@ -54,3 +54,10 @@ fun joined(segs: List<Segment>): List<Segment> = segs.fold(emptyList()) { acc, s
     if (last != null && last.end == s.start && last.work == s.work && last.over == s.over) acc.dropLast(1) + last.copy(end = s.end)
     else acc + s
 }
+
+/**
+ * Drops stretches under a minute, left behind by skipping through unused slots; [keepLast] keeps
+ * the last one when it is still running, so today's graph doesn't wait a minute to show it.
+ */
+fun dropBlips(segs: List<Segment>, keepLast: Boolean): List<Segment> =
+    segs.filterIndexed { i, s -> s.ms >= MIN || (keepLast && i == segs.lastIndex) }

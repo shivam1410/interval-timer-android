@@ -45,3 +45,7 @@ fun merge(a: List<Day>, b: List<Day>): List<Day> =
     (a + b).groupBy { it.date }.values
         .map { same -> same.maxWith(compareBy({ it.workMs }, { it.cycles })) }
         .sortedBy { it.date }
+
+/** Days in [today]'s month with any time spent in the app (workday or quick timer), shown on home. */
+fun daysUsedInMonth(days: List<Day>, today: LocalDate): Int =
+    days.count { it.date.year == today.year && it.date.month == today.month && it.workMs + it.breakMs > 0 }

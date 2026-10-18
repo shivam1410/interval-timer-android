@@ -64,8 +64,8 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
         }
     }
     val plan = Timer.plan
-    val segs = remember(stored, session, now, date) { joined(History.timeline(date, session, plan, now)) }
     val live = session.running(plan) && History.dateOf(session.startedAt) == date
+    val segs = remember(stored, session, now, date) { dropBlips(joined(History.timeline(date, session, plan, now)), keepLast = live) }
     val liveTotals = if (live) credit(plan, session, now) else Session()
     val day = days.firstOrNull { it.date == date }
     val work = (day?.workMs ?: 0) + liveTotals.workMs

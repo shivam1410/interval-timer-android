@@ -327,3 +327,14 @@ fun nextDaily(now: Long, minuteOfDay: Int, zone: java.util.TimeZone = java.util.
         if (timeInMillis <= now) add(java.util.Calendar.DAY_OF_MONTH, 1)
         timeInMillis
     }
+
+/** The next [n] whole hours strictly after [now] (09:20 -> 10:00, 11:00, …), offered for a scheduled start. */
+fun nextFullHours(now: Long, n: Int, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): List<Long> {
+    val first = java.util.Calendar.getInstance(zone).run {
+        timeInMillis = now
+        set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+        add(java.util.Calendar.HOUR_OF_DAY, 1)
+        timeInMillis
+    }
+    return List(n) { first + it * 60 * MIN }
+}

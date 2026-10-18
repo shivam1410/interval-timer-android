@@ -38,4 +38,15 @@ class HistoryTest {
         assertEquals(listOf(today.minusDays(2), today.minusDays(1), today), m.map { it.date })
         assertEquals(5, m.last().cycles)
     }
+
+    @Test fun daysUsedCountsOnlyThisMonthWithAnyTime() {
+        val days = listOf(
+            Day(LocalDate.of(2026, 10, 1), 5 * MIN, 0, 0), // quick timer only still counts
+            Day(LocalDate.of(2026, 10, 3), 0, 0, 0), // nothing spent
+            day(0),
+            Day(LocalDate.of(2026, 9, 30), 50 * MIN, 0, 1), // last month
+            Day(LocalDate.of(2025, 10, 5), 50 * MIN, 0, 1), // same month, last year
+        )
+        assertEquals(2, daysUsedInMonth(days, today))
+    }
 }

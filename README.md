@@ -7,6 +7,10 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Home is quick**: Workday 50:10 · Deep 90:15 · Pomodoro 25:5 · Custom (only Custom shows the
   schedule controls), plus **quick timers** for one-off sessions — NSDR, Sketch, Stretch, Exercise,
   Walk, Power nap, Breathing — tapping one counts down 5-4-3-2-1-Start first
+- **Start at** a whole hour: pick one of the next three hours on home and the workday starts by
+  itself then, once (the daily 10:00 reminder stays a notification; nothing auto-starts every day)
+- **Days this month**: the pill next to your photo counts the days you used the app this month;
+  tap it for History
 - **Settings** (tap your photo): Google account & Drive sync, gong / vibration / volume, version
   and update check
 - **Breaks start with a 2-min prepare phase**; on the break screen you choose the activity
@@ -30,6 +34,8 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   **Next** when you're done (overtime counts as work). Prepare still flows into the activity
 - **Lock-screen page** at every phase change: black-and-white, display only, closes itself after ~12 s
 - **Restart-proof**: phases are absolute timestamps, rebuilt after reboot
+- **End and Save / Discard**: End and Save keeps what you've done in History; Discard throws the
+  session away. Stretches under a minute (from skipping through unused slots) don't show in the day view
 - **History & streaks**: current/best streak, last-7-days focus chart, 12-week consistency heatmap,
   a month calendar, all-time totals. Tap any day for **how the day went**: a
   work/break wave over the hours (pauses as gaps, overtime in its own colour) and every stretch. Time is what you actually spent (skips and pauses don't inflate it); a day

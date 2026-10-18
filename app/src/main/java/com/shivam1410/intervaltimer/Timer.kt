@@ -36,6 +36,8 @@ object Timer {
     val settings = MutableStateFlow(Settings())
     /** Ambient loop played from home with no session running; null = silent. */
     val ambient = MutableStateFlow<String?>(null)
+    /** One-off scheduled start of the workday (epoch ms), or null. Fires once, then clears itself. */
+    val scheduledAt = MutableStateFlow<Long?>(null)
     val plan get() = session.value.quick?.let(::quickPlan) ?: plan(settings.value)
 
     private lateinit var app: Context
@@ -79,6 +81,8 @@ object Timer {
         nm.deleteNotificationChannel("alert") // old soundless channel from ≤ v1.5.0
         nm.createNotificationChannel(NotificationChannel(CH_REMINDER, "Daily start reminder", NotificationManager.IMPORTANCE_HIGH))
         armReminder()
+        scheduledAt.value = prefs.getLong("scheduledAt", 0).takeIf { it > now() }
+        armScheduled()
     }
 
     /** Re-armed on every process start (boot, update, app open), each time it fires, and when its setting changes. */
@@ -89,10 +93,33 @@ object Timer {
         if (s.reminder) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextDaily(now(), s.reminderMin), pi) else am.cancel(pi)
     }
 
+    private fun scheduledIntent() =
+        PendingIntent.getBroadcast(app, 2, Intent(app, Receiver::class.java).setAction(Receiver.START_AT), PendingIntent.FLAG_IMMUTABLE)
+
+    /** Re-armed on every process start too: alarms don't survive a reboot. A time already past is dropped. */
+    private fun armScheduled() {
+        val am = app.getSystemService(AlarmManager::class.java)
+        val at = scheduledAt.value
+        if (at != null) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, scheduledIntent()) else am.cancel(scheduledIntent())
+    }
+
+    /** Home's "Start at": [at] is a whole hour; null cancels. */
+    fun scheduleStart(at: Long?) {
+        scheduledAt.value = at
+        prefs.edit().putLong("scheduledAt", at ?: 0).apply()
+        armScheduled()
+    }
+
+    /** The scheduled hour arrived: start the workday as set up on home, unless something is already running. */
+    fun startScheduled() {
+        scheduleStart(null)
+        if (session.value.idle) start()
+    }
+
     /** Daily nudge (10:00 by default) to start the 8-hour 50:10 workday, unless something is already running. */
     fun remind() {
         armReminder()
-        if (!settings.value.reminder || !session.value.idle) return
+        if (!settings.value.reminder || !session.value.idle || scheduledAt.value != null) return
         val p = PRESETS[0]
         app.getSystemService(NotificationManager::class.java).notify(
             REMINDER_ID,
@@ -149,6 +176,7 @@ object Timer {
     private fun now() = System.currentTimeMillis()
 
     fun start() {
+        if (scheduledAt.value != null) scheduleStart(null)
         resetFixedActivity()
         ambient.value = null
         app.getSystemService(NotificationManager::class.java).cancel(REMINDER_ID)
@@ -181,6 +209,8 @@ object Timer {
         if (s.running(plan)) History.record(s.startedAt, credit(plan, close(plan, s, now()), now()))
         commit(Session(), null)
     }
+    /** Ends without saving anything to History. */
+    fun discard() = commit(Session(), null)
 
     /** In-session choices: switch the break activity or focus music right now, or lengthen this break. */
     fun chooseActivity(id: String) {

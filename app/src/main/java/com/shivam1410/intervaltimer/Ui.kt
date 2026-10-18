@@ -43,6 +43,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -177,6 +178,8 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
     val greeting = when (hour) { in 4..11 -> "Good morning"; in 12..16 -> "Good afternoon"; else -> "Good evening" } +
         if (first.isNotEmpty()) ", $first" else ""
     fun set(f: Settings.() -> Settings) = Timer.saveSettings(s.f())
+    val scheduled by Timer.scheduledAt.collectAsState()
+    val from = scheduled ?: now
 
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
@@ -188,7 +191,7 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
             }
             Text("Your workday", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 20.dp))
             Text(
-                "${clock(now)} — ${clock(now + total)}",
+                "${clock(from)} — ${clock(from + total)}",
                 style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
             )
             Text(
@@ -222,6 +225,7 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
             SoundTiles(ambient.orEmpty(), off = false, MaterialTheme.colorScheme.surfaceContainer, "Ambient") { Timer.playAmbient(it.takeIf { it != ambient }) }
             Spacer(Modifier.height(16.dp))
         }
+        StartAt(scheduled, now)
         Button(
             onClick = { Timer.start() },
             modifier = Modifier.fillMaxWidth().padding(20.dp).height(64.dp),
@@ -230,19 +234,35 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
     }
 }
 
-/** Header shortcut to History: chart icon plus the current streak, next to the profile photo. */
+/** One-off start on a whole hour: the next three hours as chips, or the armed time with Cancel. */
+@Composable
+private fun StartAt(scheduled: Long?, now: Long) {
+    val cs = MaterialTheme.colorScheme
+    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (scheduled != null) {
+            Text("⏰ Starts at ${clock(scheduled)}", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = cs.primary)
+            TextButton({ Timer.scheduleStart(null) }) { Text("Cancel") }
+        } else {
+            Text("Start at", color = cs.onSurfaceVariant)
+            // Re-evaluated only when the hour changes, not every second.
+            val hours = remember(now / (60 * MIN)) { nextFullHours(now, 3) }
+            hours.forEach { at -> AssistChip({ Timer.scheduleStart(at) }, { Text(clock(at)) }, Modifier.weight(1f)) }
+        }
+    }
+}
+
+/** Header shortcut to History: how many days this month the app was used, next to the profile photo. */
 @Composable
 private fun HistoryPill(onClick: () -> Unit) {
     val days by History.days.collectAsState()
-    val streak = streaks(days, History.today()).first
+    val used = daysUsedInMonth(days, History.today())
     val cs = MaterialTheme.colorScheme
     Row(
         Modifier.height(44.dp).clip(CircleShape).background(cs.secondaryContainer).clickable(onClickLabel = "History", onClick = onClick)
-            .padding(horizontal = 8.dp), // 8 + 28 + 8 = 44: stays a circle when there's no streak
+            .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(painterResource(R.drawable.ic_chart), "History", Modifier.size(28.dp), tint = cs.onSecondaryContainer)
-        if (streak > 0) Text(" 🔥$streak", style = MaterialTheme.typography.labelLarge, color = cs.onSecondaryContainer)
+        Text("$used ${if (used == 1) "day" else "days"}", style = MaterialTheme.typography.labelLarge, color = cs.onSecondaryContainer)
     }
 }
 
@@ -488,9 +508,18 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
         AlertDialog(
             onDismissRequest = { confirmEnd = false },
             title = { Text(if (quick) "End ${chosen.name}?" else "End workday?") },
-            text = { Text("The schedule and alarms will be cleared.") },
-            confirmButton = { TextButton({ confirmEnd = false; Timer.stop() }) { Text("End") } },
-            dismissButton = { TextButton({ confirmEnd = false }) { Text("Keep going") } },
+            text = { Text("End and Save keeps what you've done so far in History. Discard throws this session away.") },
+            // Three choices don't fit one row: stacked, right-aligned, like Material's stacked dialog actions.
+            confirmButton = {
+                Column(horizontalAlignment = Alignment.End) {
+                    TextButton({ confirmEnd = false; Timer.stop() }) { Text("End and Save") }
+                    TextButton(
+                        { confirmEnd = false; Timer.discard() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) { Text("Discard") }
+                    TextButton({ confirmEnd = false }) { Text("Keep going") }
+                }
+            },
         )
     }
 }
