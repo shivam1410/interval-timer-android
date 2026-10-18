@@ -7,15 +7,17 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Home is quick**: Workday 50:10 · Deep 90:15 · Pomodoro 25:5 · Custom (only Custom shows the
   schedule controls), plus **quick timers** for one-off sessions — NSDR, Sketch, Stretch, Exercise,
   Walk, Power nap, Breathing — tapping one counts down 5-4-3-2-1-Start first
-- **My library**: your own quick exercises on home, grouped by tag: add a YouTube / YouTube Music
-  link or pick an audio / video file; the title and length fill themselves in (from YouTube, or the
-  file's duration) and stay editable; the tag is a dropdown of your Toggl and used tags. Tap to run it
-  as a quick timer, long-press to edit or delete. Synced to Drive (`library.json`)
+- **My library**: your own quick exercises on home, one card each with a thumbnail (YouTube's, a video
+  frame or the track's cover art), title, tag label and length. Add a YouTube / YouTube Music link or
+  pick an audio / video file; title and length fill themselves in and stay editable; the tag is a
+  dropdown of your Toggl and used tags. **Tap starts it at once** (no 5-4-3-2-1): its timer runs and it
+  opens in YouTube, YouTube Music (music.youtube.com links) or the app you pick for files.
+  Long-press to edit or delete. Synced to Drive (`library.json`)
   - **Share into it**: in YouTube or YouTube Music tap Share -> Interval Timer; the link and its title
     are filled in, you pick a tag and length
   - **MP3 / MP4 files**: share one from Files, Downloads or any app -> Interval Timer. It's kept in the app
     (up to 500 MB) and backed up to your Drive's hidden app folder, so your other phone gets it too.
-    Audio plays inside the app while the timer runs (screen off is fine); video opens your player
+    It opens in the app you pick ("Play with…")
 - **Toggl Track** (Settings): paste your API token (stored encrypted on the phone, never synced). Work
   blocks and break activities start and stop Toggl timers as the phases change; prepare, pauses and
   ambient sounds don't. Pick a Toggl tag, or "Don't send", per activity; library items send their own
@@ -43,7 +45,7 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - **Exercise**, **Eye + neck reset**: guided step-by-step with a timer per step
   - **Power nap** (20 min): black screen, hold to wake early; the gong wakes you
   - **Meditation**: sit in silence with a live stillness meter — how quiet you stayed (nothing recorded)
-  - **Sketch**: opens [Sketch Seed](https://github.com/shivam1410/sketchseed)
+  - **Sketch**: opens [Sketch Seed](https://github.com/shivam1410/sketchseed) (the button shows its app icon)
   - **Refresh**: rain, ocean, whales, white / pink / brown / grey noise
   - Breathing animation, walk
 - **Focus music** is picked on the work screen (brown noise, rain, ocean, singing bowls) and

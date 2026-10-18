@@ -35,6 +35,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -89,7 +91,12 @@ fun PrimaryAction(a: Activity, modifier: Modifier) {
             }
         }, modifier, colors = solid, contentPadding = pad) { Text("▶  ${a.playLabel}", maxLines = 1) }
         a.app != null -> Button({ launch(ctx, a.app) }, modifier, colors = solid, contentPadding = pad) {
-            Text(if (installed(ctx, a.app)) "✏️  Open Sketch Seed" else "Get Sketch Seed", maxLines = 1)
+            // Sketch Seed's own launcher icon, read from the installed app, so it always matches.
+            val icon = remember(a.app) { appIcon(ctx, a.app) }
+            if (icon != null) {
+                Image(icon, null, Modifier.size(22.dp))
+                Text("  Open Sketch Seed", maxLines = 1)
+            } else Text("Get Sketch Seed", maxLines = 1)
         }
     }
 }
@@ -106,7 +113,17 @@ fun openLink(ctx: Context, url: String) {
     }
 }
 
-private fun installed(ctx: Context, pkg: String) = ctx.packageManager.getLaunchIntentForPackage(pkg) != null
+/** An installed app's launcher icon as a bitmap, or null when it isn't installed. */
+private fun appIcon(ctx: Context, pkg: String): androidx.compose.ui.graphics.ImageBitmap? = try {
+    val d = ctx.packageManager.getApplicationIcon(pkg)
+    val px = (22 * ctx.resources.displayMetrics.density).toInt().coerceAtLeast(1)
+    android.graphics.Bitmap.createBitmap(px, px, android.graphics.Bitmap.Config.ARGB_8888).also { b ->
+        d.setBounds(0, 0, px, px)
+        d.draw(android.graphics.Canvas(b))
+    }.asImageBitmap()
+} catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+    null
+}
 
 private fun launch(ctx: Context, pkg: String) {
     val intent = ctx.packageManager.getLaunchIntentForPackage(pkg)
