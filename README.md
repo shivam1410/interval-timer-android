@@ -7,9 +7,10 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Home is quick**: Workday 50:10 · Deep 90:15 · Pomodoro 25:5 · Custom (only Custom shows the
   schedule controls), plus **quick timers** for one-off sessions — NSDR, Sketch, Stretch, Exercise,
   Walk, Power nap, Breathing — tapping one counts down 5-4-3-2-1-Start first
-- **My library**: your own quick exercises on home: add a YouTube / YouTube Music link with a title,
-  tag and length; tap to run it as a quick timer with a Play video button, long-press to edit or
-  delete. Synced to Drive (`library.json`) with the rest of your history
+- **My library**: your own quick exercises on home, grouped by tag: add a YouTube / YouTube Music
+  link or pick an audio / video file; the title and length fill themselves in (from YouTube, or the
+  file's duration) and stay editable; the tag is a dropdown of your Toggl and used tags. Tap to run it
+  as a quick timer, long-press to edit or delete. Synced to Drive (`library.json`)
   - **Share into it**: in YouTube or YouTube Music tap Share -> Interval Timer; the link and its title
     are filled in, you pick a tag and length
   - **MP3 / MP4 files**: share one from Files, Downloads or any app -> Interval Timer. It's kept in the app
@@ -26,12 +27,14 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   once per 30 min per app. Needs Usage access; for YouTube also Notification access, used only to see
   YouTube's player (on a sideloaded install: App info › ⋮ › Allow restricted settings first). No
   background loop: one inexact alarm set for when the limit could next be reached
-- **Start at** a whole hour: pick one of the next three hours on home and the workday starts by
-  itself then, once (the daily 10:00 reminder stays a notification; nothing auto-starts every day)
+- **Start at** a whole hour: the 5th row of the Custom schedule (Now or one of the next four hours);
+  the workday starts by itself then, once. Home shows the armed start with Cancel (the daily 10:00
+  reminder stays a notification; nothing auto-starts every day)
 - **Days this month**: the pill next to your photo counts the days you used the app this month;
   tap it for History
-- **Settings** (tap your photo): Google account & Drive sync, gong / vibration / volume, version
-  and update check
+- **Settings** (tap your photo): three pages — **Profile** (account, Drive sync, app updates,
+  sign out), **Notifications** (gong / vibration / volume, lock screen, daily reminder, nudges) and
+  **Toggl Track**
 - **Breaks start with a 2-min prepare phase**; on the break screen you choose the activity
   and can make it a **long break** (+10 min each tap, also from the notification); the rest of
   the day shifts later. Activities have their own cues:
@@ -53,9 +56,12 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   **Next** when you're done (overtime counts as work). Prepare still flows into the activity
 - **Lock-screen page** at every phase change: black-and-white, display only, closes itself after ~12 s
 - **Restart-proof**: phases are absolute timestamps, rebuilt after reboot
-- **End and Save / Discard**: End and Save keeps what you've done in History; Discard throws the
-  session away. Stretches under a minute (from skipping through unused slots) don't show in the day view
-- **History & streaks**: current/best streak, last-7-days focus chart, 12-week consistency heatmap,
+- **End and Save / Discard**: one row — Discard (left), Keep going, End and Save (right). End and
+  Save keeps what you've done in History; Discard throws the session away. Stretches under a minute (from skipping through unused slots) don't show in the day view
+- **Activities**: every break stretch remembers its activity, so a day lists "😌 NSDR 20 min" and History
+  shows time per activity (library items included) over the last 30 days. Ambient sounds played
+  from home are logged as their own line, not as break time
+- **History & streaks**: current/best streak, last-7-days focus chart, 12-week consistency heatmap (square cells, every weekday labelled),
   a month calendar, all-time totals. Tap any day for **how the day went**: a
   work/break wave over the hours (pauses as gaps, overtime in its own colour) and every stretch. Time is what you actually spent (skips and pauses don't inflate it); a day
   counts toward the streak once one full work block is finished
@@ -67,21 +73,29 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 
 ## Screenshots
 
-| Home + quick timers | Quick-timer countdown | Work + focus music | Break · pick an activity |
+| Home + quick timers | My library | Add to library (shared link) | Quick-timer countdown |
 |:-:|:-:|:-:|:-:|
-| <img src="docs/screenshots/setup.png" width="200"> | <img src="docs/screenshots/countdown.png" width="200"> | <img src="docs/screenshots/work.png" width="200"> | <img src="docs/screenshots/break-prepare.png" width="200"> |
+| <img src="docs/screenshots/setup.png" width="200"> | <img src="docs/screenshots/library.png" width="200"> | <img src="docs/screenshots/share.png" width="200"> | <img src="docs/screenshots/countdown.png" width="200"> |
+
+| Custom: start at an hour | Work + focus music | Break · pick an activity | End and Save / Discard |
+|:-:|:-:|:-:|:-:|
+| <img src="docs/screenshots/custom-start.png" width="200"> | <img src="docs/screenshots/work.png" width="200"> | <img src="docs/screenshots/break-prepare.png" width="200"> | <img src="docs/screenshots/end.png" width="200"> |
 
 | Overtime: counts up at 0 | Lock screen: time's up | Live Update (Android 16 QPR+) | Custom: type a value |
 |:-:|:-:|:-:|:-:|
 | <img src="docs/screenshots/overtime.png" width="200"> | <img src="docs/screenshots/lock-overtime.png" width="200"> | <img src="docs/screenshots/live-update.png" width="200"> | <img src="docs/screenshots/custom-edit.png" width="200"> |
 
-| Breathing | History (sample data) | Settings | Dark: break |
+| Breathing | History (sample data) | Activities | A day in History (sample data) |
 |:-:|:-:|:-:|:-:|
-| <img src="docs/screenshots/break-activity.png" width="200"> | <img src="docs/screenshots/history.png" width="200"> | <img src="docs/screenshots/settings.png" width="200"> | <img src="docs/screenshots/break-dark.png" width="200"> |
+| <img src="docs/screenshots/break-activity.png" width="200"> | <img src="docs/screenshots/history.png" width="200"> | <img src="docs/screenshots/history-activities.png" width="200"> | <img src="docs/screenshots/history-day.png" width="200"> |
 
-| A day in History (sample data) | Calendar |
-|:-:|:-:|
-| <img src="docs/screenshots/history-day.png" width="200"> | <img src="docs/screenshots/history-calendar.png" width="200"> |
+| Calendar | Settings | Notifications | Toggl Track |
+|:-:|:-:|:-:|:-:|
+| <img src="docs/screenshots/history-calendar.png" width="200"> | <img src="docs/screenshots/settings.png" width="200"> | <img src="docs/screenshots/settings-notifications.png" width="200"> | <img src="docs/screenshots/toggl.png" width="200"> |
+
+| Dark: break |
+|:-:|
+| <img src="docs/screenshots/break-dark.png" width="200"> |
 
 Light and dark follow the system theme, with Material You colours from the wallpaper.
 

@@ -35,7 +35,7 @@ fun TogglSection() {
     val status by TogglSync.status.collectAsState()
     val cs = MaterialTheme.colorScheme
 
-    Section("Toggl Track") {
+    Section("Connection") {
         if (!connected) {
             var token by remember { mutableStateOf("") }
             Text("Work blocks and break activities start and stop Toggl timers. Find your API token at track.toggl.com/profile.", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
