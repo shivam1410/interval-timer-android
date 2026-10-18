@@ -44,7 +44,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -225,6 +226,7 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
                     Stepper("Break", s.breakMin, "min", 1..60) { v -> set { copy(breakMin = v) } }
                     Stepper("Prepare (in break)", s.prepMin, "min", 0..10) { v -> set { copy(prepMin = v) } }
                     Stepper("Cycles", s.cycles, "", 1..16) { v -> set { copy(cycles = v) } }
+                    StartAt(scheduled, now)
                 }
             }
 
@@ -236,7 +238,8 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
             SoundTiles(ambient.orEmpty(), off = false, MaterialTheme.colorScheme.surfaceContainer, "Ambient") { Timer.playAmbient(it.takeIf { it != ambient }) }
             Spacer(Modifier.height(16.dp))
         }
-        StartAt(scheduled, now)
+        // Set from the Custom schedule; still shown (with Cancel) if a preset was picked after.
+        scheduled?.takeIf { !s.custom }?.let { ScheduledLine(it) }
         Button(
             onClick = { Timer.start() },
             modifier = Modifier.fillMaxWidth().padding(20.dp).height(64.dp),
@@ -245,20 +248,29 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
     }
 }
 
-/** One-off start on a whole hour: the next three hours as chips, or the armed time with Cancel. */
+/** 5th row of the Custom schedule: start now, or once at one of the next whole hours. */
 @Composable
 private fun StartAt(scheduled: Long?, now: Long) {
-    val cs = MaterialTheme.colorScheme
-    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (scheduled != null) {
-            Text("⏰ Starts at ${clock(scheduled)}", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = cs.primary)
-            TextButton({ Timer.scheduleStart(null) }) { Text("Cancel") }
-        } else {
-            Text("Start at", color = cs.onSurfaceVariant)
-            // Re-evaluated only when the hour changes, not every second.
-            val hours = remember(now / (60 * MIN)) { nextFullHours(now, 3) }
-            hours.forEach { at -> AssistChip({ Timer.scheduleStart(at) }, { Text(clock(at)) }, Modifier.weight(1f)) }
+    var open by remember { mutableStateOf(false) }
+    // Re-evaluated only when the hour changes, not every second.
+    val hours = remember(now / (60 * MIN)) { nextFullHours(now, 4) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Start at", Modifier.weight(1f))
+        Box {
+            TextButton({ open = true }) { Text("${scheduled?.let(::clock) ?: "Now"} ▾", fontWeight = FontWeight.SemiBold) }
+            DropdownMenu(open, { open = false }) {
+                DropdownMenuItem({ Text("Now (tap Start)") }, { Timer.scheduleStart(null); open = false })
+                hours.forEach { at -> DropdownMenuItem({ Text(clock(at)) }, { Timer.scheduleStart(at); open = false }) }
+            }
         }
+    }
+}
+
+@Composable
+private fun ScheduledLine(at: Long) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("⏰ Starts at ${clock(at)}", Modifier.weight(1f), color = MaterialTheme.colorScheme.primary)
+        TextButton({ Timer.scheduleStart(null) }) { Text("Cancel") }
     }
 }
 
@@ -520,15 +532,18 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
             onDismissRequest = { confirmEnd = false },
             title = { Text(if (quick) "End ${chosen.name}?" else "End workday?") },
             text = { Text("End and Save keeps what you've done so far in History. Discard throws this session away.") },
-            // Three choices don't fit one row: stacked, right-aligned, like Material's stacked dialog actions.
+            // One row: Discard (red) left, Keep going middle, End and Save as the main, filled button right.
             confirmButton = {
-                Column(horizontalAlignment = Alignment.End) {
-                    TextButton({ confirmEnd = false; Timer.stop() }) { Text("End and Save") }
+                val tight = PaddingValues(horizontal = 10.dp)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     TextButton(
-                        { confirmEnd = false; Timer.discard() },
+                        { confirmEnd = false; Timer.discard() }, contentPadding = tight,
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    ) { Text("Discard") }
-                    TextButton({ confirmEnd = false }) { Text("Keep going") }
+                    ) { Text("Discard", maxLines = 1) }
+                    TextButton({ confirmEnd = false }, contentPadding = tight) { Text("Keep going", maxLines = 1) }
+                    Button({ confirmEnd = false; Timer.stop() }, shape = RoundedCornerShape(12.dp), contentPadding = tight) {
+                        Text("End and Save", maxLines = 1)
+                    }
                 }
             },
         )

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -178,22 +179,17 @@ internal fun onShade(cycles: Int): Color = if (cycles >= 5) MaterialTheme.colorS
 private fun Heatmap(today: LocalDate, byDate: Map<LocalDate, Day>, onDay: (LocalDate) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val start = today.with(DayOfWeek.MONDAY).minusWeeks(11)
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            listOf("M", "", "W", "", "F", "", "S").forEach {
-                Box(Modifier.size(width = 14.dp, height = 22.dp), contentAlignment = Alignment.Center) {
-                    Text(it, style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
-                }
-            }
-        }
-        repeat(12) { w ->
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                repeat(7) { d ->
+    // One row per weekday (Mon at top), a label for every day, 12 square cells sharing the width.
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        listOf("M", "T", "W", "T", "F", "S", "S").forEachIndexed { d, label ->
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(label, Modifier.width(14.dp), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, textAlign = TextAlign.Center)
+                repeat(12) { w ->
                     val date = start.plusDays((w * 7 + d).toLong())
                     val cycles = byDate[date]?.cycles ?: 0
                     val future = date.isAfter(today)
                     Box(
-                        Modifier.fillMaxWidth().height(22.dp).clip(RoundedCornerShape(4.dp))
+                        Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(4.dp))
                             .background(if (future) Color.Transparent else shade(cycles))
                             .then(if (future) Modifier else Modifier.clickable { onDay(date) }),
                     )

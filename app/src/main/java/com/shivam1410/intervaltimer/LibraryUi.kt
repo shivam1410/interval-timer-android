@@ -42,7 +42,7 @@ fun MyLibrary(onQuick: (String) -> Unit) {
             if (groups.size > 1 && tag != null) Text(tag, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
             TileGrid(if (i == rows.lastIndex) list + null else list) { item ->
                 if (item == null) Tile("➕", "Add", "YouTube link", cs.surfaceContainerHigh, cs.onSurface, cs.onSurfaceVariant, "Add to library") { adding = true }
-                else Tile("▶️", item.title, "${item.minutes} min", cs.surfaceContainer, cs.onSurface, cs.onSurfaceVariant, "Start ${item.title}",
+                else Tile(item.toActivity().emoji, item.title, "${item.minutes} min", cs.surfaceContainer, cs.onSurface, cs.onSurfaceVariant, "Start ${item.title}",
                     onLongClick = { editing = item }) { onQuick("lib:${item.id}") }
             }
         }
