@@ -103,7 +103,7 @@ val ACTIVITIES = listOf(
     // Refresh: one tile per soundscape (files live in resources/ on GitHub).
     Activity("rain", "🌧", "Rain", "Refresh", "Rain. Just listen.", "rain"),
     Activity("ocean", "🌊", "Ocean", "Refresh", "Waves rolling in and out.", "ocean"),
-    Activity("thunderstorm", "⛈", "Thunderstorm", "Refresh", "Rain and rolling thunder.", "thunderstorm"),
+    Activity("thunderstorm", "⛈", "Storm", "Refresh", "Rain and rolling thunder.", "thunderstorm"),
     Activity("stream", "🏞", "Stream", "Refresh", "Water running over stones.", "stream"),
     Activity("fireplace", "🔥", "Fireplace", "Refresh", "A crackling fire.", "fireplace"),
     Activity("whales", "🐋", "Whales", "Refresh", "Whale song over the deep.", "whales"),

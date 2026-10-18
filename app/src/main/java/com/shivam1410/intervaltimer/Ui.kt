@@ -425,6 +425,25 @@ private fun ActivityPicker(selected: String, breakMin: Int, onPick: (String) -> 
             ) { onPick(a.id) }
         }
     }
+    // Your library, folded away by default (open when one of its items is the current pick).
+    val lib = Library.items.collectAsState().value.filterNot { it.deleted }.map { it.toActivity() }
+    if (lib.isEmpty()) return
+    var open by rememberSaveable { mutableStateOf(selected.startsWith("lib:")) }
+    Row(
+        Modifier.fillMaxWidth().padding(top = 4.dp).clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = if (open) "Hide my library" else "Show my library") { open = !open }
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("My library · ${lib.size}", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = cs.onTertiaryContainer)
+        Text(if (open) "▴" else "▾", color = cs.onTertiaryContainer)
+    }
+    if (open) TileGrid(lib) { a ->
+        val on = selected == a.id
+        ActivityTile(
+            a, "$breakMin min", if (on) cs.tertiary else cs.surface, if (on) cs.onTertiary else cs.onSurface,
+            if (on) cs.onTertiary else cs.onSurfaceVariant, "Choose ${a.name}",
+        ) { onPick(a.id) }
+    }
 }
 
 // ---------- Running ----------

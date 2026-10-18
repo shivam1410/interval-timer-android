@@ -37,7 +37,8 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Settings** (tap your photo): three pages — **Profile** (account, Drive sync, app updates,
   sign out), **Notifications** (gong / vibration / volume, lock screen, daily reminder, nudges) and
   **Toggl Track**
-- **Breaks start with a 2-min prepare phase**; on the break screen you choose the activity
+- **Breaks start with a 2-min prepare phase**; on the break screen you choose the activity (your
+  library is there too, folded under "My library")
   and can make it a **long break** (+10 min each tap, also from the notification); the rest of
   the day shifts later. Activities have their own cues:
   - **NSDR** (20 min): plays Yog Nidra or Huberman's NSDR on YouTube Music, picked at random
