@@ -123,7 +123,10 @@ fun stepAt(steps: List<Step>, elapsedMs: Long): Pair<Int, Int>? {
 
 private val RENAMED = mapOf("silence" to "meditation", "ambient" to "rain")
 
-fun activity(id: String) = ACTIVITIES.firstOrNull { it.id == (RENAMED[id] ?: id) } ?: ACTIVITIES[0]
+/** Your library items as activities ("lib:<id>"), set by Library; looked up like the built-in ones. */
+@Volatile var extraActivities: List<Activity> = emptyList()
+
+fun activity(id: String) = (ACTIVITIES + extraActivities).firstOrNull { it.id == (RENAMED[id] ?: id) } ?: ACTIVITIES[0]
 
 enum class Kind { WORK, PREP, ACTIVITY }
 

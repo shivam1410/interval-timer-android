@@ -1,0 +1,53 @@
+package com.shivam1410.intervaltimer
+
+import java.net.URI
+import java.net.URLDecoder
+import java.net.URLEncoder
+
+// Pure library logic (no Android), unit-tested in LibraryTest. Stored and synced by LibraryStore.
+
+/**
+ * A quick exercise you added yourself: a YouTube link, a tag and how long it runs.
+ * Deletes are kept as tombstones ([deleted]) so a sync can't bring them back from another phone.
+ */
+data class LibraryItem(
+    val id: String,
+    val title: String,
+    val url: String,
+    val tag: String,
+    val minutes: Int,
+    val updatedAt: Long,
+    val deleted: Boolean = false,
+) {
+    fun toActivity() = Activity(
+        id = "lib:$id", emoji = "▶️", name = title, group = tag, hint = tag,
+        tracks = listOf(url), playLabel = "Play video", quickMin = minutes,
+    )
+}
+
+private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
+private fun dec(s: String) = URLDecoder.decode(s, "UTF-8")
+
+/** One item per line, fields URL-encoded and joined by "|": safe for any title. */
+fun encodeLibrary(items: List<LibraryItem>): String = items.joinToString("\n") {
+    listOf(it.id, it.updatedAt, if (it.deleted) 1 else 0, it.minutes, enc(it.title), enc(it.url), enc(it.tag)).joinToString("|")
+}
+
+fun decodeLibrary(text: String?): List<LibraryItem> =
+    text.orEmpty().lines().mapNotNull { line ->
+        val p = line.split("|")
+        if (p.size != 7) return@mapNotNull null
+        runCatching { LibraryItem(p[0], dec(p[4]), dec(p[5]), dec(p[6]), p[3].toInt(), p[1].toLong(), p[2] == "1") }.getOrNull()
+    }
+
+/** Newest edit (or delete) of each item wins. */
+fun mergeLibrary(a: List<LibraryItem>, b: List<LibraryItem>): List<LibraryItem> =
+    (a + b).groupBy { it.id }.values.map { same -> same.maxBy { it.updatedAt } }.sortedBy { it.title.lowercase() }
+
+private val YOUTUBE_HOSTS = setOf("youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be")
+
+/** Only https YouTube / YouTube Music links are opened, so a pasted link can't point anywhere else. */
+fun isYouTubeUrl(url: String): Boolean {
+    val u = runCatching { URI(url.trim()) }.getOrNull() ?: return false
+    return u.scheme == "https" && u.host?.lowercase() in YOUTUBE_HOSTS
+}

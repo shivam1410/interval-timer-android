@@ -32,6 +32,7 @@ object Drive {
     private const val FILE = "history.json"
     // A file of its own, so app versions from before the day graph never overwrite the timelines.
     private const val TIMELINE_FILE = "timeline.json"
+    private const val LIBRARY_FILE = "library.json"
     private const val API = "https://www.googleapis.com"
 
     data class Profile(val name: String, val email: String, val photo: File?, val lastSync: Long) {
@@ -135,6 +136,11 @@ object Drive {
                 val merged = mergeTimelines(History.timelines.value, remote?.let(::decodeTimelines).orEmpty())
                 History.replaceTimelines(merged)
                 encodeTimelines(merged)
+            }
+            exchange(token, LIBRARY_FILE) { remote ->
+                val merged = mergeLibrary(Library.items.value, decodeLibrary(remote?.let { JSONObject(it).optString("items") }))
+                Library.replaceAll(merged, sync = false)
+                JSONObject().put("items", encodeLibrary(merged)).toString()
             }
 
             val now = System.currentTimeMillis()

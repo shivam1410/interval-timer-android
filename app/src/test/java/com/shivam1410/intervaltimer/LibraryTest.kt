@@ -1,0 +1,47 @@
+package com.shivam1410.intervaltimer
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class LibraryTest {
+    private fun item(id: String, at: Long = 1, deleted: Boolean = false) =
+        LibraryItem(id, "Title $id", "https://www.youtube.com/watch?v=$id", "move", 10, at, deleted)
+
+    @Test fun encodeRoundTripKeepsAwkwardText() {
+        val odd = LibraryItem("a1", "Yoga | 20 min, \"deep\"\nstretch", "https://youtu.be/x?t=1&a=b", "méditation", 20, 42, false)
+        val all = listOf(odd, item("b2", deleted = true))
+        assertEquals(all, decodeLibrary(encodeLibrary(all)))
+        assertEquals(emptyList<LibraryItem>(), decodeLibrary(null))
+        assertEquals(listOf(item("ok")), decodeLibrary("junk\n" + encodeLibrary(listOf(item("ok")))))
+    }
+
+    @Test fun mergeKeepsNewestPerIdIncludingDeletes() {
+        val local = listOf(item("a", at = 5), item("b", at = 1))
+        val remote = listOf(item("a", at = 3).copy(title = "old"), item("b", at = 9, deleted = true), item("c", at = 2))
+        val m = mergeLibrary(local, remote).associateBy { it.id }
+        assertEquals("Title a", m.getValue("a").title)
+        assertTrue(m.getValue("b").deleted) // deleted on the other phone stays deleted
+        assertEquals(setOf("a", "b", "c"), m.keys)
+    }
+
+    @Test fun onlyYouTubeHttpsLinksAreAccepted() {
+        listOf(
+            "https://www.youtube.com/watch?v=AF9d2Icl4fA", "https://youtu.be/AF9d2Icl4fA",
+            "https://m.youtube.com/watch?v=x", "https://music.youtube.com/watch?v=x", "https://youtube.com/shorts/x",
+        ).forEach { assertTrue(it, isYouTubeUrl(it)) }
+        listOf(
+            "http://www.youtube.com/watch?v=x", "https://evil.com/youtube.com", "https://youtube.com.evil.com/x",
+            "javascript:alert(1)", "", "not a url",
+        ).forEach { assertFalse(it, isYouTubeUrl(it)) }
+    }
+
+    @Test fun itemBecomesAQuickTimerActivity() {
+        val a = item("z").toActivity()
+        assertEquals("lib:z", a.id)
+        assertEquals(listOf("https://www.youtube.com/watch?v=z"), a.tracks)
+        assertEquals(10, a.quickMin)
+        assertEquals("move", a.group)
+    }
+}

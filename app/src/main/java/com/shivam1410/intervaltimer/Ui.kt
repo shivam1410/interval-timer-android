@@ -21,6 +21,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -219,6 +220,7 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
             }
 
             QuickTimers(onQuick)
+            MyLibrary(onQuick)
             val ambient by Timer.ambient.collectAsState()
             Text("Ambient sounds", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
             // Tap to play, tap again to stop; starting a timer stops it.
@@ -291,7 +293,7 @@ private fun QuickTimers(onQuick: (String) -> Unit) {
 
 /** 4-column grid of equal-height tiles; every item visible, no horizontal scroll. */
 @Composable
-private fun <T> TileGrid(items: List<T>, tile: @Composable RowScope.(T) -> Unit) {
+internal fun <T> TileGrid(items: List<T>, tile: @Composable RowScope.(T) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.chunked(4).forEach { row ->
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -308,13 +310,13 @@ private fun RowScope.ActivityTile(a: Activity, caption: String, bg: Color, fg: C
     Tile(a.emoji, a.name, caption, bg, fg, sub, label, onClick = onClick)
 
 @Composable
-private fun RowScope.Tile(
+internal fun RowScope.Tile(
     emoji: String, name: String, caption: String, bg: Color, fg: Color, sub: Color, label: String,
-    compact: Boolean = false, onClick: () -> Unit,
+    compact: Boolean = false, onLongClick: (() -> Unit)? = null, onClick: () -> Unit,
 ) {
     Column(
         Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(if (compact) 16.dp else 20.dp)).background(bg)
-            .clickable(onClickLabel = label, onClick = onClick).padding(vertical = if (compact) 10.dp else 14.dp, horizontal = 4.dp),
+            .combinedClickable(onClickLabel = label, onLongClickLabel = onLongClick?.let { "Edit" }, onLongClick = onLongClick, onClick = onClick).padding(vertical = if (compact) 10.dp else 14.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(emoji, fontSize = if (compact) 22.sp else 28.sp)
@@ -362,7 +364,7 @@ private fun NumberDialog(label: String, value: Int, unit: String, range: IntRang
 }
 
 @Composable
-private fun Stepper(label: String, value: Int, unit: String, range: IntRange, onChange: (Int) -> Unit) {
+internal fun Stepper(label: String, value: Int, unit: String, range: IntRange, onChange: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f))
         IconButton({ onChange((value - 1).coerceIn(range)) }, enabled = value > range.first) { Text("−", fontSize = 22.sp) }
