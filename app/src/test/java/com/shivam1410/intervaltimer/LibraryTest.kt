@@ -43,6 +43,7 @@ class LibraryTest {
         assertEquals(listOf("https://www.youtube.com/watch?v=z"), a.tracks)
         assertEquals(10, a.quickMin)
         assertEquals("move", a.group)
+        assertEquals("Play the video and follow along.", item("z").copy(tag = "").toActivity().hint) // no blank line on the card
     }
 
     @Test fun sharedTextYieldsTheYouTubeLink() {

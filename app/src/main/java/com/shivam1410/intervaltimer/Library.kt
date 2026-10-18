@@ -25,7 +25,7 @@ data class LibraryItem(
     /** Audio plays in the app like an ambient sound (looped, screen off is fine); video opens the phone's player. */
     fun toActivity() = Activity(
         id = "lib:$id", emoji = if (!isFile) "▶️" else if (isVideoFile(file)) "🎬" else "🎵", name = title, group = tag,
-        hint = if (isFile && !isVideoFile(file)) "Playing while the timer runs." else tag,
+        hint = if (isFile && !isVideoFile(file)) "Playing while the timer runs." else tag.ifBlank { "Play the video and follow along." },
         sound = file.takeIf { isFile && !isVideoFile(it) },
         tracks = if (isFile) emptyList() else listOf(url), media = file.takeIf { isFile && isVideoFile(it) },
         playLabel = "Play video", quickMin = minutes,
