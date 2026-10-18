@@ -39,7 +39,10 @@ object Media {
         File(dir, "manifest.json").takeIf { it.exists() }?.let { sounds.value = parse(it.readText()) }
     }
 
-    fun file(id: String): File? = sounds.value.firstOrNull { it.id == id }?.let { File(dir, it.file) }?.takeIf { it.exists() }
+    /** A downloaded sound, or a library audio file ("lib-<id>.<ext>", see LibraryFiles). */
+    fun file(id: String): File? =
+        if (id.startsWith("lib-")) dir.parentFile?.let { File(File(it, "library"), id) }?.takeIf { it.exists() }
+        else sounds.value.firstOrNull { it.id == id }?.let { File(dir, it.file) }?.takeIf { it.exists() }
 
     val missing get() = sounds.value.isEmpty() || sounds.value.any { file(it.id) == null }
 

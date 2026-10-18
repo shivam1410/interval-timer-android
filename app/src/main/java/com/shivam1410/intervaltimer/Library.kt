@@ -18,10 +18,17 @@ data class LibraryItem(
     val minutes: Int,
     val updatedAt: Long,
     val deleted: Boolean = false,
+    val file: String = "", // shared MP3/MP4 kept in the app (and on Drive) instead of a YouTube link
 ) {
+    val isFile get() = file.isNotEmpty()
+
+    /** Audio plays in the app like an ambient sound (looped, screen off is fine); video opens the phone's player. */
     fun toActivity() = Activity(
-        id = "lib:$id", emoji = "▶️", name = title, group = tag, hint = tag,
-        tracks = listOf(url), playLabel = "Play video", quickMin = minutes,
+        id = "lib:$id", emoji = if (!isFile) "▶️" else if (isVideoFile(file)) "🎬" else "🎵", name = title, group = tag,
+        hint = if (isFile && !isVideoFile(file)) "Playing while the timer runs." else tag,
+        sound = file.takeIf { isFile && !isVideoFile(it) },
+        tracks = if (isFile) emptyList() else listOf(url), media = file.takeIf { isFile && isVideoFile(it) },
+        playLabel = "Play video", quickMin = minutes,
     )
 }
 
@@ -30,15 +37,27 @@ private fun dec(s: String) = URLDecoder.decode(s, "UTF-8")
 
 /** One item per line, fields URL-encoded and joined by "|": safe for any title. */
 fun encodeLibrary(items: List<LibraryItem>): String = items.joinToString("\n") {
-    listOf(it.id, it.updatedAt, if (it.deleted) 1 else 0, it.minutes, enc(it.title), enc(it.url), enc(it.tag)).joinToString("|")
+    listOf(it.id, it.updatedAt, if (it.deleted) 1 else 0, it.minutes, enc(it.title), enc(it.url), enc(it.tag), enc(it.file)).joinToString("|")
 }
 
+/** 7 fields = written before shared files existed; still read. */
 fun decodeLibrary(text: String?): List<LibraryItem> =
     text.orEmpty().lines().mapNotNull { line ->
         val p = line.split("|")
-        if (p.size != 7) return@mapNotNull null
-        runCatching { LibraryItem(p[0], dec(p[4]), dec(p[5]), dec(p[6]), p[3].toInt(), p[1].toLong(), p[2] == "1") }.getOrNull()
+        if (p.size != 7 && p.size != 8) return@mapNotNull null
+        runCatching {
+            LibraryItem(p[0], dec(p[4]), dec(p[5]), dec(p[6]), p[3].toInt(), p[1].toLong(), p[2] == "1", p.getOrNull(7)?.let(::dec).orEmpty())
+        }.getOrNull()
     }
+
+fun isVideoFile(name: String) = name.substringAfterLast('.').lowercase() in setOf("mp4", "mkv", "webm", "3gp", "mov")
+
+/** Library files are stored as "lib-<id>.<ext>", locally and on Drive; the extension comes from the shared file. */
+fun libraryFileName(id: String, displayName: String?, mime: String?): String {
+    val ext = displayName?.substringAfterLast('.', "")?.lowercase()?.takeIf { it.matches(Regex("[a-z0-9]{1,5}")) }
+        ?: when { mime?.startsWith("video/") == true -> "mp4"; else -> "mp3" }
+    return "lib-$id.$ext"
+}
 
 /** Newest edit (or delete) of each item wins. */
 fun mergeLibrary(a: List<LibraryItem>, b: List<LibraryItem>): List<LibraryItem> =

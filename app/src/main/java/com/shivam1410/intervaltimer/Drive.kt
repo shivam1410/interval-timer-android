@@ -123,7 +123,10 @@ object Drive {
         }
     }
 
-    private fun syncWith(token: String) = thread {
+    // One sync at a time: two overlapping ones would both upload the same new library file.
+    private fun syncWith(token: String) = thread { synchronized(Drive) { syncNow(token) } }
+
+    private fun syncNow(token: String) {
         status.value = "Syncing…"
         refreshProfile(token)
         try {
@@ -142,6 +145,7 @@ object Drive {
                 Library.replaceAll(merged, sync = false)
                 JSONObject().put("items", encodeLibrary(merged)).toString()
             }
+            syncFiles(token)
 
             val now = System.currentTimeMillis()
             prefs.edit().putLong("lastSync", now).apply()
@@ -165,6 +169,77 @@ object Drive {
             id = JSONObject(call("POST", "$API/drive/v3/files?fields=id", token, meta.toString())).getString("id")
         }
         call("PATCH", "$API/upload/drive/v3/files/$id?uploadType=media", token, body)
+    }
+
+    /**
+     * Library MP3/MP4s, as "lib-<id>.<ext>" in the app folder: upload what only this phone has,
+     * download what only Drive has, and remove the files of deleted items from both.
+     */
+    private fun syncFiles(token: String) {
+        val q = URLEncoder.encode("name contains 'lib-'", "UTF-8")
+        val list = JSONObject(call("GET", "$API/drive/v3/files?spaces=appDataFolder&pageSize=1000&fields=files(id,name)&q=$q", token)).getJSONArray("files")
+        val onDrive = (0 until list.length()).associate { list.getJSONObject(it).run { getString("name") to getString("id") } }
+        Library.items.value.filter { it.isFile }.forEach { item ->
+            val local = LibraryFiles.file(app, item.file)
+            val id = onDrive[item.file]
+            when {
+                item.deleted -> {
+                    id?.let { call("DELETE", "$API/drive/v3/files/$it", token) }
+                    local.delete()
+                }
+                id == null && local.exists() -> upload(token, item.file, local)
+                id != null && !local.exists() -> download(token, id, local)
+            }
+        }
+    }
+
+    /** Resumable upload: a session URL first, then the bytes streamed in one PUT (files can be hundreds of MB). */
+    private fun upload(token: String, name: String, f: File) {
+        val mime = LibraryFiles.mimeOf(name)
+        val meta = JSONObject().put("name", name).put("parents", org.json.JSONArray().put("appDataFolder")).toString()
+        val c = URL("$API/upload/drive/v3/files?uploadType=resumable").openConnection() as HttpURLConnection
+        c.connectTimeout = 15_000
+        c.readTimeout = 30_000
+        c.requestMethod = "POST"
+        c.doOutput = true
+        c.setRequestProperty("Authorization", "Bearer $token")
+        c.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+        c.setRequestProperty("X-Upload-Content-Type", mime)
+        c.setRequestProperty("X-Upload-Content-Length", f.length().toString())
+        c.outputStream.use { it.write(meta.toByteArray()) }
+        expectOk(c)
+        val session = c.getHeaderField("Location")?.takeIf { it.startsWith("$API/") } ?: throw IOException("Drive gave no upload URL")
+        val put = URL(session).openConnection() as HttpURLConnection
+        put.connectTimeout = 15_000
+        put.readTimeout = 120_000
+        put.requestMethod = "PUT"
+        put.doOutput = true
+        put.setFixedLengthStreamingMode(f.length())
+        put.setRequestProperty("Content-Type", mime)
+        f.inputStream().use { input -> put.outputStream.use { input.copyTo(it) } }
+        expectOk(put)
+        Log.i(TAG, "Uploaded $name")
+    }
+
+    /** Streams to a temp file first, so a dropped connection never leaves a half file that looks complete. */
+    private fun download(token: String, id: String, dest: File) {
+        val c = URL("$API/drive/v3/files/$id?alt=media").openConnection() as HttpURLConnection
+        c.connectTimeout = 15_000
+        c.readTimeout = 120_000
+        c.setRequestProperty("Authorization", "Bearer $token")
+        expectOk(c)
+        val tmp = File(dest.path + ".part")
+        c.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+        if (!tmp.renameTo(dest)) throw IOException("Couldn't save ${dest.name}")
+        Log.i(TAG, "Downloaded ${dest.name}")
+    }
+
+    private fun expectOk(c: HttpURLConnection) {
+        val code = c.responseCode
+        if (code !in 200..299) {
+            val err = c.errorStream?.use { it.readBytes().decodeToString() }.orEmpty()
+            throw IOException("Drive HTTP $code ${err.take(200)}")
+        }
     }
 
     private fun fail(msg: String, e: Exception) {

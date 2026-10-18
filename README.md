@@ -12,6 +12,9 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   delete. Synced to Drive (`library.json`) with the rest of your history
   - **Share into it**: in YouTube or YouTube Music tap Share -> Interval Timer; the link and its title
     are filled in, you pick a tag and length
+  - **MP3 / MP4 files**: share one from Files, Downloads or any app -> Interval Timer. It's kept in the app
+    (up to 500 MB) and backed up to your Drive's hidden app folder, so your other phone gets it too.
+    Audio plays inside the app while the timer runs (screen off is fine); video opens your player
 - **Start at** a whole hour: pick one of the next three hours on home and the workday starts by
   itself then, once (the daily 10:00 reminder stays a notification; nothing auto-starts every day)
 - **Days this month**: the pill next to your photo counts the days you used the app this month;

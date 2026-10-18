@@ -52,4 +52,25 @@ class LibraryTest {
         assertEquals(null, extractYouTubeUrl("look https://evil.com/watch?v=x"))
         assertEquals(null, extractYouTubeUrl(null))
     }
+
+    @Test fun sharedFilesRoundTripAndOldLinesStillRead() {
+        val f = item("f").copy(url = "", file = "lib-f.mp3")
+        assertEquals(listOf(f), decodeLibrary(encodeLibrary(listOf(f))))
+        val old = "a|1|0|10|T|https%3A%2F%2Fyoutu.be%2Fx|move" // 7 fields, before files
+        assertEquals("", decodeLibrary(old).single().file)
+        val a = f.toActivity()
+        assertEquals("audio plays in the app", "lib-f.mp3", a.sound)
+        assertEquals(null, a.media)
+        assertEquals(emptyList<String>(), a.tracks)
+        val v = f.copy(file = "lib-f.mp4").toActivity()
+        assertEquals("video opens the player", "lib-f.mp4", v.media)
+        assertEquals(null, v.sound)
+    }
+
+    @Test fun fileNamesKeepASafeExtension() {
+        assertEquals("lib-a.mp3", libraryFileName("a", "Song.MP3", "audio/mpeg"))
+        assertEquals("lib-a.mp4", libraryFileName("a", "no extension", "video/mp4"))
+        assertEquals("lib-a.mp3", libraryFileName("a", "evil.../../x", "audio/ogg"))
+        assertEquals("lib-a.m4a", libraryFileName("a", "voice.m4a", null))
+    }
 }

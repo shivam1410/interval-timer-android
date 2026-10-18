@@ -140,7 +140,9 @@ fun Root(now: Long) {
         }
         updateError?.let { Banner(it, "OK") { Updater.error.value = null } }
         val share by Share.pending.collectAsState()
-        share?.let { LibraryDialog(null, Library.visible.map { it.tag }.filter { it.isNotBlank() }.distinct(), it.url, it.title) { Share.pending.value = null } }
+        share?.let { LibraryDialog(null, Library.visible.map { it.tag }.filter { it.isNotBlank() }.distinct(), it.url, it.title, it.file, it.id) { Share.pending.value = null } }
+        val shareStatus by Share.status.collectAsState()
+        if (shareStatus.isNotEmpty()) Banner(shareStatus, "OK") { Share.status.value = "" }
         when {
             page == "history" -> HistoryScreen { page = "" }
             page == "settings" -> SettingsScreen(settings) { page = "" }

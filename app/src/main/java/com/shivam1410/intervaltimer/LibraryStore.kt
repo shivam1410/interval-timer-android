@@ -20,15 +20,16 @@ object Library {
         publish(decodeLibrary(prefs.getString("items", null)))
     }
 
-    /** New item when [id] is null, otherwise an edit of that item. */
-    fun save(id: String?, title: String, url: String, tag: String, minutes: Int) {
-        require(isYouTubeUrl(url)) { "Not a YouTube link" }
-        val item = LibraryItem(id ?: UUID.randomUUID().toString().take(8), title.trim(), url.trim(), tag.trim(), minutes, System.currentTimeMillis())
+    /** New item when [id] is unknown, otherwise an edit of that item. A file item keeps its [file]. */
+    fun save(id: String?, title: String, url: String, tag: String, minutes: Int, file: String = "") {
+        require(file.isNotEmpty() || isYouTubeUrl(url)) { "Not a YouTube link" }
+        val item = LibraryItem(id ?: UUID.randomUUID().toString().take(8), title.trim(), url.trim(), tag.trim(), minutes, System.currentTimeMillis(), file = file)
         replaceAll(mergeLibrary(items.value, listOf(item)))
     }
 
     fun delete(id: String) {
         val item = items.value.firstOrNull { it.id == id } ?: return
+        if (item.isFile) LibraryFiles.file(app, item.file).delete() // Drive copy goes on the next sync
         replaceAll(mergeLibrary(items.value, listOf(item.copy(deleted = true, updatedAt = System.currentTimeMillis()))))
     }
 

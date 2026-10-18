@@ -70,7 +70,7 @@ fun ActivityCue(a: Activity, elapsedMs: Long, paused: Boolean) {
     }
 }
 
-fun hasPrimaryAction(a: Activity) = a.tracks.isNotEmpty() || a.app != null
+fun hasPrimaryAction(a: Activity) = a.tracks.isNotEmpty() || a.app != null || a.media != null
 
 /** The activity's main button (play a track / open Sketch Seed), sized to sit in one row with Change and +10 min. */
 @Composable
@@ -81,6 +81,13 @@ fun PrimaryAction(a: Activity, modifier: Modifier) {
     val pad = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)
     when {
         a.tracks.isNotEmpty() -> Button({ open(ctx, a.tracks.random()) }, modifier, colors = solid, contentPadding = pad) { Text("▶  ${a.playLabel}", maxLines = 1) }
+        a.media != null -> Button({
+            // Not on this phone yet (shared on the other one): Drive sync fetches it.
+            LibraryFiles.play(ctx, a.media)?.let { why ->
+                android.widget.Toast.makeText(ctx, why, android.widget.Toast.LENGTH_SHORT).show()
+                Drive.sync()
+            }
+        }, modifier, colors = solid, contentPadding = pad) { Text("▶  ${a.playLabel}", maxLines = 1) }
         a.app != null -> Button({ launch(ctx, a.app) }, modifier, colors = solid, contentPadding = pad) {
             Text(if (installed(ctx, a.app)) "✏️  Open Sketch Seed" else "Get Sketch Seed", maxLines = 1)
         }

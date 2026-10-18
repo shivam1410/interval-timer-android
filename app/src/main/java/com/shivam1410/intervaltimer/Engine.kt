@@ -44,6 +44,7 @@ data class Activity(
     val tracks: List<String> = emptyList(), // YouTube / YouTube Music links; one is picked at random on play
     val playLabel: String = "",
     val app: String? = null, // package launched by the activity's button
+    val media: String? = null, // library file name played with the phone's player (shared MP3/MP4)
     val quickMin: Int? = null, // offered as a one-off quick timer on home, for this long
 )
 

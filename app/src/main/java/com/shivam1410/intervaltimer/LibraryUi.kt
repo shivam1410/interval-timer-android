@@ -53,21 +53,29 @@ fun MyLibrary(onQuick: (String) -> Unit) {
 
 /** Add ([item] null) or edit a library item. Only https YouTube links can be saved. */
 @Composable
-fun LibraryDialog(item: LibraryItem?, existingTags: List<String>, initialUrl: String = "", initialTitle: String = "", onDismiss: () -> Unit) {
+fun LibraryDialog(
+    item: LibraryItem?, existingTags: List<String>, initialUrl: String = "", initialTitle: String = "",
+    initialFile: String = "", newId: String? = null, onDismiss: () -> Unit,
+) {
+    val file = item?.file ?: initialFile
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     var url by remember { mutableStateOf(item?.url ?: initialUrl) }
     // Keyed on initialTitle: the shared link's title arrives from oEmbed a moment after the dialog opens.
     var title by remember(initialTitle) { mutableStateOf(item?.title ?: initialTitle) }
     var tag by remember { mutableStateOf(item?.tag.orEmpty()) }
     var minutes by remember { mutableStateOf(item?.minutes ?: 10) }
     val urlOk = isYouTubeUrl(url)
-    val ok = urlOk && title.isNotBlank()
+    val ok = (file.isNotEmpty() || urlOk) && title.isNotBlank()
+    // A file shared in but not saved isn't kept.
+    val cancel = { if (item == null && initialFile.isNotEmpty()) LibraryFiles.file(ctx, initialFile).delete(); onDismiss() }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = cancel,
         title = { Text(if (item == null) "Add to library" else "Edit") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
+                if (file.isNotEmpty()) Text("🎵 ${if (file.endsWith(".mp4")) "Video" else "Audio"} file · backed up to your Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                else OutlinedTextField(
                     url, { url = it }, Modifier.fillMaxWidth(), label = { Text("YouTube link") }, singleLine = true,
                     isError = url.isNotBlank() && !urlOk,
                     supportingText = { if (url.isNotBlank() && !urlOk) Text("Needs an https YouTube or YouTube Music link") },
@@ -81,7 +89,7 @@ fun LibraryDialog(item: LibraryItem?, existingTags: List<String>, initialUrl: St
             }
         },
         confirmButton = {
-            TextButton({ Library.save(item?.id, title, url, tag, minutes); onDismiss() }, enabled = ok) { Text("Save") }
+            TextButton({ Library.save(item?.id ?: newId, title, url, tag, minutes, file); onDismiss() }, enabled = ok) { Text("Save") }
         },
         dismissButton = {
             Row {
@@ -89,7 +97,7 @@ fun LibraryDialog(item: LibraryItem?, existingTags: List<String>, initialUrl: St
                     { Library.delete(item.id); onDismiss() },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) { Text("Delete") }
-                TextButton(onDismiss) { Text("Cancel") }
+                TextButton(cancel) { Text("Cancel") }
             }
         },
     )
