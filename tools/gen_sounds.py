@@ -125,7 +125,7 @@ if __name__ == "__main__":
             {"id": "brown_noise", "emoji": "🟤", "name": "Brown noise", "file": "brown_noise.wav", "loop": True},
             {"id": "rain", "emoji": "🌧", "name": "Rain", "file": "rain_bourne_woods.mp3", "loop": True},
             {"id": "ocean", "emoji": "🌊", "name": "Ocean", "file": "ocean_tropical_beach.ogg", "loop": True},
-            {"id": "thunderstorm", "emoji": "⛈", "name": "Thunderstorm", "file": "thunderstorm_stephan.ogg", "loop": True},
+            {"id": "thunderstorm", "emoji": "⛈", "name": "Thunderstorm", "file": "thunderstorm_stephan_v2.ogg", "loop": True},
             {"id": "stream", "emoji": "🏞", "name": "Stream", "file": "stream_jackthemurray.m4a", "loop": True},
             {"id": "fireplace", "emoji": "🔥", "name": "Fireplace", "file": "fireplace_glaneur.ogg", "loop": True},
             {"id": "bowl", "emoji": "🥣", "name": "Singing bowls", "file": "bowl.wav", "loop": True},

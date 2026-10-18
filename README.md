@@ -140,7 +140,7 @@ Wikimedia Commons:
 - **Rain** — [“Bourne woods rain 2020-05-10 0800”](https://commons.wikimedia.org/wiki/File:Bourne_woods_rain_2020-05-10_0800.mp3)
   by **Robert EA Harvey**, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); used unmodified.
 - **Thunderstorm** — [“Thunderstorm after hot summer day 17 minutes 02 of 04”](https://commons.wikimedia.org/wiki/File:Thunderstorm_after_hot_summer_day_17_minutes_02_of_04.ogg)
-  by stephan, public domain.
+  by stephan, public domain; its Ogg Skeleton stream removed (Android's player rejects it), audio untouched.
 - **Ocean** — [“Ocean Waves on a Tropical Beach”](https://commons.wikimedia.org/wiki/File:Ocean_Waves_on_a_Tropical_Beach.ogg)
   by Jarrod Stanley, [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
 - **Stream** — [“stream-river-water-up-close”](https://commons.wikimedia.org/wiki/File:433589_jackthemurray_stream-river-water-up-close.wav)
