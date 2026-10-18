@@ -73,6 +73,7 @@ fun SettingsScreen(s: Settings, onBack: () -> Unit) {
         }
 
         TogglSection()
+        NudgeSection()
 
         Section("Alerts") {
             Toggle(R.drawable.ic_gong, "Gong", s.gong) { v -> set { copy(gong = v) } }

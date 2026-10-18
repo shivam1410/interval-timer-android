@@ -41,13 +41,17 @@ class MainActivity : ComponentActivity() {
         Updater.check(this)
         Drive.sync()
         setContent { AppTheme { Root(now.longValue) } }
-        if (savedInstanceState == null) Share.handle(applicationContext, intent) // not again on rotation
+        if (savedInstanceState == null) { // not again on rotation
+            Share.handle(applicationContext, intent)
+            Nudges.handle(intent)
+        }
     }
 
     /** singleTask: a share while the app is open arrives here. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         Share.handle(applicationContext, intent)
+        Nudges.handle(intent)
     }
 
     override fun onStart() {

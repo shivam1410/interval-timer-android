@@ -11,5 +11,6 @@ class App : Application() {
         Media.init(this)
         History.init(this)
         Drive.init(this)
+        Nudges.init(this)
     }
 }

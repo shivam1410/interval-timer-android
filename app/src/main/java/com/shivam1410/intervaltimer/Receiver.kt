@@ -18,6 +18,7 @@ class Receiver : BroadcastReceiver() {
             REMINDER -> Timer.remind()
             START_DAY -> Timer.startWorkday()
             START_AT -> Timer.startScheduled()
+            NUDGE_CHECK -> Nudges.check()
             AMBIENT_OFF -> Timer.playAmbient(null)
             Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> Timer.sync(playCue = false)
             INSTALL_STATUS -> onInstallStatus(ctx, intent)
@@ -47,6 +48,7 @@ class Receiver : BroadcastReceiver() {
         const val REMINDER = "it.REMINDER"
         const val START_DAY = "it.START_DAY"
         const val START_AT = "it.START_AT"
+        const val NUDGE_CHECK = "it.NUDGE_CHECK"
         const val AMBIENT_OFF = "it.AMBIENT_OFF"
         const val INSTALL_STATUS = "it.INSTALL_STATUS"
     }

@@ -20,6 +20,12 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   ambient sounds don't. Pick a Toggl tag, or "Don't send", per activity; library items send their own
   tag. Offline changes are queued and sent later with their real times; Discard deletes that session's
   entries from Toggl too
+- **Instagram & YouTube nudges** (Settings): after 5–30 min (your pick, per app) on Instagram or YouTube,
+  a notification suggests sketching or relaxing instead; its buttons start the Sketch or Breathing
+  quick timer. Never while a YouTube video or song is playing (Shorts and browsing do count), at most
+  once per 30 min per app. Needs Usage access; for YouTube also Notification access, used only to see
+  YouTube's player (on a sideloaded install: App info › ⋮ › Allow restricted settings first). No
+  background loop: one inexact alarm set for when the limit could next be reached
 - **Start at** a whole hour: pick one of the next three hours on home and the workday starts by
   itself then, once (the daily 10:00 reminder stays a notification; nothing auto-starts every day)
 - **Days this month**: the pill next to your photo counts the days you used the app this month;

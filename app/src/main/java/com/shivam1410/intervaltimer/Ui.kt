@@ -123,6 +123,11 @@ fun Root(now: Long) {
     var countdown by rememberSaveable { mutableStateOf<String?>(null) } // quick timer about to start
     BackHandler(page.isNotEmpty()) { page = "" }
     BackHandler(countdown != null) { countdown = null }
+    // A nudge's Sketch / Relax button: same 5-4-3-2-1 as tapping the quick timer on home.
+    val nudged by Nudges.requestedQuick.collectAsState()
+    LaunchedEffect(nudged) {
+        nudged?.let { page = ""; countdown = it; Nudges.requestedQuick.value = null }
+    }
 
     // Power nap goes fully black, status bar included, with light status icons.
     val napping = session.running(plan) && !session.paused && plan[session.index].kind == Kind.ACTIVITY && (session.quick ?: settings.activity) == "nap"
