@@ -100,4 +100,10 @@ class LibraryTest {
         assertEquals(YOUTUBE_APP, youTubeAppFor("https://www.youtube.com/watch?v=AF9d2Icl4fA"))
         assertEquals(null, youTubeAppFor("https://example.com/x"))
     }
+
+    @Test fun thumbnailUrlFromTheVideoId() {
+        assertEquals("https://i.ytimg.com/vi/AF9d2Icl4fA/mqdefault.jpg", youTubeThumb("https://youtu.be/AF9d2Icl4fA?si=x"))
+        assertEquals("https://i.ytimg.com/vi/bk_lD69u204/mqdefault.jpg", youTubeThumb("https://music.youtube.com/watch?v=bk_lD69u204"))
+        assertEquals(null, youTubeThumb("https://example.com/v.mp4"))
+    }
 }

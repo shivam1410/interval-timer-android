@@ -24,12 +24,14 @@ object Library {
     fun save(id: String?, title: String, url: String, tag: String, minutes: Int, file: String = "") {
         require(file.isNotEmpty() || isYouTubeUrl(url)) { "Not a YouTube link" }
         val item = LibraryItem(id ?: UUID.randomUUID().toString().take(8), title.trim(), url.trim(), tag.trim(), minutes, System.currentTimeMillis(), file = file)
+        if (items.value.any { it.id == item.id && it.url != item.url }) Thumbs.forget(app, item.id) // link changed: new thumbnail
         replaceAll(mergeLibrary(items.value, listOf(item)))
     }
 
     fun delete(id: String) {
         val item = items.value.firstOrNull { it.id == id } ?: return
         if (item.isFile) LibraryFiles.file(app, item.file).delete() // Drive copy goes on the next sync
+        Thumbs.forget(app, id)
         replaceAll(mergeLibrary(items.value, listOf(item.copy(deleted = true, updatedAt = System.currentTimeMillis()))))
     }
 

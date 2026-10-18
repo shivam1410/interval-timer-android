@@ -12,6 +12,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.UUID
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.height
@@ -51,7 +67,7 @@ fun startLibraryItem(ctx: android.content.Context, item: LibraryItem) {
     else openLink(ctx, item.url)
 }
 
-/** Home section with your own quick exercises, grouped by tag; tap to start and open, long-press to edit, + to add. */
+/** Home section with your own quick exercises: one card per row with thumbnail, title, tag and length; + to add. */
 @Composable
 fun MyLibrary() {
     val ctx = LocalContext.current
@@ -60,24 +76,52 @@ fun MyLibrary() {
     var editing by remember { mutableStateOf<LibraryItem?>(null) }
     var adding by remember { mutableStateOf(false) }
     val cs = MaterialTheme.colorScheme
+    val tags = items.map { it.tag }.filter { it.isNotBlank() }.distinct()
 
     Text("My library", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
-    val groups = items.groupBy { it.tag.ifBlank { "Untagged" } }.toSortedMap(String.CASE_INSENSITIVE_ORDER)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // null = the Add tile, placed after the last group's items so it doesn't take a row of its own.
-        val rows: List<Pair<String?, List<LibraryItem?>>> =
-            groups.entries.map { (tag, list) -> tag to list.toList<LibraryItem?>() }.ifEmpty { listOf(null to emptyList()) }
-        rows.forEachIndexed { i, (tag, list) ->
-            if (groups.size > 1 && tag != null) Text(tag, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
-            TileGrid(if (i == rows.lastIndex) list + null else list) { item ->
-                if (item == null) Tile("➕", "Add", "YouTube link", cs.surfaceContainerHigh, cs.onSurface, cs.onSurfaceVariant, "Add to library") { adding = true }
-                else Tile(item.toActivity().emoji, item.title, "${item.minutes} min", cs.surfaceContainer, cs.onSurface, cs.onSurfaceVariant, "Start ${item.title}",
-                    onLongClick = { editing = item }) { startLibraryItem(ctx, item) }
+        items.forEach { item -> LibraryCard(item, onOpen = { startLibraryItem(ctx, item) }, onEdit = { editing = item }) }
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainerHigh).clickable(onClickLabel = "Add to library") { adding = true }.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("➕", fontSize = 20.sp)
+            Text("Add a YouTube link or a file", Modifier.padding(start = 12.dp), color = cs.onSurface)
+        }
+    }
+    if (adding) LibraryDialog(null, existingTags = tags) { adding = false }
+    editing?.let { LibraryDialog(it, existingTags = tags) { editing = null } }
+}
+
+/** Thumbnail, title, tag label and length; tap starts it, long-press edits. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun LibraryCard(item: LibraryItem, onOpen: () -> Unit, onEdit: () -> Unit) {
+    val ctx = LocalContext.current
+    val cs = MaterialTheme.colorScheme
+    val thumb by produceState<ImageBitmap?>(null, item.id, item.url, item.file) {
+        value = withContext(Dispatchers.IO) { Thumbs.get(ctx, item) }?.asImageBitmap()
+    }
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainer)
+            .combinedClickable(onClickLabel = "Start ${item.title}", onLongClickLabel = "Edit", onLongClick = onEdit, onClick = onOpen)
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(112.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(10.dp)).background(cs.surfaceContainerHighest), contentAlignment = Alignment.Center) {
+            thumb?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) } ?: Text(item.toActivity().emoji, fontSize = 26.sp)
+        }
+        Column(Modifier.weight(1f).padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(item.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (item.tag.isNotBlank()) Text(
+                    item.tag, Modifier.clip(RoundedCornerShape(8.dp)).background(cs.secondaryContainer).padding(horizontal = 8.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.labelMedium, color = cs.onSecondaryContainer, maxLines = 1,
+                )
+                Text("${if (item.tag.isNotBlank()) "  " else ""}${item.minutes} min", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
             }
         }
     }
-    if (adding) LibraryDialog(null, existingTags = groups.keys.toList()) { adding = false }
-    editing?.let { LibraryDialog(it, existingTags = groups.keys.toList()) { editing = null } }
 }
 
 /**

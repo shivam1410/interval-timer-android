@@ -102,3 +102,6 @@ fun youTubeAppFor(url: String): String? = when {
     URI(url.trim()).host.equals("music.youtube.com", ignoreCase = true) -> YOUTUBE_MUSIC_APP
     else -> YOUTUBE_APP
 }
+
+/** YouTube's public 320×180 thumbnail for a link (no key), or null. */
+fun youTubeThumb(url: String): String? = youTubeId(url)?.let { "https://i.ytimg.com/vi/$it/mqdefault.jpg" }
