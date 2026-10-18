@@ -13,6 +13,10 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.UUID
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -133,15 +137,23 @@ fun LibraryDialog(
                 if (file.isNotEmpty()) Text("${if (isVideoFile(file)) "🎬 Video" else "🎵 Audio"} file · backed up to your Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 else {
                     OutlinedTextField(
-                        url, { url = it }, Modifier.fillMaxWidth(), label = { Text("YouTube link") }, singleLine = true,
+                        url, { url = it }, Modifier.fillMaxWidth(), label = { Text("YouTube link") }, singleLine = true, shape = FieldShape,
                         isError = url.isNotBlank() && !urlOk,
-                        supportingText = { if (url.isNotBlank() && !urlOk) Text("Needs an https YouTube or YouTube Music link") },
+                        supportingText = if (url.isNotBlank() && !urlOk) ({ Text("Needs an https YouTube or YouTube Music link") }) else null,
                     )
-                    if (item == null && url.isBlank()) OutlinedButton({ pick.launch(arrayOf("audio/*", "video/*")) }, Modifier.fillMaxWidth()) {
-                        Text("🎵  Or pick an audio / video file")
+                    if (item == null && url.isBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            HorizontalDivider(Modifier.weight(1f))
+                            Text("or", Modifier.padding(horizontal = 12.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            HorizontalDivider(Modifier.weight(1f))
+                        }
+                        // Same height and corners as the link field above.
+                        OutlinedButton({ pick.launch(arrayOf("audio/*", "video/*")) }, Modifier.fillMaxWidth().height(56.dp), shape = FieldShape) {
+                            Text("🎵  Pick an audio / video file")
+                        }
                     }
                 }
-                OutlinedTextField(title, { title = it.take(80) }, Modifier.fillMaxWidth(), label = { Text("Title") }, singleLine = true)
+                OutlinedTextField(title, { title = it.take(80) }, Modifier.fillMaxWidth(), label = { Text("Title") }, singleLine = true, shape = FieldShape)
                 // Your Toggl tags first (the tag is what Toggl gets), then tags already used here.
                 val toggl by TogglSync.tags.collectAsState()
                 TagField(tag, (toggl + existingTags).filter { it != "Untagged" }.distinct()) { tag = it.take(30) }
@@ -165,6 +177,9 @@ fun LibraryDialog(
     )
 }
 
+/** Rounded corners shared by every box in the Add to library form. */
+private val FieldShape = RoundedCornerShape(12.dp)
+
 /** Tag: a dropdown of known tags that narrows as you type; typing something new makes a new tag. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -175,7 +190,7 @@ private fun TagField(value: String, choices: List<String>, onChange: (String) ->
         OutlinedTextField(
             value, { onChange(it); open = true },
             Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable),
-            label = { Text("Tag") }, singleLine = true,
+            label = { Text("Tag") }, singleLine = true, shape = FieldShape,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(open) },
         )
         if (shown.isNotEmpty()) ExposedDropdownMenu(open, { open = false }) {
