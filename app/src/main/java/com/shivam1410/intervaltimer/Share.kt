@@ -5,23 +5,18 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
-import org.json.JSONException
-import org.json.JSONObject
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
 import kotlin.concurrent.thread
 
 /**
  * Links shared into the app from YouTube / YouTube Music (Share -> Interval Timer). Opens the
- * "Add to library" dialog prefilled; the title comes from the share itself, then YouTube's oEmbed.
+ * "Add to library" dialog prefilled; the dialog looks up a link's title and length itself.
  */
 object Share {
     private const val TAG = "Share"
 
-    /** [file] + [id]: a shared MP3/MP4 already copied in as lib-<id>.<ext>. */
-    data class Pending(val url: String, val title: String, val file: String = "", val id: String? = null)
+    /** [file] + [id]: a shared MP3/MP4 already copied in as lib-<id>.<ext>; [minutes] from its duration. */
+    data class Pending(val url: String, val title: String, val file: String = "", val id: String? = null, val minutes: Int? = null)
 
     /** Shown as the library dialog while non-null. */
     val pending = MutableStateFlow<Pending?>(null)
@@ -37,7 +32,6 @@ object Share {
         val url = extractYouTubeUrl(text)
         // Not a YouTube link: still open the dialog, showing what came in, so the error is visible.
         pending.value = Pending(url ?: text.orEmpty().trim().take(300), intent.getStringExtra(Intent.EXTRA_SUBJECT).orEmpty().take(80))
-        if (url != null) thread { fetchTitle(url) }
     }
 
     private fun importFile(ctx: Context, intent: Intent, type: String) {
@@ -47,7 +41,7 @@ object Share {
             val id = java.util.UUID.randomUUID().toString().take(8)
             try {
                 val f = LibraryFiles.import(ctx, uri, type, id)
-                pending.value = Pending("", f.title, f.name, id)
+                pending.value = Pending("", f.title, f.name, id, LibraryFiles.durationMs(ctx, f.name)?.let(::minutesFor))
                 status.value = ""
             } catch (e: IOException) {
                 Log.w(TAG, "Shared file not added", e)
@@ -56,22 +50,6 @@ object Share {
                 Log.w(TAG, "No access to the shared file", e)
                 status.value = "Couldn't read the shared file"
             }
-        }
-    }
-
-    /** oEmbed needs no key and returns {"title": …}; only fills the title if the share didn't carry one. */
-    private fun fetchTitle(url: String) {
-        try {
-            val c = URL("https://www.youtube.com/oembed?format=json&url=${URLEncoder.encode(url, "UTF-8")}").openConnection() as HttpURLConnection
-            c.connectTimeout = 10_000
-            c.readTimeout = 10_000
-            if (c.responseCode !in 200..299) throw IOException("oEmbed HTTP ${c.responseCode}")
-            val title = JSONObject(c.inputStream.use { it.readBytes().decodeToString() }).optString("title").take(80)
-            pending.value?.let { p -> if (p.url == url && p.title.isBlank() && title.isNotBlank()) pending.value = p.copy(title = title) }
-        } catch (e: IOException) {
-            Log.w(TAG, "No title for shared link", e)
-        } catch (e: JSONException) {
-            Log.w(TAG, "Unexpected oEmbed response", e)
         }
     }
 }

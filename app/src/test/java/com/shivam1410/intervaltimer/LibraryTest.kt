@@ -74,4 +74,25 @@ class LibraryTest {
         assertEquals("lib-a.mp3", libraryFileName("a", "evil.../../x", "audio/ogg"))
         assertEquals("lib-a.m4a", libraryFileName("a", "voice.m4a", null))
     }
+
+    @Test fun videoIdFromEveryLinkShape() {
+        assertEquals("AF9d2Icl4fA", youTubeId("https://www.youtube.com/watch?v=AF9d2Icl4fA&t=30"))
+        assertEquals("AF9d2Icl4fA", youTubeId("https://youtu.be/AF9d2Icl4fA?si=abc"))
+        assertEquals("bk_lD69u204", youTubeId("https://music.youtube.com/watch?v=bk_lD69u204&list=x"))
+        assertEquals("abcDEF12345", youTubeId("https://youtube.com/shorts/abcDEF12345"))
+        assertEquals(null, youTubeId("https://www.youtube.com/feed/library"))
+        assertEquals(null, youTubeId("https://evil.com/watch?v=AF9d2Icl4fA"))
+    }
+
+    @Test fun lengthComesFromThePage() {
+        assertEquals(1234, parseLengthSeconds("""..."videoDetails":{"videoId":"x","lengthSeconds":"1234","keywords"..."""))
+        assertEquals(null, parseLengthSeconds("<html>consent page</html>"))
+    }
+
+    @Test fun durationRoundsUpToWholeMinutes() {
+        assertEquals(21, minutesFor(20 * MIN + 1_000)) // 20:01 -> 21 so the video fits
+        assertEquals(20, minutesFor(20 * MIN))
+        assertEquals(1, minutesFor(10_000))
+        assertEquals(120, minutesFor(5 * 60 * MIN)) // long mixes cap at the stepper's max
+    }
 }

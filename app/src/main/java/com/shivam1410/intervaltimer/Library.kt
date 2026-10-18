@@ -74,3 +74,22 @@ fun isYouTubeUrl(url: String): Boolean {
 /** The first YouTube link in text shared from another app ("Title\nhttps://…" or just the link). */
 fun extractYouTubeUrl(text: String?): String? =
     text.orEmpty().split(Regex("\\s+")).map { it.trimEnd('.', ',', ')', '"', '\'') }.firstOrNull(::isYouTubeUrl)
+
+/** The 11-character video id from any YouTube / YouTube Music link shape, or null. */
+fun youTubeId(url: String): String? {
+    if (!isYouTubeUrl(url)) return null
+    val u = URI(url.trim())
+    val id = when {
+        u.host.equals("youtu.be", ignoreCase = true) -> u.path.trim('/')
+        u.path.startsWith("/shorts/") || u.path.startsWith("/live/") -> u.path.split('/').getOrNull(2)
+        else -> u.rawQuery.orEmpty().split('&').firstOrNull { it.startsWith("v=") }?.removePrefix("v=")
+    }
+    return id?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{11}")) }
+}
+
+/** Video length from a YouTube watch page ("lengthSeconds":"1234"); null if the page doesn't carry it. */
+fun parseLengthSeconds(html: String): Int? =
+    Regex("\"lengthSeconds\":\"(\\d+)\"").find(html)?.groupValues?.get(1)?.toIntOrNull()
+
+/** Whole minutes, rounded up so the timer covers the whole video or track; within the 1–120 stepper. */
+fun minutesFor(durationMs: Long): Int = ((durationMs + MIN - 1) / MIN).toInt().coerceIn(1, 120)

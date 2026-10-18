@@ -1,5 +1,17 @@
 package com.shivam1410.intervaltimer
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.IOException
+import java.util.UUID
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,35 +63,82 @@ fun MyLibrary(onQuick: (String) -> Unit) {
     editing?.let { LibraryDialog(it, existingTags = groups.keys.toList()) { editing = null } }
 }
 
-/** Add ([item] null) or edit a library item. Only https YouTube links can be saved. */
+/**
+ * Add ([item] null) or edit a library item: an https YouTube link, or an audio/video file picked here or
+ * shared in. Title and length fill themselves in (from YouTube, or the file) until you change them.
+ */
 @Composable
 fun LibraryDialog(
     item: LibraryItem?, existingTags: List<String>, initialUrl: String = "", initialTitle: String = "",
-    initialFile: String = "", newId: String? = null, onDismiss: () -> Unit,
+    initialFile: String = "", newId: String? = null, initialMinutes: Int? = null, onDismiss: () -> Unit,
 ) {
-    val file = item?.file ?: initialFile
-    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     var url by remember { mutableStateOf(item?.url ?: initialUrl) }
-    // Keyed on initialTitle: the shared link's title arrives from oEmbed a moment after the dialog opens.
-    var title by remember(initialTitle) { mutableStateOf(item?.title ?: initialTitle) }
+    var title by remember { mutableStateOf(item?.title ?: initialTitle) }
     var tag by remember { mutableStateOf(item?.tag.orEmpty()) }
-    var minutes by remember { mutableStateOf(item?.minutes ?: 10) }
+    var minutes by remember { mutableStateOf(item?.minutes ?: initialMinutes ?: 10) }
+    var minutesSet by remember { mutableStateOf(item != null || initialMinutes != null) } // you picked it, or the file told us
+    var file by remember { mutableStateOf(item?.file ?: initialFile) }
+    var id by remember { mutableStateOf(item?.id ?: newId) }
+    var busy by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf("") }
     val urlOk = isYouTubeUrl(url)
-    val ok = (file.isNotEmpty() || urlOk) && title.isNotBlank()
-    // A file shared in but not saved isn't kept.
-    val cancel = { if (item == null && initialFile.isNotEmpty()) LibraryFiles.file(ctx, initialFile).delete(); onDismiss() }
+    val ok = (file.isNotEmpty() || urlOk) && title.isNotBlank() && busy.isEmpty()
+    // A file brought in here (picked or shared) but not saved isn't kept.
+    val cancel = { if (item == null && file.isNotEmpty()) LibraryFiles.file(ctx, file).delete(); onDismiss() }
+
+    // Pasted or shared link: look up its title and length once typing settles.
+    LaunchedEffect(url) {
+        if (item != null || file.isNotEmpty() || !urlOk) return@LaunchedEffect
+        delay(500)
+        busy = "Looking up the video…"
+        if (title.isBlank()) withContext(Dispatchers.IO) { YouTubeInfo.title(url) }?.let { if (title.isBlank()) title = it }
+        if (!minutesSet) withContext(Dispatchers.IO) { YouTubeInfo.lengthSeconds(url) }?.let { minutes = minutesFor(it * 1000L) }
+        busy = ""
+    }
+
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val newFileId = id ?: UUID.randomUUID().toString().take(8)
+        busy = "Adding file…"
+        error = ""
+        scope.launch {
+            try {
+                val (f, ms) = withContext(Dispatchers.IO) {
+                    val f = LibraryFiles.import(ctx, uri, ctx.contentResolver.getType(uri), newFileId)
+                    f to LibraryFiles.durationMs(ctx, f.name)
+                }
+                file = f.name
+                id = newFileId
+                if (title.isBlank()) title = f.title
+                if (!minutesSet && ms != null) minutes = minutesFor(ms)
+            } catch (e: IOException) {
+                error = "Couldn't add the file: ${e.message}"
+            } catch (e: SecurityException) {
+                error = "Couldn't read that file"
+            } finally {
+                busy = ""
+            }
+        }
+    }
 
     AlertDialog(
         onDismissRequest = cancel,
         title = { Text(if (item == null) "Add to library" else "Edit") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (file.isNotEmpty()) Text("🎵 ${if (file.endsWith(".mp4")) "Video" else "Audio"} file · backed up to your Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                else OutlinedTextField(
-                    url, { url = it }, Modifier.fillMaxWidth(), label = { Text("YouTube link") }, singleLine = true,
-                    isError = url.isNotBlank() && !urlOk,
-                    supportingText = { if (url.isNotBlank() && !urlOk) Text("Needs an https YouTube or YouTube Music link") },
-                )
+                if (file.isNotEmpty()) Text("${if (isVideoFile(file)) "🎬 Video" else "🎵 Audio"} file · backed up to your Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                else {
+                    OutlinedTextField(
+                        url, { url = it }, Modifier.fillMaxWidth(), label = { Text("YouTube link") }, singleLine = true,
+                        isError = url.isNotBlank() && !urlOk,
+                        supportingText = { if (url.isNotBlank() && !urlOk) Text("Needs an https YouTube or YouTube Music link") },
+                    )
+                    if (item == null && url.isBlank()) OutlinedButton({ pick.launch(arrayOf("audio/*", "video/*")) }, Modifier.fillMaxWidth()) {
+                        Text("🎵  Or pick an audio / video file")
+                    }
+                }
                 OutlinedTextField(title, { title = it.take(80) }, Modifier.fillMaxWidth(), label = { Text("Title") }, singleLine = true)
                 OutlinedTextField(tag, { tag = it.take(30) }, Modifier.fillMaxWidth(), label = { Text("Tag") }, singleLine = true)
                 // Your Toggl tags first (the tag is what Toggl gets), then tags already used here.
@@ -88,11 +147,13 @@ fun LibraryDialog(
                 if (choices.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     choices.forEach { t -> AssistChip({ tag = t }, { Text(t) }) }
                 }
-                Stepper("Length", minutes, "min", 1..120) { minutes = it }
+                Stepper("Length", minutes, "min", 1..120) { minutes = it; minutesSet = true }
+                if (busy.isNotEmpty()) Text(busy, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (error.isNotEmpty()) Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         },
         confirmButton = {
-            TextButton({ Library.save(item?.id ?: newId, title, url, tag, minutes, file); onDismiss() }, enabled = ok) { Text("Save") }
+            TextButton({ Library.save(id, title, url, tag, minutes, file); onDismiss() }, enabled = ok) { Text("Save") }
         },
         dismissButton = {
             Row {

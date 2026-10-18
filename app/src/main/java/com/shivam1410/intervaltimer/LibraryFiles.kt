@@ -62,6 +62,20 @@ object LibraryFiles {
         }
     }
 
+    /** Length of a library file in ms, read from its metadata; null if Android can't tell. */
+    fun durationMs(ctx: Context, name: String): Long? {
+        val r = android.media.MediaMetadataRetriever()
+        return try {
+            r.setDataSource(file(ctx, name).path)
+            r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+        } catch (e: RuntimeException) { // thrown for files it can't parse
+            Log.w(TAG, "No duration for $name", e)
+            null
+        } finally {
+            r.release()
+        }
+    }
+
     fun mimeOf(name: String): String =
         MimeTypeMap.getSingleton().getMimeTypeFromExtension(name.substringAfterLast('.')) ?: "audio/*"
 
