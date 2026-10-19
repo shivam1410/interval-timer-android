@@ -49,6 +49,7 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - **Meditation**: sit in silence with a live stillness meter — how quiet you stayed (nothing recorded)
   - **Sketch**: opens [Sketch Seed](https://github.com/shivam1410/sketchseed) (the button shows its app icon)
   - **Refresh**: rain, thunderstorm, ocean, stream, fireplace, whales, white / pink / brown / grey noise (real recordings, see Credits)
+  - **Nothing**: no phone, no task — just be
   - Breathing animation, walk
 - **Focus music** is picked on the work screen (brown noise, rain, ocean, singing bowls) and
   keeps playing with the screen off

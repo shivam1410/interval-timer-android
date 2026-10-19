@@ -68,12 +68,16 @@ object Nudges {
     private fun alarmIntent() =
         PendingIntent.getBroadcast(app, 3, Intent(app, Receiver::class.java).setAction(Receiver.NUDGE_CHECK), PendingIntent.FLAG_IMMUTABLE)
 
-    /** Inexact on purpose: Android may batch it with other wake-ups; a minute either way doesn't matter here. */
+    /**
+     * Exact (the app holds USE_EXACT_ALARM as a timer): inexact alarms were delayed by up to 75 % and
+     * capped per hour by app-standby quotas once the app sat unused, so nudges after the first stopped coming.
+     * Checks stay sparse: every few minutes with the screen on, 15 min off, none during a cooldown.
+     */
     private fun arm(inMs: Long) {
         val am = app.getSystemService(AlarmManager::class.java)
         val c = config.value
         if (!c.enabled || !(c.ig || c.yt) || inMs <= 0) return am.cancel(alarmIntent())
-        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + inMs, alarmIntent())
+        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + inMs, alarmIntent())
     }
 
     /** Alarm fired: look at the last hours of app usage, nudge if due, and set the next check. */
@@ -96,11 +100,13 @@ object Nudges {
     private fun checkApp(pkg: String, name: String, limitMs: Long, events: List<AppEvent>, now: Long): Long {
         val u = usage(events, pkg, now, windowFor(limitMs))
         val watching = pkg == YOUTUBE && u.onScreen && youTubePlaying()
-        if (shouldNudge(u, limitMs, prefs.getLong("last_$pkg", 0), now, watching)) {
+        var last = prefs.getLong("last_$pkg", 0)
+        if (shouldNudge(u, limitMs, last, now, watching)) {
+            last = now
             prefs.edit().putLong("last_$pkg", now).apply()
             post(name, u.todayMs)
         }
-        return nextCheckMs(u, limitMs, Random.nextLong(0, 2 * MIN))
+        return nextCheckAfter(u, limitMs, last, now, Random.nextLong(0, 2 * MIN))
     }
 
     private fun events(now: Long): List<AppEvent> {
@@ -115,9 +121,9 @@ object Nudges {
                 it.getNextEvent(e)
                 val watched = e.packageName == INSTAGRAM || e.packageName == YOUTUBE
                 when (e.eventType) {
-                    UsageEvents.Event.ACTIVITY_RESUMED -> add(AppEvent(if (watched) e.packageName else OTHER_APP, true, e.timeStamp))
+                    UsageEvents.Event.ACTIVITY_RESUMED -> add(AppEvent(if (watched) e.packageName else OTHER_APP, true, e.timeStamp, e.className.orEmpty()))
                     UsageEvents.Event.ACTIVITY_PAUSED, UsageEvents.Event.ACTIVITY_STOPPED ->
-                        if (watched) add(AppEvent(e.packageName, false, e.timeStamp))
+                        if (watched) add(AppEvent(e.packageName, false, e.timeStamp, e.className.orEmpty()))
                     UsageEvents.Event.SCREEN_NON_INTERACTIVE -> add(AppEvent(OTHER_APP, true, e.timeStamp))
                 }
             }

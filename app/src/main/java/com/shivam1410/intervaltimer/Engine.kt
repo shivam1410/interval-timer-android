@@ -54,6 +54,7 @@ val ACTIVITIES = listOf(
     Activity("breathing", "🫁", "Breathing", "Recover", "Box breathing: inhale 4 · hold 4 · exhale 4 · hold 4", quickMin = 5),
     // Meditation and the old "Silence" were the same thing; one activity: silent, with the stillness meter.
     Activity("meditation", "🧘", "Meditation", "Recover", "Sit still, eyes closed. Follow the breath; let thoughts pass."),
+    Activity("nothing", "🫥", "Nothing", "Recover", "Do nothing. No phone, no task — just be."),
     Activity(
         "nsdr", "😌", "NSDR", "Recover", "Lie down, press play and follow the voice. 20-minute Non-Sleep Deep Rest.",
         minutes = 20,

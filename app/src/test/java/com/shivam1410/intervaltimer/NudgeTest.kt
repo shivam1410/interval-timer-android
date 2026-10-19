@@ -70,4 +70,28 @@ class NudgeTest {
         val dark = usage(listOf(on(0), AppEvent(OTHER_APP, true, 3 * MIN), on(30)), ig, now = 32 * MIN, windowMs = window)
         assertEquals(2 * MIN, dark.recentMs)
     }
+
+    @Test fun duringTheCooldownTheNextCheckWaitsForItsEnd() {
+        val past = Usage(true, 8 * MIN, 40 * MIN) // over the 5-min limit, but nudged 10 min ago
+        assertEquals(20 * MIN, nextCheckAfter(past, 5 * MIN, lastNudgeAt = 50 * MIN, now = 60 * MIN, jitterMs = 0))
+        // Cooldown over: back to the usual timing.
+        assertEquals(1 * MIN, nextCheckAfter(past, 5 * MIN, lastNudgeAt = 0, now = 60 * MIN, jitterMs = 0))
+        // App closed during the cooldown: still no point checking before it ends.
+        assertEquals(20 * MIN, nextCheckAfter(Usage(false, 0, 40 * MIN), 5 * MIN, lastNudgeAt = 50 * MIN, now = 60 * MIN, jitterMs = 0))
+    }
+
+    @Test fun screensInsideTheAppDontEndItsTime() {
+        // YouTube on the emulator: launcher screen resumes, pauses, main screen resumes, then the first one STOPS.
+        val events = listOf(
+            AppEvent(ig, true, 0, "Launch"), AppEvent(ig, false, 0, "Launch"),
+            AppEvent(ig, true, 0, "Main"), AppEvent(ig, false, 1_000, "Launch"),
+        )
+        val u = usage(events, ig, now = 6 * MIN, windowMs = window)
+        assertTrue(u.onScreen)
+        assertEquals(6 * MIN, u.recentMs)
+        // Leaving the last screen does end it.
+        val left = usage(events + AppEvent(ig, false, 6 * MIN, "Main"), ig, now = 8 * MIN, windowMs = window)
+        assertFalse(left.onScreen)
+        assertEquals(6 * MIN, left.recentMs)
+    }
 }

@@ -6,8 +6,8 @@ const val INSTAGRAM = "com.instagram.android"
 const val YOUTUBE = "com.google.android.youtube"
 const val NUDGE_COOLDOWN_MS = 30 * MIN
 
-/** An app coming on screen ([resumed]) or leaving it, from UsageStatsManager events. */
-data class AppEvent(val pkg: String, val resumed: Boolean, val at: Long)
+/** One of an app's screens ([cls]) coming on screen ([resumed]) or leaving it, from UsageStatsManager events. */
+data class AppEvent(val pkg: String, val resumed: Boolean, val at: Long, val cls: String = "")
 
 /** Any other app coming forward, or the screen turning off: ends every watched app's time on screen. */
 const val OTHER_APP = "*"
@@ -22,11 +22,16 @@ fun windowFor(limitMs: Long) = 2 * limitMs
 fun usage(events: List<AppEvent>, pkg: String, now: Long, windowMs: Long): Usage {
     val spans = mutableListOf<LongArray>() // [from, to]
     var openFrom: Long? = null
+    // The app is on screen while any of its screens is; one screen stopping after the next one
+    // resumed (normal when moving inside the app) doesn't mean you left.
+    val showing = mutableSetOf<String>()
     for (e in events) {
         val mine = e.pkg == pkg
-        if (!mine && !(e.pkg == OTHER_APP && e.resumed)) continue
-        if (mine && e.resumed) { if (openFrom == null) openFrom = e.at }
-        else openFrom?.let { spans += longArrayOf(it, e.at); openFrom = null }
+        when {
+            mine && e.resumed -> { showing += e.cls; if (openFrom == null) openFrom = e.at }
+            mine -> { showing -= e.cls; if (showing.isEmpty()) openFrom?.let { spans += longArrayOf(it, e.at); openFrom = null } }
+            e.pkg == OTHER_APP && e.resumed -> { showing.clear(); openFrom?.let { spans += longArrayOf(it, e.at); openFrom = null } }
+        }
     }
     val onScreen = openFrom != null
     openFrom?.let { spans += longArrayOf(it, now) }
@@ -44,6 +49,10 @@ fun nextCheckMs(u: Usage, limitMs: Long, jitterMs: Long): Long = when {
     u.recentMs < limitMs -> limitMs - u.recentMs + jitterMs
     else -> 1 * MIN
 }
+
+/** Like [nextCheckMs], but never inside the 30-min cooldown after a nudge: a check there can't nudge. */
+fun nextCheckAfter(u: Usage, limitMs: Long, lastNudgeAt: Long, now: Long, jitterMs: Long): Long =
+    maxOf(nextCheckMs(u, limitMs, jitterMs), lastNudgeAt + NUDGE_COOLDOWN_MS - now)
 
 fun shouldNudge(u: Usage, limitMs: Long, lastNudgeAt: Long, now: Long, watching: Boolean): Boolean =
     u.onScreen && u.recentMs >= limitMs && now - lastNudgeAt >= NUDGE_COOLDOWN_MS && !watching
