@@ -1,6 +1,8 @@
 package com.shivam1410.intervaltimer
 
 import androidx.compose.runtime.getValue
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Card
@@ -52,18 +54,27 @@ fun SettingsScreen(s: Settings, onBack: () -> Unit) {
     val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Notifications"; "toggl" -> "Toggl Track"; else -> "Settings" }
     val cs = MaterialTheme.colorScheme
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+    val signedIn = Drive.profile.collectAsState().value != null
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
             IconButton({ if (sub.isEmpty()) onBack() else sub = "" }) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
             Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
         }
-        when (sub) {
-            "profile" -> ProfilePage()
-            "notifications" -> NotificationsPage(s)
-            "toggl" -> TogglSection()
-            else -> SettingsList { sub = it }
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            when (sub) {
+                "profile" -> ProfilePage()
+                "notifications" -> NotificationsPage(s)
+                "toggl" -> TogglSection()
+                else -> SettingsList { sub = it }
+            }
+            Box(Modifier.height(24.dp))
         }
-        Box(Modifier.height(24.dp))
+        // Pinned to the bottom of the Profile page, in red: it's the one action here that takes something away.
+        if (sub == "profile" && signedIn) OutlinedButton(
+            { Drive.signOut() }, Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = cs.error),
+            border = BorderStroke(1.dp, cs.error),
+        ) { Text("Sign out") }
     }
 }
 
@@ -155,7 +166,6 @@ private fun ProfilePage() {
             else FilledTonalButton({ Updater.check(ctx, manual = true) }) { Text("Check for updates") }
         }
     }
-    if (p != null) OutlinedButton({ Drive.signOut() }, Modifier.fillMaxWidth().padding(top = 24.dp)) { Text("Sign out") }
 }
 
 /** Gong / vibration / volume, lock screen, daily reminder, Instagram & YouTube nudges. */
