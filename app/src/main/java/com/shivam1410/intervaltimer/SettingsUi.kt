@@ -33,6 +33,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -162,9 +163,18 @@ private fun ProfilePage() {
                 Text("Interval Timer", style = MaterialTheme.typography.titleMedium)
                 Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
-            if (update != null) Button({ Updater.install(ctx) }) { Text("Install $update") }
-            else FilledTonalButton({ Updater.check(ctx, manual = true) }) { Text("Check for updates") }
+            val checking by Updater.checking.collectAsState()
+            val downloading = Updater.progress.collectAsState().value
+            when {
+                update != null -> Button({ Updater.install(ctx) }) { Text("Install $update") }
+                checking && downloading == null -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Text("  Checking…", color = cs.onSurfaceVariant)
+                }
+                downloading == null -> FilledTonalButton({ Updater.check(ctx, manual = true) }) { Text("Check for updates") }
+            }
         }
+        Updater.progress.collectAsState().value?.let { (tag, p) -> UpdateProgress(tag, p) }
     }
 }
 

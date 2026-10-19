@@ -87,8 +87,23 @@ fun fetch(url: String, accept: String = "application/vnd.github+json, */*"): Str
     open(url, accept).inputStream.use { it.readBytes().decodeToString() }
 
 /** Downloads to a temp file first so a half-finished download is never mistaken for a real one. */
-fun download(url: String, dest: File) {
+/** [onProgress] gets 0..1 as bytes arrive; [size] is used when the server doesn't say (e.g. after a redirect). */
+fun download(url: String, dest: File, size: Long = -1, onProgress: ((Float) -> Unit)? = null) {
     val tmp = File(dest.path + ".part")
-    open(url).inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+    val c = open(url)
+    val total = c.contentLengthLong.takeIf { it > 0 } ?: size
+    c.inputStream.use { input ->
+        tmp.outputStream().use { out ->
+            val buf = ByteArray(64 * 1024)
+            var done = 0L
+            while (true) {
+                val n = input.read(buf)
+                if (n < 0) break
+                out.write(buf, 0, n)
+                done += n
+                if (onProgress != null && total > 0) onProgress((done.toFloat() / total).coerceAtMost(1f))
+            }
+        }
+    }
     if (!tmp.renameTo(dest)) throw IOException("Cannot move $tmp")
 }

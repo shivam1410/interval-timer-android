@@ -63,6 +63,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -144,6 +145,8 @@ fun Root(now: Long) {
         update?.let { tag ->
             Banner("Update $tag downloaded", "Install") { Updater.install(ctx) }
         }
+        // The launch check downloads on its own too: show it happening.
+        Updater.progress.collectAsState().value?.let { (tag, p) -> UpdateProgress(tag, p, Modifier.padding(16.dp, 8.dp)) }
         updateError?.let { Banner(it, "OK") { Updater.error.value = null } }
         val share by Share.pending.collectAsState()
         share?.let { LibraryDialog(null, Library.visible.map { it.tag }.filter { it.isNotBlank() }.distinct(), it.url, it.title, it.file, it.id, it.minutes) { Share.pending.value = null } }
@@ -157,6 +160,17 @@ fun Root(now: Long) {
             session.done(plan) -> Done(session, settings) { page = "history" }
             else -> Running(plan, session, settings, now)
         }
+    }
+}
+
+/** "Downloading update v1.15.0… 42%" with a bar; shared by home and Settings › Profile. */
+@Composable
+fun UpdateProgress(tag: String, p: Float, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        // Before the first bytes (connecting, following GitHub's redirect) a moving bar, then the real percentage.
+        val started = p > 0f
+        Text(if (started) "Downloading update $tag… ${(p * 100).toInt()}%" else "Downloading update $tag…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (started) LinearProgressIndicator({ p }, Modifier.fillMaxWidth()) else LinearProgressIndicator(Modifier.fillMaxWidth())
     }
 }
 
