@@ -40,7 +40,11 @@ class SoundService : Service() {
 
     private fun playCue(id: String, volume: Float) {
         cue?.release()
-        cue = player(AudioAttributes.USAGE_ALARM, volume, loop = false, id)?.apply {
+        // Alarm sounds also ring on the phone speaker when earphones are in; with earphones the gong
+        // plays as media so it stays in them. Without, alarm keeps it audible even at low media volume.
+        val outputs = getSystemService(android.media.AudioManager::class.java).getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS).map { it.type }.toSet()
+        val usage = if (hasEarphones(outputs)) AudioAttributes.USAGE_MEDIA else AudioAttributes.USAGE_ALARM
+        cue = player(usage, volume, loop = false, id)?.apply {
             setOnCompletionListener { startMusicOrStop() }
             start()
         } ?: run { startMusicOrStop(); null }
