@@ -94,7 +94,7 @@ object Nudges {
 
     /** Returns when to check this app again. */
     private fun checkApp(pkg: String, name: String, limitMs: Long, events: List<AppEvent>, now: Long): Long {
-        val u = usage(events, pkg, now, NUDGE_GAP_MS)
+        val u = usage(events, pkg, now, windowFor(limitMs))
         val watching = pkg == YOUTUBE && u.onScreen && youTubePlaying()
         if (shouldNudge(u, limitMs, prefs.getLong("last_$pkg", 0), now, watching)) {
             prefs.edit().putLong("last_$pkg", now).apply()

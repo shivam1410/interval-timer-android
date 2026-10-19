@@ -23,7 +23,8 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   ambient sounds don't. Pick a Toggl tag, or "Don't send", per activity; library items send their own
   tag. Offline changes are queued and sent later with their real times; Discard deletes that session's
   entries from Toggl too
-- **Instagram & YouTube nudges** (Settings): after 5–30 min (your pick, per app) on Instagram or YouTube,
+- **Instagram & YouTube nudges** (Settings): after 5–30 min (your pick, per app) of Instagram or YouTube
+  within a rolling window twice that long (e.g. 5 min in the last 10, gaps and all),
   a notification suggests sketching or relaxing instead; its buttons start the Sketch or Breathing
   quick timer. Never while a YouTube video or song is playing (Shorts and browsing do count), at most
   once per 30 min per app. Needs Usage access; for YouTube also Notification access, used only to see
@@ -58,7 +59,8 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   counts up (+00:01…) with the ring filling every minute; **+10 min** for another countdown or
   **Next** when you're done (overtime counts as work). Prepare still flows into the activity
 - **Lock-screen page** at every phase change: black-and-white, display only, closes itself after ~12 s
-- **Restart-proof**: phases are absolute timestamps, rebuilt after reboot
+- **Restart-proof**: phases are absolute timestamps, rebuilt after reboot; installing an update mid-session
+  keeps the session and resumes its music
 - **End and Save / Discard**: one row — Discard (left), Keep going, End and Save (right). End and
   Save keeps what you've done in History; Discard throws the session away. Stretches under a minute (from skipping through unused slots) don't show in the day view
 - **Activities**: every break stretch remembers its activity, so a day lists "😌 NSDR 20 min" and History

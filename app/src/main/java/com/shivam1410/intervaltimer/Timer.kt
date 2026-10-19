@@ -252,7 +252,8 @@ object Timer {
     private val chosen get() = activity(session.value.quick ?: settings.value.activity)
 
     /** Alarm fired, device booted, or app opened: settle into whatever phase "now" is. */
-    fun sync(playCue: Boolean) {
+    /** [resumeSound]: after an app update, start the focus/activity music again (the update stopped it). */
+    fun sync(playCue: Boolean, resumeSound: Boolean = playCue) {
         val before = session.value
         if (!before.running(plan)) return
         val t = now()
@@ -266,7 +267,7 @@ object Timer {
         // Nothing changed: skip (the UI's per-second check lands here during overtime). Boot/update
         // (playCue = false) still re-commits, because the system dropped our alarm.
         if (after == before && playCue) return
-        commit(after, if (playCue) cue else null, restartSound = playCue)
+        commit(after, if (playCue) cue else null, restartSound = resumeSound)
     }
 
     private fun cueFor(before: Session, after: Session): Cue? = when {

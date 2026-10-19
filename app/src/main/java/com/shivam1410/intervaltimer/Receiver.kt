@@ -21,7 +21,9 @@ class Receiver : BroadcastReceiver() {
             START_AT -> Timer.startScheduled()
             NUDGE_CHECK -> Nudges.check()
             AMBIENT_OFF -> Timer.playAmbient(null)
-            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> Timer.sync(playCue = false)
+            // Android doesn't let music start from boot; after an update it may, so the session's music resumes.
+            Intent.ACTION_BOOT_COMPLETED -> Timer.sync(playCue = false)
+            Intent.ACTION_MY_PACKAGE_REPLACED -> Timer.sync(playCue = false, resumeSound = true)
             INSTALL_STATUS -> onInstallStatus(ctx, intent)
         }
     }

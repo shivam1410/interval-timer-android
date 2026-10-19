@@ -5,7 +5,6 @@ package com.shivam1410.intervaltimer
 const val INSTAGRAM = "com.instagram.android"
 const val YOUTUBE = "com.google.android.youtube"
 const val NUDGE_COOLDOWN_MS = 30 * MIN
-const val NUDGE_GAP_MS = 2 * MIN
 
 /** An app coming on screen ([resumed]) or leaving it, from UsageStatsManager events. */
 data class AppEvent(val pkg: String, val resumed: Boolean, val at: Long)
@@ -13,11 +12,14 @@ data class AppEvent(val pkg: String, val resumed: Boolean, val at: Long)
 /** Any other app coming forward, or the screen turning off: ends every watched app's time on screen. */
 const val OTHER_APP = "*"
 
-/** [sessionMs]: on-screen time since the app was last away for longer than the gap; 0 when not on screen. */
-data class Usage(val onScreen: Boolean, val sessionMs: Long, val todayMs: Long)
+/** [recentMs]: on-screen time within the last window (twice the limit); counted even when not on screen now. */
+data class Usage(val onScreen: Boolean, val recentMs: Long, val todayMs: Long)
+
+/** Rolling window for a limit: 5 min of use within the last 10, 10 within 20, … */
+fun windowFor(limitMs: Long) = 2 * limitMs
 
 /** [events] since midnight, oldest first; other apps' events are ignored. */
-fun usage(events: List<AppEvent>, pkg: String, now: Long, gapMs: Long): Usage {
+fun usage(events: List<AppEvent>, pkg: String, now: Long, windowMs: Long): Usage {
     val spans = mutableListOf<LongArray>() // [from, to]
     var openFrom: Long? = null
     for (e in events) {
@@ -28,28 +30,23 @@ fun usage(events: List<AppEvent>, pkg: String, now: Long, gapMs: Long): Usage {
     }
     val onScreen = openFrom != null
     openFrom?.let { spans += longArrayOf(it, now) }
-    val today = spans.sumOf { it[1] - it[0] }
-    if (!onScreen) return Usage(false, 0, today)
-    // Walk back from the open span, joining spans separated by short trips elsewhere.
-    var session = 0L
-    var nextStart = Long.MAX_VALUE
-    for (s in spans.asReversed()) {
-        if (nextStart != Long.MAX_VALUE && nextStart - s[1] > gapMs) break
-        session += s[1] - s[0]
-        nextStart = s[0]
-    }
-    return Usage(true, session, today)
+    val from = now - windowMs
+    val recent = spans.sumOf { (maxOf(it[1], from) - maxOf(it[0], from)).coerceAtLeast(0) }
+    return Usage(onScreen, recent, spans.sumOf { it[1] - it[0] })
 }
 
-/** When to look again: when the limit would run out (plus a random bit), or in 5 min if the app isn't open. */
+/**
+ * When to look again. Not open: 5 min. Open: the soonest the limit could be reached, i.e. after the
+ * missing minutes (plus a random bit); past it, again in a minute.
+ */
 fun nextCheckMs(u: Usage, limitMs: Long, jitterMs: Long): Long = when {
     !u.onScreen -> 5 * MIN
-    u.sessionMs < limitMs -> limitMs - u.sessionMs + jitterMs
+    u.recentMs < limitMs -> limitMs - u.recentMs + jitterMs
     else -> 1 * MIN
 }
 
 fun shouldNudge(u: Usage, limitMs: Long, lastNudgeAt: Long, now: Long, watching: Boolean): Boolean =
-    u.onScreen && u.sessionMs >= limitMs && now - lastNudgeAt >= NUDGE_COOLDOWN_MS && !watching
+    u.onScreen && u.recentMs >= limitMs && now - lastNudgeAt >= NUDGE_COOLDOWN_MS && !watching
 
 /**
  * YouTube playing a real video or music: its media session is PLAYING with a title (Shorts report
