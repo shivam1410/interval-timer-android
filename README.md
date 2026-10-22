@@ -31,7 +31,8 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   YouTube's player (on a sideloaded install: App info › ⋮ › Allow restricted settings first). No
   background loop: one inexact alarm set for when the limit could next be reached
 - **Start at** a whole hour: the 5th row of the Custom schedule (Now or one of the next four hours);
-  the workday starts by itself then, once. Home shows the armed start with Cancel (the daily 10:00
+  the workday starts by itself then, once, with no need to tap Start. Home shows the armed start with
+  Cancel, and the big button turns into "Start now instead" (the daily 10:00
   reminder stays a notification; nothing auto-starts every day)
 - **Days this month**: the pill next to your photo counts the days you used the app this month;
   tap it for History

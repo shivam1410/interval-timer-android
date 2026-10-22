@@ -252,13 +252,13 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
             SoundTiles(ambient.orEmpty(), off = false, MaterialTheme.colorScheme.surfaceContainer, "Ambient") { Timer.playAmbient(it.takeIf { it != ambient }) }
             Spacer(Modifier.height(16.dp))
         }
-        // Set from the Custom schedule; still shown (with Cancel) if a preset was picked after.
-        scheduled?.takeIf { !s.custom }?.let { ScheduledLine(it) }
-        Button(
-            onClick = { Timer.start() },
-            modifier = Modifier.fillMaxWidth().padding(20.dp).height(64.dp),
-            shape = RoundedCornerShape(32.dp),
-        ) { Text("Start workday", fontSize = 20.sp) }
+        // Set from the Custom schedule; shown (with Cancel) whenever a start is armed, preset picked after or not.
+        scheduled?.let { ScheduledLine(it) }
+        val big = Modifier.fillMaxWidth().padding(20.dp).height(64.dp)
+        // With a start armed the workday begins by itself; the big button is only the "now" override,
+        // so it's outlined and says so — a filled "Start workday" read as confirming the scheduled time.
+        if (scheduled != null) OutlinedButton({ Timer.start() }, big, shape = RoundedCornerShape(32.dp)) { Text("Start now instead", fontSize = 20.sp) }
+        else Button({ Timer.start() }, big, shape = RoundedCornerShape(32.dp)) { Text("Start workday", fontSize = 20.sp) }
     }
 }
 
