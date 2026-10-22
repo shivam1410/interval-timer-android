@@ -1,5 +1,6 @@
 package com.shivam1410.intervaltimer
 
+import android.widget.Toast
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.FocusRequester
@@ -204,7 +205,11 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
         if (first.isNotEmpty()) ", $first" else ""
     fun set(f: Settings.() -> Settings) = Timer.saveSettings(s.f())
     val scheduled by Timer.scheduledAt.collectAsState()
-    val from = scheduled ?: now
+    // "Start at" only picks a time; the big button arms it. Dropped once that hour passes or Custom is left.
+    var picked by remember { mutableStateOf<Long?>(null) }
+    val pick = picked?.takeIf { s.custom && it > now }
+    val from = pick ?: scheduled ?: now
+    val ctx = LocalContext.current
 
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
@@ -240,7 +245,7 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
                     Stepper("Break", s.breakMin, "min", 1..60) { v -> set { copy(breakMin = v) } }
                     Stepper("Prepare (in break)", s.prepMin, "min", 0..10) { v -> set { copy(prepMin = v) } }
                     Stepper("Cycles", s.cycles, "", 1..16) { v -> set { copy(cycles = v) } }
-                    StartAt(scheduled, now)
+                    StartAt(pick, now) { picked = it }
                 }
             }
 
@@ -254,27 +259,35 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
         }
         // Set from the Custom schedule; shown (with Cancel) whenever a start is armed, preset picked after or not.
         scheduled?.let { ScheduledLine(it) }
-        val big = Modifier.fillMaxWidth().padding(20.dp).height(64.dp)
-        // With a start armed the workday begins by itself; the big button is only the "now" override,
-        // so it's outlined and says so — a filled "Start workday" read as confirming the scheduled time.
-        if (scheduled != null) OutlinedButton({ Timer.start() }, big, shape = RoundedCornerShape(32.dp)) { Text("Start now instead", fontSize = 20.sp) }
-        else Button({ Timer.start() }, big, shape = RoundedCornerShape(32.dp)) { Text("Start workday", fontSize = 20.sp) }
+        // Says exactly what a tap does: start now (dropping any armed start), or arm the picked hour.
+        Button(
+            onClick = {
+                if (pick == null) Timer.start()
+                else {
+                    Timer.scheduleStart(pick)
+                    picked = null
+                    Toast.makeText(ctx, "Scheduled for ${clock(pick)}", Toast.LENGTH_SHORT).show()
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(20.dp).height(64.dp),
+            shape = RoundedCornerShape(32.dp),
+        ) { Text(pick?.let { "Start at ${clock(it)}" } ?: "Start now", fontSize = 20.sp) }
     }
 }
 
-/** 5th row of the Custom schedule: start now, or once at one of the next whole hours. */
+/** 5th row of the Custom schedule: start now, or once at one of the next whole hours (armed by the Start button). */
 @Composable
-private fun StartAt(scheduled: Long?, now: Long) {
+private fun StartAt(pick: Long?, now: Long, onPick: (Long?) -> Unit) {
     var open by remember { mutableStateOf(false) }
     // Re-evaluated only when the hour changes, not every second.
     val hours = remember(now / (60 * MIN)) { nextFullHours(now, 4) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("Start at", Modifier.weight(1f))
         Box {
-            TextButton({ open = true }) { Text("${scheduled?.let(::clock) ?: "Now"} ▾", fontWeight = FontWeight.SemiBold) }
+            TextButton({ open = true }) { Text("${pick?.let(::clock) ?: "Now"} ▾", fontWeight = FontWeight.SemiBold) }
             DropdownMenu(open, { open = false }) {
-                DropdownMenuItem({ Text("Now (tap Start)") }, { Timer.scheduleStart(null); open = false })
-                hours.forEach { at -> DropdownMenuItem({ Text(clock(at)) }, { Timer.scheduleStart(at); open = false }) }
+                DropdownMenuItem({ Text("Now") }, { onPick(null); open = false })
+                hours.forEach { at -> DropdownMenuItem({ Text(clock(at)) }, { onPick(at); open = false }) }
             }
         }
     }
