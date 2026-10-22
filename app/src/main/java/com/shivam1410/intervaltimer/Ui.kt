@@ -282,8 +282,9 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
 @Composable
 private fun StartAt(pick: Long?, now: Long, onPick: (Long?) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    // Re-evaluated only when the hour changes, not every second.
-    val hours = remember(now / (60 * MIN)) { nextFullHours(now, 4) }
+    // Re-evaluated each minute, not every second. Keying on now / hour broke in half-hour zones (IST):
+    // epoch hours tick at :30 there, so at 16:27 the list still offered 16:00.
+    val hours = remember(now / MIN) { nextFullHours(now, 4) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("Start at", Modifier.weight(1f))
         Box {
