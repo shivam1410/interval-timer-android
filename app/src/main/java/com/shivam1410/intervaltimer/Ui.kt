@@ -143,11 +143,14 @@ fun Root(now: Long) {
     }
 
     Column(Modifier.fillMaxSize().background(if (napping) Color.Black else Color.Transparent).systemBarsPadding()) {
-        update?.let { tag ->
-            Banner("Update $tag downloaded", "Install") { Updater.install(ctx) }
+        // Settings › Profile has its own Install button and progress under App updates; don't repeat them on top.
+        if (page != "settings") {
+            update?.let { tag ->
+                Banner("Update $tag downloaded", "Install") { Updater.install(ctx) }
+            }
+            // The launch check downloads on its own too: show it happening.
+            Updater.progress.collectAsState().value?.let { (tag, p) -> UpdateProgress(tag, p, Modifier.padding(16.dp, 8.dp)) }
         }
-        // The launch check downloads on its own too: show it happening.
-        Updater.progress.collectAsState().value?.let { (tag, p) -> UpdateProgress(tag, p, Modifier.padding(16.dp, 8.dp)) }
         updateError?.let { Banner(it, "OK") { Updater.error.value = null } }
         val share by Share.pending.collectAsState()
         share?.let { LibraryDialog(null, Library.visible.map { it.tag }.filter { it.isNotBlank() }.distinct(), it.url, it.title, it.file, it.id, it.minutes) { Share.pending.value = null } }
