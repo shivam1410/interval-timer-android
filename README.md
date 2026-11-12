@@ -13,6 +13,16 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   dropdown of your Toggl and used tags. **Tap starts it at once** (no 5-4-3-2-1): its timer runs and it
   opens in YouTube, YouTube Music (music.youtube.com links) or the app you pick for files.
   Long-press to edit or delete. Synced to Drive (`library.json`)
+  - **Plain exercises**: leave the link empty for your own exercise (tib raises, stairs, a shoulder
+    isometric), with a "How to do it" note and, optionally, a short clip of the movement (video or GIF
+    from the photo picker) that loops muted on the timer. Tib raises get a built-in animated figure
+- **Habit** (one at a time): long-press a library exercise › **Make it a 30-day habit**, then pick
+  **Same every day**, **Grow each week** or the built-in **Tib raises program** (10 → 20 → lean
+  forward → 2 × 20); 14, 30 or 60 days; a daily reminder (08:00 by default) with a Done button.
+  Home shows a card with the animation, today's sets × reps, the stage note and **Done**. **Count**
+  counts the reps with the figure (30 s rest between sets) and marks the day done. **Calendar** shows
+  the days as tiles with each day's target: tap a day to change it (that day or from then on), tap a
+  past day to mark it done. Done days get a dot in History. Synced to Drive (`habits.json`, clips too)
   - **Share into it**: in YouTube or YouTube Music tap Share -> Interval Timer; the link and its title
     are filled in, you pick a tag and length
   - **MP3 / MP4 files**: share one from Files, Downloads or any app -> Interval Timer. It's kept in the app
