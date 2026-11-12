@@ -38,12 +38,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.layout.size
 import java.time.LocalDate
 
 /** Rest between sets while counting. */
 private const val REST_MS = 30_000
 
-/** Home card for the running habit: day, today's sets × reps, the stage note, progress and Done. */
+/** Home card for the running habit: 📅 day (opens the calendar), today's sets × reps, the stage note, Completed and Start. */
 @Composable
 fun HabitCard(onCalendar: () -> Unit) {
     val habits by Habits.all.collectAsState()
@@ -70,7 +73,13 @@ fun HabitCard(onCalendar: () -> Unit) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                Text("Day ${day.coerceAtMost(h.totalDays)}/${h.totalDays}", style = MaterialTheme.typography.labelLarge, color = cs.onSurfaceVariant)
+                Row(
+                    Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "Open calendar", onClick = onCalendar).padding(horizontal = 6.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(painterResource(R.drawable.ic_calendar), null, Modifier.size(18.dp), tint = cs.primary)
+                    Text("Day ${day.coerceAtMost(h.totalDays)}/${h.totalDays}", Modifier.padding(start = 6.dp), style = MaterialTheme.typography.labelLarge, color = cs.primary)
+                }
             }
             val stage = h.stageOn(day)
             if (stage == null) {
@@ -96,19 +105,22 @@ fun HabitCard(onCalendar: () -> Unit) {
                         style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
                     )
                     Text(if (c.resting) "Set ${c.set + 1} of ${c.sets} next" else "Set ${c.set} of ${c.sets}", color = cs.onSurfaceVariant)
-                    OutlinedButton({ countStart = null }, Modifier.fillMaxWidth()) { Text("Stop counting") }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Button({ Habits.markDone(h.id, today, true); countStart = null }, Modifier.weight(1f)) { Text("Completed") }
+                        TextButton({ countStart = null }, Modifier.padding(start = 4.dp)) { Text("Cancel") } // started by mistake
+                    }
                     return@Column
                 }
                 Text(label(stage), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                 // A new stage's note is bold on its first day, so the change doesn't go unnoticed.
                 if (stage.note.isNotBlank()) Text(stage.note, fontWeight = if (h.isStageStart(day)) FontWeight.Bold else FontWeight.Normal)
                 LinearProgressIndicator({ day.toFloat() / h.totalDays }, Modifier.fillMaxWidth().padding(vertical = 4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     val doneToday = today in h.done
-                    if (doneToday) FilledTonalButton({ Habits.markDone(h.id, today, false) }, Modifier.weight(1f)) { Text("Done today ✓") }
-                    else Button({ Habits.markDone(h.id, today, true) }, Modifier.weight(1f)) { Text("Done") }
-                    TextButton({ elapsed = 0; countStart = System.currentTimeMillis() }, Modifier.padding(start = 4.dp)) { Text("Count") }
-                    TextButton(onCalendar) { Text("Calendar") }
+                    // Completed marks today (tap again to undo); Start counts the reps with the figure.
+                    if (doneToday) FilledTonalButton({ Habits.markDone(h.id, today, false) }, Modifier.weight(1f)) { Text("Completed today ✓", maxLines = 1) }
+                    else OutlinedButton({ Habits.markDone(h.id, today, true) }, Modifier.weight(1f)) { Text("Completed") }
+                    Button({ elapsed = 0; countStart = System.currentTimeMillis() }, Modifier.weight(1f)) { Text("Start") }
                 }
             }
         }

@@ -70,7 +70,7 @@ object Habits {
                 .setStyle(Notification.BigTextStyle().bigText(text))
                 .setContentIntent(open)
                 .setAutoCancel(true)
-                .addAction(Notification.Action.Builder(null, "Done", done).build())
+                .addAction(Notification.Action.Builder(null, "Completed", done).build())
                 .build(),
         )
     }

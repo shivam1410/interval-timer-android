@@ -30,6 +30,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.runtime.collectAsState
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -43,6 +45,9 @@ private enum class Template { PROGRAM, SAME, GROW }
 @Composable
 fun HabitStartSheet(item: LibraryItem?, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf(item?.title.orEmpty()) }
+    // A chip picked from My library links the habit to that exercise (its clip shows); typing unlinks it.
+    var linked by remember { mutableStateOf(item) }
+    val library = Library.items.collectAsState().value.filter { !it.deleted && it.title.isNotBlank() }
     val hasProgram = demoFor(name) == "tib-raise"
     // Until you pick one, a name that has a built-in program ("Tib raises") selects it.
     var picked by remember { mutableStateOf<Template?>(null) }
@@ -60,10 +65,19 @@ fun HabitStartSheet(item: LibraryItem?, onDismiss: () -> Unit) {
         title = { Text(if (item == null) "New habit" else "${item.title}: habit") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (item == null) androidx.compose.material3.OutlinedTextField(
-                    name, { name = it.take(60) }, Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(12.dp),
-                    label = { Text("Name") }, placeholder = { Text("Tib raises, stairs, shoulder push…") },
-                )
+                if (item == null) {
+                    // One tap instead of typing: the built-in program, then your library exercises.
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(name == "Tib raises" && linked == null, { name = "Tib raises"; linked = null }, { Text("Tib raises") })
+                        library.filter { it.title != "Tib raises" }.forEach { ex ->
+                            FilterChip(linked?.id == ex.id, { name = ex.title; linked = ex }, { Text(ex.title, maxLines = 1) })
+                        }
+                    }
+                    androidx.compose.material3.OutlinedTextField(
+                        name, { name = it.take(60); linked = null }, Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(12.dp),
+                        label = { Text("Or type a name") }, placeholder = { Text("Stairs, shoulder push…") },
+                    )
+                }
                 if (Habits.active != null) Text("This replaces your current habit.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 if (hasProgram) TemplateCard("Tib raises program", "10 → 20 → lean forward → 2 × 20, over 30 days", template == Template.PROGRAM) {
                     picked = Template.PROGRAM
@@ -98,7 +112,7 @@ fun HabitStartSheet(item: LibraryItem?, onDismiss: () -> Unit) {
                     Template.GROW -> growWeekly(days, 1, count, add, hold)
                 }
                 // A linked habit keeps no name of its own, so renaming the exercise renames it too.
-                Habits.start(item?.id.orEmpty(), stages, remind, if (item == null) name.trim() else "")
+                Habits.start(linked?.id.orEmpty(), stages, remind, if (linked == null) name.trim() else "")
                 onDismiss()
             }, enabled = name.isNotBlank()) { Text("Start") }
         },
