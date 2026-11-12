@@ -61,7 +61,7 @@ fun HabitCard() {
                     OutlinedButton({ Habits.end(h.id) }) { Text("End") }
                 }
             } else {
-                h.clipOn(day, item?.clip.orEmpty()).takeIf { it.isNotEmpty() }?.let { LoopingClip(it) }
+                ExerciseMedia(h.clipOn(day, item?.clip.orEmpty()), h.demoOn(day, title))
                 Text(label(stage), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                 // A new stage's note is bold on its first day, so the change doesn't go unnoticed.
                 if (stage.note.isNotBlank()) Text(stage.note, fontWeight = if (h.isStageStart(day)) FontWeight.Bold else FontWeight.Normal)

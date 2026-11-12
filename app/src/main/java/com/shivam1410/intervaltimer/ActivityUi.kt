@@ -67,11 +67,19 @@ private const val SKETCH_SEED_RELEASES = "https://github.com/shivam1410/sketchse
 @Composable
 fun ActivityCue(a: Activity, elapsedMs: Long, paused: Boolean) {
     val clip = clipFor(a)
+    val demo = demoFor(a)
     when {
         a.steps.isNotEmpty() -> StepGuide(a.steps, elapsedMs)
-        clip != null -> LoopingClip(clip, 120.dp) // small, so Pause / End stay on screen
+        clip != null || demo != null -> ExerciseMedia(clip, demo, 120.dp) // small, so Pause / End stay on screen
         a.id == "meditation" && !paused -> SilenceMeter()
     }
+}
+
+/** A library exercise's built-in movement: today's habit stage's, else the one its title asks for. */
+private fun demoFor(a: Activity): String? {
+    if (!a.id.startsWith("lib:")) return null
+    val h = Habits.active?.takeIf { "lib:${it.itemId}" == a.id } ?: return demoFor(a.name)
+    return h.demoOn(h.dayOf(java.time.LocalDate.now()), a.name)
 }
 
 /** A library exercise's clip; when it's the running habit, today's stage clip instead. */

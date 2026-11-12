@@ -15,6 +15,7 @@ data class Stage(
     val holdSec: Int = 0,
     val note: String = "", // what changes this stage ("Lean forward and flex your quads too")
     val clip: String = "", // looping clip for this stage; empty = the previous stage's, then the item's
+    val demo: String = "", // built-in movement (Pose.kt DEMOS) for this stage; empty = picked from the title
 )
 
 /**
@@ -56,6 +57,9 @@ data class Habit(
         return stages.take(i + 1).lastOrNull { it.clip.isNotEmpty() }?.clip ?: itemClip
     }
 
+    /** Built-in movement for [day]: the stage's own, else the one the exercise's title asks for. */
+    fun demoOn(day: Int, title: String): String? = stageOn(day)?.demo?.takeIf { it.isNotEmpty() } ?: demoFor(title)
+
     fun finished(today: LocalDate) = dayOf(today) > totalDays
 
     /** Done days that fall inside the program. */
@@ -77,18 +81,18 @@ fun label(s: Stage) = if (s.holdSec > 0) "${s.sets} × ${s.holdSec} s" else "${s
 val TIB_RAISES = listOf(
     Stage(7, 1, 10, note = "Back against the wall, toes up and down. Shins burn: that's the tibialis anterior."),
     Stage(7, 1, 20, note = "Stairs and walks should start to feel lighter."),
-    Stage(7, 1, 20, note = "New: lean forward and flex your quads too. Your knee's brake and shock absorber."),
-    Stage(9, 2, 20, note = "Two sets, strong and controlled."),
+    Stage(7, 1, 20, note = "New: lean forward and flex your quads too. Your knee's brake and shock absorber.", demo = "tib-raise-lean"),
+    Stage(9, 2, 20, note = "Two sets, strong and controlled.", demo = "tib-raise-lean"),
 )
 
 private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 private fun dec(s: String) = URLDecoder.decode(s, "UTF-8")
 
-private fun encodeStage(s: Stage) = listOf(s.days, s.sets, s.reps, s.holdSec, enc(s.note), enc(s.clip)).joinToString(",")
+private fun encodeStage(s: Stage) = listOf(s.days, s.sets, s.reps, s.holdSec, enc(s.note), enc(s.clip), enc(s.demo)).joinToString(",")
 
 private fun decodeStage(t: String): Stage {
     val p = t.split(",")
-    return Stage(p[0].toInt(), p[1].toInt(), p[2].toInt(), p[3].toInt(), dec(p[4]), dec(p[5]))
+    return Stage(p[0].toInt(), p[1].toInt(), p[2].toInt(), p[3].toInt(), dec(p[4]), dec(p[5]), p.getOrNull(6)?.let(::dec).orEmpty()) // 6 fields = before demos
 }
 
 /** One habit per line, "|"-separated; stages ";"-separated; text URL-encoded so no separator leaks. */

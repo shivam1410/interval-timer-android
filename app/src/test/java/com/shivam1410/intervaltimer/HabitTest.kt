@@ -76,6 +76,17 @@ class HabitTest {
         assertNull(reminderText(h, day(31))) // program over
     }
 
+    @Test fun stageDemoRoundTripsAndOldStagesStillRead() {
+        val h = habit(listOf(Stage(7, 1, 10, demo = "tib-raise-lean")))
+        assertEquals(h, decodeHabits(encodeHabits(listOf(h))).single())
+        val old = "h1|item1|2026-11-01|-1|1|0||7,1,10,0,note," // 6 stage fields, before demos
+        assertEquals("", decodeHabits(old).single().stages.single().demo)
+        assertEquals("tib-raise-lean", TIB_RAISES[2].demo) // week 3 leans forward
+        assertEquals("tib-raise-lean", habit().demoOn(16, "Tib raises"))
+        assertEquals("tib-raise", habit().demoOn(3, "Tib raises"))
+        assertNull(habit(listOf(Stage(30, 1, 10))).demoOn(3, "Wall push"))
+    }
+
     @Test fun progressCountsDoneDaysInsideTheProgram() {
         val h = habit(done = setOf(day(1), day(2), day(40), start.minusDays(1)))
         assertEquals(2, h.doneCount)
