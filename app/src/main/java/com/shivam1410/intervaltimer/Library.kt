@@ -7,7 +7,8 @@ import java.net.URLEncoder
 // Pure library logic (no Android), unit-tested in LibraryTest. Stored and synced by LibraryStore.
 
 /**
- * A quick exercise you added yourself: a YouTube link, a tag and how long it runs.
+ * A quick exercise you added yourself: a YouTube link, a file, or a plain exercise with just a note;
+ * plus a tag and how long it runs.
  * Deletes are kept as tombstones ([deleted]) so a sync can't bring them back from another phone.
  */
 data class LibraryItem(
@@ -19,15 +20,21 @@ data class LibraryItem(
     val updatedAt: Long,
     val deleted: Boolean = false,
     val file: String = "", // shared MP3/MP4 kept in the app (and on Drive) instead of a YouTube link
+    val note: String = "", // how to do it ("right hand on the wall, 30 s × 3")
+    val clip: String = "", // short looping clip of the movement (habit phase 3); not the "Play" media
 ) {
     val isFile get() = file.isNotEmpty()
 
-    /** Links open in YouTube / YouTube Music; files (audio or video) in the app you pick. */
+    /** No link and no file: tapping it just runs its timer with the note on screen. */
+    val isPlain get() = !isFile && url.isBlank()
+
+    /** Links open in YouTube / YouTube Music; files (audio or video) in the app you pick; plain ones show their note. */
     fun toActivity() = Activity(
-        id = "lib:$id", emoji = if (!isFile) "▶️" else if (isVideoFile(file)) "🎬" else "🎵", name = title, group = tag,
-        hint = tag.ifBlank { if (isFile) "Plays in the app you pick." else "Play the video and follow along." },
-        tracks = if (isFile) emptyList() else listOf(url), media = file.ifEmpty { null },
-        playLabel = if (isFile) "Play" else "Play video", quickMin = minutes,
+        id = "lib:$id", emoji = when { isPlain -> "🏋️"; !isFile -> "▶️"; isVideoFile(file) -> "🎬"; else -> "🎵" }, name = title, group = tag,
+        hint = note.ifBlank { tag.ifBlank { if (isPlain) "Your own exercise." else if (isFile) "Plays in the app you pick." else "Play the video and follow along." } },
+        tracks = if (isFile || isPlain) emptyList() else listOf(url), media = file.ifEmpty { null },
+        playLabel = when { isPlain -> ""; isFile -> "Play"; else -> "Play video" }, quickMin = minutes,
+        clip = clip.ifEmpty { null },
     )
 }
 
@@ -36,16 +43,17 @@ private fun dec(s: String) = URLDecoder.decode(s, "UTF-8")
 
 /** One item per line, fields URL-encoded and joined by "|": safe for any title. */
 fun encodeLibrary(items: List<LibraryItem>): String = items.joinToString("\n") {
-    listOf(it.id, it.updatedAt, if (it.deleted) 1 else 0, it.minutes, enc(it.title), enc(it.url), enc(it.tag), enc(it.file)).joinToString("|")
+    listOf(it.id, it.updatedAt, if (it.deleted) 1 else 0, it.minutes, enc(it.title), enc(it.url), enc(it.tag), enc(it.file), enc(it.note), enc(it.clip)).joinToString("|")
 }
 
-/** 7 fields = written before shared files existed; still read. */
+/** 7 fields = written before shared files existed, 8 = before notes and clips; both still read. */
 fun decodeLibrary(text: String?): List<LibraryItem> =
     text.orEmpty().lines().mapNotNull { line ->
         val p = line.split("|")
-        if (p.size != 7 && p.size != 8) return@mapNotNull null
+        if (p.size !in 7..10) return@mapNotNull null
+        fun opt(i: Int) = p.getOrNull(i)?.let(::dec).orEmpty()
         runCatching {
-            LibraryItem(p[0], dec(p[4]), dec(p[5]), dec(p[6]), p[3].toInt(), p[1].toLong(), p[2] == "1", p.getOrNull(7)?.let(::dec).orEmpty())
+            LibraryItem(p[0], dec(p[4]), dec(p[5]), dec(p[6]), p[3].toInt(), p[1].toLong(), p[2] == "1", opt(7), opt(8), opt(9))
         }.getOrNull()
     }
 
@@ -56,6 +64,19 @@ fun libraryFileName(id: String, displayName: String?, mime: String?): String {
     val ext = displayName?.substringAfterLast('.', "")?.lowercase()?.takeIf { it.matches(Regex("[a-z0-9]{1,5}")) }
         ?: when { mime?.startsWith("video/") == true -> "mp4"; else -> "mp3" }
     return "lib-$id.$ext"
+}
+
+/** Looping clips are stored as "clip-<id>.<ext>"; the extension comes only from a known media type. */
+fun clipFileName(id: String, mime: String?): String {
+    val ext = when (mime) {
+        "image/gif" -> "gif"
+        "image/webp" -> "webp"
+        "video/webm" -> "webm"
+        "video/quicktime" -> "mov"
+        "video/3gpp" -> "3gp"
+        else -> "mp4"
+    }
+    return "clip-$id.$ext"
 }
 
 /** Newest edit (or delete) of each item wins. */

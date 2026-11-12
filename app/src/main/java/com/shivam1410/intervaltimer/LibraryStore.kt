@@ -20,10 +20,16 @@ object Library {
         publish(decodeLibrary(prefs.getString("items", null)))
     }
 
-    /** New item when [id] is unknown, otherwise an edit of that item. A file item keeps its [file]. */
-    fun save(id: String?, title: String, url: String, tag: String, minutes: Int, file: String = "") {
-        require(file.isNotEmpty() || isYouTubeUrl(url)) { "Not a YouTube link" }
-        val item = LibraryItem(id ?: UUID.randomUUID().toString().take(8), title.trim(), url.trim(), tag.trim(), minutes, System.currentTimeMillis(), file = file)
+    /** New item when [id] is unknown, otherwise an edit. A file item keeps its [file]; no link and no file = a plain exercise. */
+    fun save(id: String?, title: String, url: String, tag: String, minutes: Int, file: String = "", note: String = "", clip: String? = null) {
+        require(file.isNotEmpty() || url.isBlank() || isYouTubeUrl(url)) { "Not a YouTube link" }
+        val old = items.value.firstOrNull { it.id == id }
+        val item = LibraryItem(
+            id ?: UUID.randomUUID().toString().take(8), title.trim(), url.trim(), tag.trim(), minutes, System.currentTimeMillis(),
+            file = file, note = note.trim(), clip = clip ?: old?.clip.orEmpty(),
+        )
+        if (old != null && old.clip.isNotEmpty() && old.clip != item.clip) LibraryFiles.file(app, old.clip).delete() // replaced or removed
+        if (old?.clip != item.clip) Thumbs.forget(app, item.id) // a plain item's thumbnail is its clip
         if (items.value.any { it.id == item.id && it.url != item.url }) Thumbs.forget(app, item.id) // link changed: new thumbnail
         replaceAll(mergeLibrary(items.value, listOf(item)))
     }
@@ -31,6 +37,7 @@ object Library {
     fun delete(id: String) {
         val item = items.value.firstOrNull { it.id == id } ?: return
         if (item.isFile) LibraryFiles.file(app, item.file).delete() // Drive copy goes on the next sync
+        if (item.clip.isNotEmpty()) LibraryFiles.file(app, item.clip).delete()
         Thumbs.forget(app, id)
         replaceAll(mergeLibrary(items.value, listOf(item.copy(deleted = true, updatedAt = System.currentTimeMillis()))))
     }

@@ -64,7 +64,7 @@ import androidx.compose.ui.unit.dp
 fun startLibraryItem(ctx: android.content.Context, item: LibraryItem) {
     Timer.startQuick("lib:${item.id}")
     if (item.isFile) LibraryFiles.play(ctx, item.file)?.let { android.widget.Toast.makeText(ctx, it, android.widget.Toast.LENGTH_SHORT).show() }
-    else openLink(ctx, item.url)
+    else if (!item.isPlain) openLink(ctx, item.url) // a plain exercise only runs its timer, note on screen
 }
 
 /** Home section with your own quick exercises: one card per row with thumbnail, title, tag and length; + to add. */
@@ -86,7 +86,7 @@ fun MyLibrary() {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("➕", fontSize = 20.sp)
-            Text("Add a YouTube link or a file", Modifier.padding(start = 12.dp), color = cs.onSurface)
+            Text("Add an exercise, a YouTube link or a file", Modifier.padding(start = 12.dp), color = cs.onSurface)
         }
     }
     if (adding) LibraryDialog(null, existingTags = tags) { adding = false }
@@ -141,13 +141,21 @@ fun LibraryDialog(
     var minutes by remember { mutableStateOf(item?.minutes ?: initialMinutes ?: 10) }
     var minutesSet by remember { mutableStateOf(item != null || initialMinutes != null) } // you picked it, or the file told us
     var file by remember { mutableStateOf(item?.file ?: initialFile) }
+    var note by remember { mutableStateOf(item?.note.orEmpty()) }
+    var clip by remember { mutableStateOf(item?.clip.orEmpty()) }
+    val pickClip = rememberClipPicker { clip = it }
     var id by remember { mutableStateOf(item?.id ?: newId) }
     var busy by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
+    var makeHabit by remember { mutableStateOf(false) }
     val urlOk = isYouTubeUrl(url)
-    val ok = (file.isNotEmpty() || urlOk) && title.isNotBlank() && busy.isEmpty()
+    val ok = (file.isNotEmpty() || urlOk || url.isBlank()) && title.isNotBlank() && busy.isEmpty() // blank link = plain exercise
     // A file brought in here (picked or shared) but not saved isn't kept.
-    val cancel = { if (item == null && file.isNotEmpty()) LibraryFiles.file(ctx, file).delete(); onDismiss() }
+    val cancel = {
+        if (item == null && file.isNotEmpty()) LibraryFiles.file(ctx, file).delete()
+        if (clip.isNotEmpty() && clip != item?.clip) LibraryFiles.file(ctx, clip).delete() // picked here, not saved
+        onDismiss()
+    }
 
     // Pasted or shared link: look up its title and length once typing settles.
     LaunchedEffect(url) {
@@ -194,7 +202,8 @@ fun LibraryDialog(
                     OutlinedTextField(
                         url, { url = it }, Modifier.fillMaxWidth(), label = { Text("YouTube link") }, singleLine = true, shape = FieldShape,
                         isError = url.isNotBlank() && !urlOk,
-                        supportingText = if (url.isNotBlank() && !urlOk) ({ Text("Needs an https YouTube or YouTube Music link") }) else null,
+                        supportingText = if (url.isNotBlank() && !urlOk) ({ Text("Needs an https YouTube or YouTube Music link") })
+                        else if (url.isBlank() && file.isEmpty()) ({ Text("Optional: leave empty for a plain exercise") }) else null,
                     )
                     if (item == null && url.isBlank()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -209,16 +218,31 @@ fun LibraryDialog(
                     }
                 }
                 OutlinedTextField(title, { title = it.take(80) }, Modifier.fillMaxWidth(), label = { Text("Title") }, singleLine = true, shape = FieldShape)
+                OutlinedTextField(note, { note = it.take(300) }, Modifier.fillMaxWidth(), label = { Text("How to do it (optional)") }, minLines = 2, maxLines = 4, shape = FieldShape)
+                // A plain exercise can carry a short looping clip of the movement.
+                if (url.isBlank() && file.isEmpty()) {
+                    if (clip.isNotEmpty()) {
+                        LoopingClip(clip, 140.dp)
+                        Row {
+                            TextButton(pickClip) { Text("Change clip") }
+                            TextButton({ clip = "" }) { Text("Remove clip") }
+                        }
+                    } else OutlinedButton(pickClip, Modifier.fillMaxWidth().height(56.dp), shape = FieldShape) { Text("🎬  Add a clip of the movement") }
+                }
                 // Your Toggl tags first (the tag is what Toggl gets), then tags already used here.
                 val toggl by TogglSync.tags.collectAsState()
                 TagField(tag, (toggl + existingTags).filter { it != "Untagged" }.distinct()) { tag = it.take(30) }
                 Stepper("Length", minutes, "min", 1..120) { minutes = it; minutesSet = true }
+                // An existing item can become the 30-day habit (unless it already is).
+                if (item != null && Habits.active?.itemId != item.id) OutlinedButton({ makeHabit = true }, Modifier.fillMaxWidth(), shape = FieldShape) {
+                    Text("📅  Make it a 30-day habit")
+                }
                 if (busy.isNotEmpty()) Text(busy, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (error.isNotEmpty()) Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         },
         confirmButton = {
-            TextButton({ Library.save(id, title, url, tag, minutes, file); onDismiss() }, enabled = ok) { Text("Save") }
+            TextButton({ Library.save(id, title, url, tag, minutes, file, note, clip.takeIf { url.isBlank() && file.isEmpty() } ?: ""); onDismiss() }, enabled = ok) { Text("Save") }
         },
         dismissButton = {
             Row {
@@ -230,6 +254,10 @@ fun LibraryDialog(
             }
         },
     )
+    if (makeHabit && item != null) HabitEditor(item.title, listOf(Stage(30, 1, 10, note = item.note)), isNew = true, onDismiss = { makeHabit = false }) { stages, remind ->
+        Habits.start(item.id, stages, remind)
+        onDismiss()
+    }
 }
 
 /** Rounded corners shared by every box in the Add to library form. */

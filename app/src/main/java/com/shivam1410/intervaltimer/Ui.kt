@@ -252,6 +252,7 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
                 }
             }
 
+            HabitCard()
             QuickTimers(onQuick)
             MyLibrary()
             val ambient by Timer.ambient.collectAsState()

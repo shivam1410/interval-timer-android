@@ -66,10 +66,18 @@ private const val SKETCH_SEED_RELEASES = "https://github.com/shivam1410/sketchse
 /** Per-activity extra on the break card: guided steps, a play/open button, or the silence meter. */
 @Composable
 fun ActivityCue(a: Activity, elapsedMs: Long, paused: Boolean) {
+    val clip = clipFor(a)
     when {
         a.steps.isNotEmpty() -> StepGuide(a.steps, elapsedMs)
+        clip != null -> LoopingClip(clip, 120.dp) // small, so Pause / End stay on screen
         a.id == "meditation" && !paused -> SilenceMeter()
     }
+}
+
+/** A library exercise's clip; when it's the running habit, today's stage clip instead. */
+private fun clipFor(a: Activity): String? {
+    val h = Habits.active?.takeIf { "lib:${it.itemId}" == a.id } ?: return a.clip
+    return h.clipOn(h.dayOf(java.time.LocalDate.now()), a.clip.orEmpty()).ifEmpty { null }
 }
 
 fun hasPrimaryAction(a: Activity) = a.tracks.isNotEmpty() || a.app != null || a.media != null

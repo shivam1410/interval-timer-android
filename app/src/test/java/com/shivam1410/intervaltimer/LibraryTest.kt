@@ -66,6 +66,30 @@ class LibraryTest {
         assertEquals("lib-f.mp4", f.copy(file = "lib-f.mp4").toActivity().media)
     }
 
+    @Test fun plainExerciseKeepsNoteAndClipAndOpensNothing() {
+        val p = item("p").copy(url = "", note = "Right hand | wall, 30 s × 3\nno shrug", clip = "clip-p.mp4")
+        assertTrue(p.isPlain)
+        assertEquals(listOf(p), decodeLibrary(encodeLibrary(listOf(p))))
+        assertEquals("", decodeLibrary(encodeLibrary(listOf(item("x")))).single().note) // 8-field lines still read
+        val a = p.toActivity()
+        assertEquals(emptyList<String>(), a.tracks)
+        assertEquals(null, a.media)
+        assertEquals("", a.playLabel) // no Play button for a plain exercise
+        assertEquals(p.note, a.hint) // the note is what the timer card shows
+        assertFalse(item("y").isPlain)
+    }
+
+    @Test fun clipsGetASafeNameAndReachTheTimer() {
+        assertEquals("clip-a.mp4", clipFileName("a", "video/mp4"))
+        assertEquals("clip-a.gif", clipFileName("a", "image/gif"))
+        assertEquals("clip-a.webm", clipFileName("a", "video/webm"))
+        assertEquals("clip-a.mov", clipFileName("a", "video/quicktime"))
+        assertEquals("clip-a.mp4", clipFileName("a", null)) // unknown: the photo picker hands out videos
+        assertEquals("clip-a.mp4", clipFileName("a", "video/../../x"))
+        assertEquals("clip-p.gif", item("p").copy(url = "", clip = "clip-p.gif").toActivity().clip)
+        assertEquals(null, item("q").toActivity().clip)
+    }
+
     @Test fun fileNamesKeepASafeExtension() {
         assertEquals("lib-a.mp3", libraryFileName("a", "Song.MP3", "audio/mpeg"))
         assertEquals("lib-a.mp4", libraryFileName("a", "no extension", "video/mp4"))

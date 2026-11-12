@@ -18,6 +18,7 @@ import java.io.IOException
 object LibraryFiles {
     private const val TAG = "LibraryFiles"
     const val MAX_BYTES = 500L * 1024 * 1024
+    const val MAX_CLIP_BYTES = 50L * 1024 * 1024 // a few seconds of movement; keeps Drive backups small
 
     fun dir(ctx: Context) = File(ctx.filesDir, "library").apply { mkdirs() }
     fun file(ctx: Context, name: String) = File(dir(ctx), name)
@@ -39,7 +40,7 @@ object LibraryFiles {
         val dest = file(ctx, name)
         try {
             val copied = ctx.contentResolver.openInputStream(uri)?.use { input ->
-                dest.outputStream().use { out -> copyCapped(input, out) }
+                dest.outputStream().use { out -> copyCapped(input, out, MAX_BYTES) }
             } ?: throw IOException("Can't open the shared file")
             Log.i(TAG, "Imported $name ($copied bytes)")
         } catch (e: IOException) {
@@ -49,15 +50,30 @@ object LibraryFiles {
         return Imported(name, display?.substringBeforeLast('.')?.take(80).orEmpty())
     }
 
-    /** Stops at MAX_BYTES even when the sender didn't report a size. */
-    private fun copyCapped(input: java.io.InputStream, out: java.io.OutputStream): Long {
+    /** A looping exercise clip (video or GIF) from the photo picker; returns its file name. Off the main thread. */
+    fun importClip(ctx: Context, uri: Uri): String {
+        val name = clipFileName(java.util.UUID.randomUUID().toString().take(8), ctx.contentResolver.getType(uri))
+        val dest = file(ctx, name)
+        try {
+            ctx.contentResolver.openInputStream(uri)?.use { input -> dest.outputStream().use { out -> copyCapped(input, out, MAX_CLIP_BYTES) } }
+                ?: throw IOException("Can't open the clip")
+        } catch (e: IOException) {
+            dest.delete()
+            throw e
+        }
+        Log.i(TAG, "Imported clip $name")
+        return name
+    }
+
+    /** Stops at [max] even when the sender didn't report a size. */
+    private fun copyCapped(input: java.io.InputStream, out: java.io.OutputStream, max: Long): Long {
         val buf = ByteArray(64 * 1024)
         var total = 0L
         while (true) {
             val n = input.read(buf)
             if (n < 0) return total
             total += n
-            if (total > MAX_BYTES) throw IOException("File is over ${MAX_BYTES / 1024 / 1024} MB")
+            if (total > max) throw IOException("File is over ${max / 1024 / 1024} MB")
             out.write(buf, 0, n)
         }
     }

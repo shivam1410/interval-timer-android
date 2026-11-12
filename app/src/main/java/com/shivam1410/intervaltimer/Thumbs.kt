@@ -24,7 +24,11 @@ object Thumbs {
         val f = cache(ctx, item.id)
         if (!f.exists()) {
             val bmp = try {
-                if (item.isFile) fromFile(LibraryFiles.file(ctx, item.file)) else youTubeThumb(item.url)?.let(::download)
+                when {
+                    item.isFile -> fromFile(LibraryFiles.file(ctx, item.file))
+                    item.clip.isNotEmpty() -> fromClip(LibraryFiles.file(ctx, item.clip))
+                    else -> youTubeThumb(item.url)?.let(::download)
+                }
             } catch (e: IOException) {
                 Log.w(TAG, "No thumbnail for ${item.id}", e)
                 null
@@ -44,6 +48,10 @@ object Thumbs {
         if (c.responseCode !in 200..299) throw IOException("HTTP ${c.responseCode}")
         return c.inputStream.use { BitmapFactory.decodeStream(it) }
     }
+
+    /** A plain exercise's clip: a video frame, or a GIF's first frame. */
+    private fun fromClip(file: File): Bitmap? =
+        if (isVideoFile(file.name)) fromFile(file) else if (file.exists()) BitmapFactory.decodeFile(file.path) else null
 
     private fun fromFile(file: File): Bitmap? {
         if (!file.exists()) return null // still on Drive; tried again next time the list shows

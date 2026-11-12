@@ -46,6 +46,7 @@ data class Activity(
     val app: String? = null, // package launched by the activity's button
     val media: String? = null, // library file name played with the phone's player (shared MP3/MP4)
     val quickMin: Int? = null, // offered as a one-off quick timer on home, for this long
+    val clip: String? = null, // library clip looped on the activity card (your own exercises)
 )
 
 const val SKETCH_SEED = "com.shivam.sketchseed"
