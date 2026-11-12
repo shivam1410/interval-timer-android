@@ -8,6 +8,7 @@ class App : Application() {
         Library.init(this)
         Habits.init(this)
         Cues.init(this)
+        Routines.init(this)
         TogglSync.init(this)
         Timer.init(this)
         Media.init(this)
