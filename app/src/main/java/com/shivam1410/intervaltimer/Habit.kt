@@ -46,10 +46,10 @@ data class Habit(
 
     fun stageOn(day: Int) = stageIndex(day)?.let(stages::get)
 
-    /** The first day of a stage, when its note is worth pointing out. */
+    /** The first day of a stage whose note differs from the one before: when the note is worth pointing out. */
     fun isStageStart(day: Int): Boolean {
         val i = stageIndex(day) ?: return false
-        return day == stages.take(i).sumOf { it.days } + 1
+        return day == stages.take(i).sumOf { it.days } + 1 && (i == 0 || stages[i - 1].note != stages[i].note)
     }
 
     fun clipOn(day: Int, itemClip: String): String {
@@ -86,6 +86,22 @@ fun growWeekly(days: Int, sets: Int, start: Int, add: Int, holdSec: Boolean = fa
         val n = start + add * week
         Stage(minOf(7, days - from), sets, if (holdSec) 0 else n, if (holdSec) n else 0)
     }
+
+/**
+ * A calendar edit: [day]'s target (or every day from it on) becomes [sets] × [reps] / [holdSec] seconds.
+ * Days keep their note, clip and movement; neighbouring identical days merge back into one stage.
+ */
+fun setFrom(h: Habit, day: Int, sets: Int, reps: Int, holdSec: Int, onlyThisDay: Boolean): List<Stage> {
+    val daily = h.stages.flatMap { s -> List(s.days) { s.copy(days = 1) } }
+    val edited = daily.mapIndexed { i, s ->
+        val d = i + 1
+        if (d == day || (!onlyThisDay && d > day)) s.copy(sets = sets, reps = if (holdSec > 0) 0 else reps, holdSec = holdSec) else s
+    }
+    return edited.fold(emptyList()) { acc, s ->
+        val last = acc.lastOrNull()
+        if (last != null && last.copy(days = 1) == s) acc.dropLast(1) + last.copy(days = last.days + 1) else acc + s
+    }
+}
 
 /** Tib raises, 30 days: 10 reps, then 20, then leaning forward with quads flexed, then 2 sets. */
 val TIB_RAISES = listOf(

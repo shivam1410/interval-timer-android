@@ -106,6 +106,33 @@ class HabitTest {
         assertEquals("1 × 40 s", growWeekly(14, sets = 1, start = 30, add = 10, holdSec = true).last().let(::label))
     }
 
+    @Test fun calendarEditOnlyThisDay() {
+        val h = habit(done = setOf(day(2)))
+        val e = h.copy(stages = setFrom(h, 10, sets = 1, reps = 15, holdSec = 0, onlyThisDay = true))
+        assertEquals("1 × 15", e.stageOn(10)?.let(::label))
+        assertEquals("1 × 20", e.stageOn(9)?.let(::label))
+        assertEquals("1 × 20", e.stageOn(11)?.let(::label)) // the next day is as before
+        assertEquals(30, e.totalDays)
+        assertFalse(e.isStageStart(11)) // the rest of week 2 isn't a "new stage" again
+        assertEquals(h.stageOn(11)?.note, e.stageOn(11)?.note)
+    }
+
+    @Test fun calendarEditFromThisDayOn() {
+        val h = habit()
+        val e = h.copy(stages = setFrom(h, 15, sets = 2, reps = 25, holdSec = 0, onlyThisDay = false))
+        assertEquals("1 × 20", e.stageOn(14)?.let(::label))
+        listOf(15, 22, 30).forEach { assertEquals("2 × 25", e.stageOn(it)?.let(::label)) }
+        assertEquals(30, e.totalDays)
+        assertEquals("tib-raise-lean", e.demoOn(15, "Tib raises")) // the day keeps its movement
+    }
+
+    @Test fun repeatedEditsKeepTheStageListSmall() {
+        var h = habit()
+        repeat(5) { h = h.copy(stages = setFrom(h, 10, 1, 15 + it, 0, onlyThisDay = true)) }
+        h = h.copy(stages = setFrom(h, 10, 1, 20, 0, onlyThisDay = true)) // back to the week's target
+        assertEquals(TIB_RAISES, h.stages) // merges back into the original program
+    }
+
     @Test fun progressCountsDoneDaysInsideTheProgram() {
         val h = habit(done = setOf(day(1), day(2), day(40), start.minusDays(1)))
         assertEquals(2, h.doneCount)
