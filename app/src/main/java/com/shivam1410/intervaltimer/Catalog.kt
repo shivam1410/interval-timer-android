@@ -33,6 +33,19 @@ val CATALOG = listOf(
         demos = listOf("wall-push"), notes = listOf("Face the wall, arm straight at shoulder height, palm flat. Press steadily, keep the shoulder down, breathe."),
     ),
     CatalogEntry(
+        "supraspinatus", "Shoulder side press (supraspinatus)", "Side-on to the wall, press the back of your hand out into it and hold.", hold = true,
+        demos = listOf("supraspinatus"),
+        notes = listOf("Stand side-on, the sore shoulder next to the wall, arm down by your side. Press the back of the hand out into the wall as if lifting the arm sideways. Gentle, no pain, shoulder down, breathe."),
+    ),
+    CatalogEntry(
+        "wall-sit", "Wall sit", "Back on the wall, slide down until your thighs are level, and hold.", hold = true,
+        demos = listOf("wall-sit"), notes = listOf("Feet a step out, knees over the ankles, back flat on the wall. Go only as low as your knees allow."),
+    ),
+    CatalogEntry(
+        "glute-bridge", "Glute bridge", "On your back, knees bent, lift the hips and squeeze.", hold = false,
+        demos = listOf("glute-bridge"), notes = listOf("Feet flat, hip-width. Push through the heels, lift until shoulders, hips and knees line up, pause, lower slowly."),
+    ),
+    CatalogEntry(
         "squats", "Squats", "Hips back and down, heels flat, chest up.", hold = false,
         demos = listOf("squat"), notes = listOf("Feet shoulder-width, sit the hips back, knees over toes, heels down. Stand up through the heels."),
     ),

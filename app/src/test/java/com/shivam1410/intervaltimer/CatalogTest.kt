@@ -35,6 +35,6 @@ class CatalogTest {
         assertEquals("tib-raise", h(plan).demoOn(8, ""))
         assertEquals("tib-raise-lean", h(plan).demoOn(15, ""))
         CATALOG.flatMap { e -> planFor(e, Level.BEGINNER).map { it.demo } }.toSet().forEach { assertTrue("animation for $it", DEMOS.containsKey(it)) }
-        assertEquals(listOf("tib-raises", "calf-raises", "wall-push", "squats"), CATALOG.map { it.id })
+        assertEquals(listOf("tib-raises", "calf-raises", "wall-push", "supraspinatus", "wall-sit", "glute-bridge", "squats"), CATALOG.map { it.id })
     }
 }

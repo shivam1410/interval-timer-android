@@ -90,7 +90,7 @@ fun HabitCalendarScreen(habitId: String, onBack: () -> Unit) {
     )
 }
 
-/** Mon–Sun rows of day tiles from [h]'s start, with a line where a week's note begins; [todayN] is outlined. */
+/** Mon–Sun rows of day tiles from [h]'s start; [todayN] is outlined. */
 @Composable
 fun PlanGrid(h: Habit, todayN: Int, onDay: (Int) -> Unit) {
     val cs = MaterialTheme.colorScheme
@@ -103,12 +103,6 @@ fun PlanGrid(h: Habit, todayN: Int, onDay: (Int) -> Unit) {
     val lead = h.start.dayOfWeek.value - DayOfWeek.MONDAY.value
     val cells = List(lead) { null } + (1..h.totalDays).toList()
     cells.chunked(7).forEach { week ->
-        week.filterNotNull().firstOrNull { h.isStageStart(it) && !h.stageOn(it)?.note.isNullOrBlank() }?.let { d ->
-            // Tiles show dates, so the line names the date the change starts on ("From Thu 19: …").
-            val date = h.start.plusDays(d - 1L)
-            val dow = date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault())
-            Text(if (d == 1) "${h.stageOn(d)?.note}" else "From $dow ${date.dayOfMonth}: ${h.stageOn(d)?.note}", style = MaterialTheme.typography.bodySmall, color = cs.primary, modifier = Modifier.padding(top = 8.dp))
-        }
         Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             week.forEach { d -> if (d == null) Spacer(Modifier.weight(1f)) else DayTile(h, d, todayN, Modifier.weight(1f)) { onDay(d) } }
             repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
@@ -125,12 +119,12 @@ private fun DayTile(h: Habit, d: Int, todayN: Int, modifier: Modifier, onClick: 
     val shape = RoundedCornerShape(8.dp)
     val bg = when { done -> cs.primaryContainer; else -> cs.surfaceContainer }
     val fg = when { done -> cs.onPrimaryContainer; missed -> cs.onSurfaceVariant.copy(alpha = 0.5f); else -> cs.onSurface }
-    var m = modifier.height(56.dp).clip(shape).background(bg)
+    var m = modifier.height(48.dp).clip(shape).background(bg)
     if (d == todayN) m = m.border(2.dp, cs.onSurface, shape)
     Box(m.clickable(onClickLabel = if (d < todayN) "Mark day $d" else "Change day $d", onClick = onClick), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("${date.dayOfMonth}", style = MaterialTheme.typography.labelSmall, color = fg)
-            Text(if (done) "✓" else h.stageOn(d)?.let(::shortLabel).orEmpty(), fontWeight = FontWeight.SemiBold, color = fg)
+            Text(if (done) "✓" else h.stageOn(d)?.let(::shortLabel).orEmpty(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = fg, maxLines = 1)
         }
     }
 }

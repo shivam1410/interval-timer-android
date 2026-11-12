@@ -92,6 +92,41 @@ class PoseTest {
         assertEquals(Joint.SHOULDER to Joint.HAND, d.bones.last()) // the pressing arm is the accent
     }
 
+    @Test fun supraspinatusPressesTheBackOfTheHandOutIntoTheWall() {
+        val d = DEMOS.getValue("supraspinatus")
+        assertTrue(d.wall)
+        val rest = poseAt(d, 0)
+        val press = d.keys.map { it.second }.maxBy { it.getValue(Joint.NECK).x }
+        assertEquals(WALL_X, p(rest, Joint.HAND).x, 3f) // back of the hand on the wall
+        assertTrue("hand below the shoulder: arm down at the side", p(rest, Joint.HAND).y > p(rest, Joint.SHOULDER).y + 25)
+        assertEquals(p(rest, Joint.HAND), p(press, Joint.HAND)) // isometric: the hand never moves
+        assertEquals(len(rest, Joint.SHOULDER, Joint.HAND), len(press, Joint.SHOULDER, Joint.HAND), 1f)
+        assertEquals(Joint.SHOULDER to Joint.HAND, d.bones.last())
+    }
+
+    @Test fun wallSitKeepsTheBackOnTheWallAndThighsLevel() {
+        val d = DEMOS.getValue("wall-sit")
+        val bottom = d.keys.map { it.second }.maxBy { it.getValue(Joint.HIP).y }
+        val top = poseAt(d, 0)
+        assertEquals(WALL_X, p(bottom, Joint.HIP).x - 6, 4f) // hips against the wall
+        assertTrue("thigh level", kotlin.math.abs(p(bottom, Joint.HIP).y - p(bottom, Joint.KNEE).y) < 4)
+        assertEquals(p(bottom, Joint.HEEL).x, p(bottom, Joint.KNEE).x, 3f) // knee over the ankle
+        listOf(Joint.HIP to Joint.KNEE, Joint.KNEE to Joint.HEEL, Joint.HIP to Joint.NECK).forEach { (a, b) ->
+            assertEquals("$a-$b", len(top, a, b), len(bottom, a, b), 1.5f)
+        }
+    }
+
+    @Test fun bridgeLiftsTheHipsWithShouldersAndFeetDown() {
+        val d = DEMOS.getValue("glute-bridge")
+        val down = poseAt(d, 0)
+        val up = d.keys.map { it.second }.minBy { it.getValue(Joint.HIP).y }
+        assertTrue("hips rise", p(up, Joint.HIP).y < p(down, Joint.HIP).y - 12)
+        listOf(Joint.SHOULDER, Joint.HEEL, Joint.TOE, Joint.HEAD).forEach { assertEquals("$it stays", p(down, it), p(up, it)) }
+        listOf(Joint.HIP to Joint.KNEE, Joint.KNEE to Joint.HEEL).forEach { (a, b) ->
+            assertEquals("$a-$b", len(down, a, b), len(up, a, b), 1.5f)
+        }
+    }
+
     @Test fun titlePicksTheDemo() {
         assertEquals("tib-raise", demoFor("Tib raises"))
         assertEquals("tib-raise", demoFor("Tibialis raise"))

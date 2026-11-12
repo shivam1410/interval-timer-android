@@ -86,6 +86,41 @@ private val PUSH_PRESS: Pose = PUSH_REST + mapOf(
     Joint.HEAD to Pt(62.8f, 30f), Joint.NECK to Pt(64.8f, 41f), Joint.SHOULDER to Pt(63.8f, 51.3f), Joint.HIP to Pt(67.3f, 90f),
 )
 
+/**
+ * Supraspinatus isometric, seen from the front: wall on your side, arm down by the side, back of the hand
+ * against the wall. In this view TOE is the second foot (both legs from the hip).
+ */
+private val SUPRA_REST: Pose = mapOf(
+    Joint.HEAD to Pt(66f, 30f), Joint.NECK to Pt(66f, 41f), Joint.SHOULDER to Pt(50f, 48f), Joint.HAND to Pt(31f, 84f),
+    Joint.HIP to Pt(66f, 92f), Joint.HEEL to Pt(58f, 150f), Joint.TOE to Pt(74f, 150f),
+)
+
+/** Pressing out as if lifting the arm sideways: the hand stays, the body shifts a touch away from the wall. */
+private val SUPRA_PRESS: Pose = SUPRA_REST + mapOf(
+    Joint.HEAD to Pt(68.2f, 30f), Joint.NECK to Pt(68f, 41f), Joint.SHOULDER to Pt(51.5f, 48f), Joint.HIP to Pt(67f, 92f),
+)
+
+/** Wall sit, part way down: back on the wall, knee in front of the heel. */
+private val WALL_SIT_HIGH: Pose = mapOf(
+    Joint.HEAD to Pt(40f, 29.4f), Joint.NECK to Pt(37f, 40.4f), Joint.SHOULDER to Pt(36f, 51.4f), Joint.HAND to Pt(46f, 85f),
+    Joint.HIP to Pt(37f, 93.4f), Joint.KNEE to Pt(63.7f, 119f), Joint.HEEL to Pt(75f, 150f), Joint.TOE to Pt(97f, 150f),
+)
+
+/** Wall sit, held: thighs level, knees over the ankles, hands resting on the thighs. */
+private val WALL_SIT_DOWN: Pose = WALL_SIT_HIGH + mapOf(
+    Joint.HEAD to Pt(40f, 53f), Joint.NECK to Pt(37f, 64f), Joint.SHOULDER to Pt(36f, 75f), Joint.HAND to Pt(52f, 107f),
+    Joint.HIP to Pt(38f, 117f), Joint.KNEE to Pt(75f, 117f),
+)
+
+/** Glute bridge, lying on the back (head left), knees bent, feet flat. */
+private val BRIDGE_DOWN: Pose = mapOf(
+    Joint.HEAD to Pt(26f, 142f), Joint.NECK to Pt(37f, 145f), Joint.SHOULDER to Pt(44f, 146f), Joint.HAND to Pt(78f, 148f),
+    Joint.HIP to Pt(86f, 146f), Joint.KNEE to Pt(110f, 122f), Joint.HEEL to Pt(122f, 150f), Joint.TOE to Pt(140f, 150f),
+)
+
+/** Hips up into a straight line from shoulders to knees; shoulders and feet stay down. */
+private val BRIDGE_UP: Pose = BRIDGE_DOWN + mapOf(Joint.HIP to Pt(84f, 128f), Joint.KNEE to Pt(117f, 120f))
+
 private val LEG_BONES = listOf(Joint.NECK to Joint.HIP, Joint.SHOULDER to Joint.HAND, Joint.HIP to Joint.KNEE, Joint.KNEE to Joint.HEEL, Joint.HEEL to Joint.TOE)
 
 val DEMOS: Map<String, Demo> = mapOf(
@@ -102,6 +137,18 @@ val DEMOS: Map<String, Demo> = mapOf(
     "wall-push" to Demo(
         listOf(0 to PUSH_REST, 500 to PUSH_REST, 1100 to PUSH_PRESS, 1700 to PUSH_PRESS, 2300 to PUSH_REST), loopMs = 2400,
         bones = listOf(Joint.NECK to Joint.HIP, Joint.HIP to Joint.HEEL, Joint.HEEL to Joint.TOE, Joint.SHOULDER to Joint.HAND),
+    ),
+    "supraspinatus" to Demo(
+        listOf(0 to SUPRA_REST, 500 to SUPRA_REST, 1100 to SUPRA_PRESS, 1900 to SUPRA_PRESS, 2500 to SUPRA_REST), loopMs = 2600,
+        bones = listOf(Joint.NECK to Joint.HIP, Joint.NECK to Joint.SHOULDER, Joint.HIP to Joint.HEEL, Joint.HIP to Joint.TOE, Joint.SHOULDER to Joint.HAND),
+    ),
+    "wall-sit" to Demo(
+        listOf(0 to WALL_SIT_HIGH, 300 to WALL_SIT_HIGH, 1200 to WALL_SIT_DOWN, 3200 to WALL_SIT_DOWN, 4000 to WALL_SIT_HIGH), loopMs = 4300,
+        bones = LEG_BONES - (Joint.HIP to Joint.KNEE) + (Joint.HIP to Joint.KNEE), // the thigh is the accent
+    ),
+    "glute-bridge" to Demo(
+        listOf(0 to BRIDGE_DOWN, 300 to BRIDGE_DOWN, 1000 to BRIDGE_UP, 1500 to BRIDGE_UP, 2200 to BRIDGE_DOWN), loopMs = 2400, wall = false,
+        bones = listOf(Joint.NECK to Joint.SHOULDER, Joint.SHOULDER to Joint.HAND, Joint.HIP to Joint.KNEE, Joint.KNEE to Joint.HEEL, Joint.HEEL to Joint.TOE, Joint.SHOULDER to Joint.HIP),
     ),
 )
 
