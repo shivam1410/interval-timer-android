@@ -7,6 +7,7 @@ class App : Application() {
         super.onCreate()
         Library.init(this)
         Habits.init(this)
+        Cues.init(this)
         TogglSync.init(this)
         Timer.init(this)
         Media.init(this)

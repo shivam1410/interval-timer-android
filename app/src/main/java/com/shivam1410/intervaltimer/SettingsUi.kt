@@ -249,5 +249,6 @@ private fun NotificationsPage(s: Settings) {
             }
         }
 
+        CuesSection()
         NudgeSection()
 }

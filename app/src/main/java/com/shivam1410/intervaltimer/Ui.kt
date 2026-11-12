@@ -548,6 +548,8 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
             ) { Text("Next", fontSize = 18.sp) }
         }
 
+        val cues by Cues.lists.collectAsState()
+        CueCard(if (isWork) "Start of the day" else "This break", phaseCue(p, quick, cues), key = s.index)
         if (isWork) FocusMusic(settings.focusSound) else BreakChoices(p, s, chosen, s.phaseMs - left)
 
         if (!quick) Row(
@@ -755,6 +757,7 @@ private fun Done(s: Session, settings: Settings, onHistory: () -> Unit) {
                 Line("Finished", clock(s.finishedAt))
             }
         }
+        if (q == null) CueCard("Before you stop", endCue(Cues.lists.collectAsState().value), key = s.startedAt)
         Button({ Timer.stop() }, Modifier.fillMaxWidth().padding(top = 24.dp).height(56.dp)) { Text("Done") }
         if (s.quick == null) OutlinedButton(onHistory, Modifier.fillMaxWidth().padding(top = 12.dp).height(56.dp)) { Text("View history") }
     }

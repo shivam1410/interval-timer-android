@@ -223,6 +223,15 @@ object Timer {
         val s = session.value
         if (s.running(plan)) History.record(s.startedAt, credit(plan, close(plan, s, now()), now()))
         commit(Session(), null)
+        // Ending a workday early still gets its end-of-day cue ("Write tomorrow's first task · Close the laptop").
+        if (s.running(plan) && s.quick == null) endCue(Cues.lists.value)?.let { line ->
+            app.getSystemService(NotificationManager::class.java).notify(
+                ALERT_ID,
+                Notification.Builder(app, CH_ALERT).setSmallIcon(R.drawable.ic_gong).setContentTitle("Workday ended")
+                    .setContentText("👉 $line").setStyle(Notification.BigTextStyle().bigText("👉 $line"))
+                    .setContentIntent(openApp).setAutoCancel(true).setGroup("phase-alert").build(),
+            )
+        }
     }
     /** Ends without saving anything to History (or Toggl). */
     fun discard() {
@@ -396,11 +405,18 @@ object Timer {
                 "Lie down and get comfortable. Open to choose your recovery."
             }
         }
+        // Workday cue on top of the phase text: break n's prompt, or the end-of-day one.
+        val cueLine = when {
+            done -> endCue(Cues.lists.value).takeIf { s.quick == null }
+            cue == Cue.BREAK -> phaseCue(p, s.quick != null, Cues.lists.value)
+            else -> null
+        }
+        val body = cueLine?.let { "👉 $it\n$text" } ?: text
         return Notification.Builder(app, CH_ALERT)
             .setSmallIcon(R.drawable.ic_gong)
             .setContentTitle(title)
-            .setContentText(text)
-            .setStyle(Notification.BigTextStyle().bigText(text))
+            .setContentText(cueLine ?: text)
+            .setStyle(Notification.BigTextStyle().bigText(body))
             .setContentIntent(openApp)
             .setAutoCancel(true)
             .setTimeoutAfter(15_000) // heads-up only: the status notification carries on in the shade
