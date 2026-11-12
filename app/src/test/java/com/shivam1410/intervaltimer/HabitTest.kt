@@ -133,6 +133,21 @@ class HabitTest {
         assertEquals(TIB_RAISES, h.stages) // merges back into the original program
     }
 
+    @Test fun clipSyncUploadsDownloadsAndDropsOrphans() {
+        val items = listOf(
+            LibraryItem("a", "Tib", "", "", 10, 1, clip = "clip-a.mp4"),
+            LibraryItem("d", "Gone", "", "", 10, 1, deleted = true, clip = "clip-d.mp4"),
+        )
+        val habits = listOf(habit(listOf(Stage(7, 1, 10, clip = "clip-s.mp4"))))
+        val wanted = clipsWanted(items, habits)
+        assertEquals(setOf("clip-a.mp4", "clip-s.mp4"), wanted)
+        val plan = clipSync(wanted, local = setOf("clip-a.mp4", "clip-old.gif"), drive = setOf("clip-s.mp4", "clip-d.mp4"))
+        assertEquals(setOf("clip-a.mp4"), plan.upload) // only this phone has it
+        assertEquals(setOf("clip-s.mp4"), plan.download) // only Drive has it
+        assertEquals(setOf("clip-d.mp4"), plan.deleteRemote) // its item was deleted
+        // clip-old.gif (local, unused) is neither uploaded nor deleted: it may be a pick not saved yet.
+    }
+
     @Test fun progressCountsDoneDaysInsideTheProgram() {
         val h = habit(done = setOf(day(1), day(2), day(40), start.minusDays(1)))
         assertEquals(2, h.doneCount)

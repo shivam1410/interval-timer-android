@@ -145,3 +145,17 @@ fun decodeHabits(text: String?): List<Habit> =
 /** Newest edit of each habit wins, but a Done from either phone is kept. */
 fun mergeHabits(a: List<Habit>, b: List<Habit>): List<Habit> =
     (a + b).groupBy { it.id }.values.map { same -> same.maxBy { it.updatedAt }.copy(done = same.flatMap { it.done }.toSet()) }
+
+/** Every clip something still uses: library exercises (not deleted) and habit stages. */
+fun clipsWanted(items: List<LibraryItem>, habits: List<Habit>): Set<String> =
+    (items.filterNot { it.deleted }.map { it.clip } + habits.flatMap { h -> h.stages.map { it.clip } }).filter { it.isNotEmpty() }.toSet()
+
+data class ClipSync(val upload: Set<String>, val download: Set<String>, val deleteRemote: Set<String>)
+
+/**
+ * What to move for clips, after the library and habits are merged: upload what only this phone has,
+ * download what only Drive has, remove from Drive what nothing uses. Unused local files stay (a clip
+ * picked in a dialog that isn't saved yet looks unused).
+ */
+fun clipSync(wanted: Set<String>, local: Set<String>, drive: Set<String>) =
+    ClipSync(upload = wanted intersect local - drive, download = wanted intersect drive - local, deleteRemote = drive - wanted)

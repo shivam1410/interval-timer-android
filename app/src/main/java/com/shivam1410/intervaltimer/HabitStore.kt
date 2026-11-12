@@ -13,7 +13,7 @@ import java.util.UUID
 
 /**
  * Your habit (one at a time), in shared prefs so Android's Google backup carries it. [all] keeps ended
- * habits too; [active] is the one Home shows. Drive sync comes later (habits.json, see the habits spec).
+ * habits too; [active] is the one Home shows. Synced to Drive as habits.json (Drive.kt).
  * Side-effect boundary for its daily reminder: one exact alarm, re-armed on every change and process start.
  */
 object Habits {
@@ -87,9 +87,11 @@ object Habits {
     private fun update(id: String, change: (Habit) -> Habit) =
         replaceAll(all.value.map { if (it.id == id) change(it).copy(updatedAt = System.currentTimeMillis()) else it })
 
-    fun replaceAll(list: List<Habit>) {
+    /** After a local change (then synced) or merging with the Drive copy (sync = false). */
+    fun replaceAll(list: List<Habit>, sync: Boolean = true) {
         prefs.edit().putString("items", encodeHabits(list)).apply()
         all.value = list
         arm()
+        if (sync) Drive.sync()
     }
 }

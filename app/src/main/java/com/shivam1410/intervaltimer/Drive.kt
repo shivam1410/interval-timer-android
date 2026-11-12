@@ -33,6 +33,7 @@ object Drive {
     // A file of its own, so app versions from before the day graph never overwrite the timelines.
     private const val TIMELINE_FILE = "timeline.json"
     private const val LIBRARY_FILE = "library.json"
+    private const val HABITS_FILE = "habits.json"
     private const val AMBIENT_FILE = "ambient.json"
     private const val API = "https://www.googleapis.com"
 
@@ -146,6 +147,11 @@ object Drive {
                 Library.replaceAll(merged, sync = false)
                 JSONObject().put("items", encodeLibrary(merged)).toString()
             }
+            exchange(token, HABITS_FILE) { remote ->
+                val merged = mergeHabits(Habits.all.value, decodeHabits(remote?.let { JSONObject(it).optString("items") }))
+                Habits.replaceAll(merged, sync = false)
+                JSONObject().put("items", encodeHabits(merged)).toString()
+            }
             exchange(token, AMBIENT_FILE) { remote ->
                 val theirs = remote?.let { JSONObject(it) }?.let { o -> o.keys().asSequence().associateWith { o.getLong(it) } }.orEmpty()
                 val merged = mergeAmbient(History.ambientRaw.value, theirs)
@@ -153,6 +159,7 @@ object Drive {
                 JSONObject().apply { merged.forEach { (k, v) -> put(k, v) } }.toString()
             }
             syncFiles(token)
+            syncClips(token)
 
             val now = System.currentTimeMillis()
             prefs.edit().putLong("lastSync", now).apply()
@@ -198,6 +205,18 @@ object Drive {
                 id != null && !local.exists() -> download(token, id, local)
             }
         }
+    }
+
+    /** Exercise clips ("clip-<id>.<ext>"): same idea as [syncFiles], driven by [clipSync] after the merges above. */
+    private fun syncClips(token: String) {
+        val q = URLEncoder.encode("name contains 'clip-'", "UTF-8")
+        val list = JSONObject(call("GET", "$API/drive/v3/files?spaces=appDataFolder&pageSize=1000&fields=files(id,name)&q=$q", token)).getJSONArray("files")
+        val onDrive = (0 until list.length()).associate { list.getJSONObject(it).run { getString("name") to getString("id") } }
+        val local = LibraryFiles.dir(app).list().orEmpty().filter { it.startsWith("clip-") }.toSet()
+        val plan = clipSync(clipsWanted(Library.items.value, Habits.all.value), local, onDrive.keys)
+        plan.upload.forEach { upload(token, it, LibraryFiles.file(app, it)) }
+        plan.download.forEach { name -> onDrive[name]?.let { download(token, it, LibraryFiles.file(app, name)) } }
+        plan.deleteRemote.forEach { name -> onDrive[name]?.let { call("DELETE", "$API/drive/v3/files/$it", token) } }
     }
 
     /** Resumable upload: a session URL first, then the bytes streamed in one PUT (files can be hundreds of MB). */

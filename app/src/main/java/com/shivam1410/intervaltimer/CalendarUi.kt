@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -46,6 +47,8 @@ import java.util.Locale
 fun CalendarScreen(onPick: (LocalDate) -> Unit, onBack: () -> Unit) {
     val days by History.days.collectAsState()
     val byDate = days.associateBy { it.date }
+    val habits by Habits.all.collectAsState()
+    val habitDone = habits.flatMap { it.done }.toSet() // any habit, ended ones too
     val today = History.today()
     var month by rememberSaveable { mutableStateOf(YearMonth.from(today).toString()) }
     val ym = YearMonth.parse(month)
@@ -92,7 +95,7 @@ fun CalendarScreen(onPick: (LocalDate) -> Unit, onBack: () -> Unit) {
                     repeat(7) { col ->
                         val n = week * 7 + col - lead + 1
                         val date = if (n in 1..ym.lengthOfMonth()) ym.atDay(n) else null
-                        DayCell(date, today, byDate[date]?.cycles ?: 0, Modifier.weight(1f), onPick)
+                        DayCell(date, today, byDate[date]?.cycles ?: 0, date in habitDone, Modifier.weight(1f), onPick)
                     }
                 }
             }
@@ -109,7 +112,7 @@ fun CalendarScreen(onPick: (LocalDate) -> Unit, onBack: () -> Unit) {
 }
 
 @Composable
-private fun DayCell(date: LocalDate?, today: LocalDate, cycles: Int, modifier: Modifier, onPick: (LocalDate) -> Unit) {
+private fun DayCell(date: LocalDate?, today: LocalDate, cycles: Int, habit: Boolean, modifier: Modifier, onPick: (LocalDate) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val usable = date != null && !date.isAfter(today)
     Box(
@@ -124,6 +127,8 @@ private fun DayCell(date: LocalDate?, today: LocalDate, cycles: Int, modifier: M
                 "${date.dayOfMonth}", fontWeight = if (date == today) FontWeight.Bold else FontWeight.Normal,
                 color = if (usable) onShade(cycles) else cs.onSurface.copy(alpha = 0.3f),
             )
+            // Habit done that day: a small dot under the date.
+            if (habit) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 5.dp).size(5.dp).clip(androidx.compose.foundation.shape.CircleShape).background(cs.primary))
         }
     }
 }
