@@ -87,6 +87,25 @@ class HabitTest {
         assertNull(habit(listOf(Stage(30, 1, 10))).demoOn(3, "Wall push"))
     }
 
+    @Test fun sameEveryDayTemplate() {
+        val h = habit(sameEveryDay(30, sets = 2, reps = 15))
+        assertEquals(30, h.totalDays)
+        assertEquals("2 × 15", h.stageOn(1)?.let(::label))
+        assertEquals("2 × 15", h.stageOn(30)?.let(::label))
+        assertEquals("3 × 30 s", label(sameEveryDay(14, sets = 3, reps = 0, holdSec = 30).single()))
+    }
+
+    @Test fun growEachWeekTemplate() {
+        val h = habit(growWeekly(30, sets = 1, start = 10, add = 10))
+        assertEquals(30, h.totalDays)
+        assertEquals("1 × 10", h.stageOn(1)?.let(::label))
+        assertEquals("1 × 10", h.stageOn(7)?.let(::label))
+        assertEquals("1 × 20", h.stageOn(8)?.let(::label))
+        assertEquals("1 × 50", h.stageOn(29)?.let(::label)) // week 5: days 29–30
+        assertEquals(listOf(7, 7, 7, 7, 2), h.stages.map { it.days })
+        assertEquals("1 × 40 s", growWeekly(14, sets = 1, start = 30, add = 10, holdSec = true).last().let(::label))
+    }
+
     @Test fun progressCountsDoneDaysInsideTheProgram() {
         val h = habit(done = setOf(day(1), day(2), day(40), start.minusDays(1)))
         assertEquals(2, h.doneCount)

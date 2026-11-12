@@ -77,6 +77,16 @@ fun reminderText(h: Habit, today: LocalDate): String? {
 
 fun label(s: Stage) = if (s.holdSec > 0) "${s.sets} × ${s.holdSec} s" else "${s.sets} × ${s.reps}"
 
+/** Template: the same target every day for [days]. */
+fun sameEveryDay(days: Int, sets: Int, reps: Int, holdSec: Int = 0) = listOf(Stage(days, sets, reps, holdSec))
+
+/** Template: one stage per 7 days, [start] growing by [add] each week (seconds held when [holdSec]); the last week may be short. */
+fun growWeekly(days: Int, sets: Int, start: Int, add: Int, holdSec: Boolean = false): List<Stage> =
+    (0 until days step 7).mapIndexed { week, from ->
+        val n = start + add * week
+        Stage(minOf(7, days - from), sets, if (holdSec) 0 else n, if (holdSec) n else 0)
+    }
+
 /** Tib raises, 30 days: 10 reps, then 20, then leaning forward with quads flexed, then 2 sets. */
 val TIB_RAISES = listOf(
     Stage(7, 1, 10, note = "Back against the wall, toes up and down. Shins burn: that's the tibialis anterior."),

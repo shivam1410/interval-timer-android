@@ -254,10 +254,8 @@ fun LibraryDialog(
             }
         },
     )
-    if (makeHabit && item != null) HabitEditor(item.title, listOf(Stage(30, 1, 10, note = item.note)), isNew = true, onDismiss = { makeHabit = false }) { stages, remind ->
-        Habits.start(item.id, stages, remind)
-        onDismiss()
-    }
+    // Started (this item is now the habit): close the edit dialog too; Cancel goes back to it.
+    if (makeHabit && item != null) HabitStartSheet(item) { makeHabit = false; if (Habits.active?.itemId == item.id) onDismiss() }
 }
 
 /** Rounded corners shared by every box in the Add to library form. */

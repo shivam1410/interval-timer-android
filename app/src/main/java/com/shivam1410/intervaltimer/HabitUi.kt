@@ -89,7 +89,6 @@ fun HabitEditor(
     title: String, initial: List<Stage>, isNew: Boolean, initialRemind: Int? = Habits.DEFAULT_REMIND_MIN, onEnd: (() -> Unit)? = null,
     onDismiss: () -> Unit, onSave: (List<Stage>, Int?) -> Unit,
 ) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
     var stages by remember { mutableStateOf(initial) }
     var remind by remember { mutableStateOf(initialRemind) }
     fun set(i: Int, change: (Stage) -> Stage) { stages = stages.mapIndexed { j, s -> if (j == i) change(s) else s } }
@@ -130,17 +129,7 @@ fun HabitEditor(
                     )
                     HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 }
-                // Daily reminder, off or at a time you pick (08:00 to start with).
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Remind me", Modifier.weight(1f))
-                    androidx.compose.material3.Switch(remind != null, { on -> remind = if (on) Habits.DEFAULT_REMIND_MIN else null })
-                }
-                remind?.let { m ->
-                    val time = java.time.LocalTime.of(m / 60, m % 60)
-                    FilledTonalButton({
-                        android.app.TimePickerDialog(ctx, { _, hh, mm -> remind = hh * 60 + mm }, m / 60, m % 60, android.text.format.DateFormat.is24HourFormat(ctx)).show()
-                    }) { Text("Every day at ${time.format(java.time.format.DateTimeFormatter.ofLocalizedTime(java.time.format.FormatStyle.SHORT))}") }
-                }
+                ReminderRow(remind) { remind = it }
                 Text("${stages.sumOf { it.days }} days in all", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TextButton({ stages = stages + stages.last().copy(note = "", clip = "") }) { Text("+ Add stage") }
                 TextButton({ stages = TIB_RAISES }) { Text("Use the tib raise program") }
