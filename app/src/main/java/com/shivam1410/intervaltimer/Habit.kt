@@ -159,3 +159,26 @@ data class ClipSync(val upload: Set<String>, val download: Set<String>, val dele
  */
 fun clipSync(wanted: Set<String>, local: Set<String>, drive: Set<String>) =
     ClipSync(upload = wanted intersect local - drive, download = wanted intersect drive - local, deleteRemote = drive - wanted)
+
+/** Where "Count with me" is: set [set] of [sets], [done] of [of] reps (or seconds held), resting, or finished. */
+data class Count(
+    val set: Int, val done: Int, val of: Int, val sets: Int,
+    val resting: Boolean = false, val restLeftSec: Int = 0, val finished: Boolean = false,
+    val setMs: Long = 0, // ms into the current set: drives the figure in step with the count
+)
+
+/** The count [ms] after starting [s]: a rep every [repMs] (one loop of its movement), a second per held second, [restMs] between sets. */
+fun countAt(ms: Long, s: Stage, repMs: Int, restMs: Int): Count {
+    val of = if (s.holdSec > 0) s.holdSec else s.reps
+    val unit = if (s.holdSec > 0) 1000L else repMs.toLong()
+    val setLen = of * unit
+    var t = ms
+    for (set in 1..s.sets) {
+        if (t < setLen) return Count(set, (t / unit).toInt(), of, s.sets, setMs = t)
+        t -= setLen
+        if (set == s.sets) break
+        if (t < restMs) return Count(set, of, of, s.sets, resting = true, restLeftSec = ((restMs - t + 999) / 1000).toInt())
+        t -= restMs
+    }
+    return Count(s.sets, of, of, s.sets, finished = true)
+}

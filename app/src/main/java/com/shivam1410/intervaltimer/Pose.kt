@@ -37,10 +37,12 @@ private val WALL_STAND: Pose = mapOf(
     Joint.HIP to Pt(35f, 82f), Joint.HEEL to Pt(58f, 150f),
 )
 
-/** Same feet, body tipped forward off the wall, knee locked (week 3 of the tib raise program). */
-private val LEAN_FORWARD: Pose = mapOf(
-    Joint.HEAD to Pt(76f, 16f), Joint.NECK to Pt(72f, 27f), Joint.SHOULDER to Pt(71f, 38f), Joint.HAND to Pt(76f, 74f),
-    Joint.HIP to Pt(64f, 80f), Joint.HEEL to Pt(58f, 150f),
+/**
+ * Weeks 3–4 of the tib raise program: butt still on the wall, same straight leg and heels, upper body
+ * hinged ~25° forward from the hips (quads tight); the arm hangs straight down.
+ */
+private val LEAN_FORWARD: Pose = WALL_STAND + mapOf(
+    Joint.HEAD to Pt(62f, 24f), Joint.NECK to Pt(57.4f, 34f), Joint.SHOULDER to Pt(52.7f, 43.9f), Joint.HAND to Pt(53.5f, 79.9f),
 )
 
 /** Toes down, short hold, lift ~30°, hold, lower: 1.8 s. */

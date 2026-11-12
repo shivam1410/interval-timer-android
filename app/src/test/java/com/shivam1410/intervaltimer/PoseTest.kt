@@ -43,6 +43,17 @@ class PoseTest {
         assertEquals(18.0, Math.toDegrees(atan2(dx.toDouble(), dy.toDouble())), 3.0)
     }
 
+    @Test fun leanKeepsHipsOnTheWallAndHingesTheUpperBody() {
+        val lean = poseAt(DEMOS.getValue("tib-raise-lean"), 0)
+        val wall = poseAt(tib, 0)
+        assertEquals(p(wall, Joint.HIP), p(lean, Joint.HIP)) // butt stays on the wall
+        assertEquals(p(wall, Joint.HEEL), p(lean, Joint.HEEL)) // same feet, same straight leg
+        val dx = p(lean, Joint.NECK).x - p(lean, Joint.HIP).x
+        val dy = p(lean, Joint.HIP).y - p(lean, Joint.NECK).y
+        assertEquals(25.0, Math.toDegrees(atan2(dx.toDouble(), dy.toDouble())), 3.0) // torso tips forward from the hip
+        assertTrue("head clear of the wall", p(lean, Joint.HEAD).x - HEAD_R > WALL_X + 10)
+    }
+
     @Test fun titlePicksTheDemo() {
         assertEquals("tib-raise", demoFor("Tib raises"))
         assertEquals("tib-raise", demoFor("Tibialis raise"))

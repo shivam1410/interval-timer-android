@@ -22,12 +22,13 @@ import androidx.compose.ui.unit.dp
 
 /** A built-in movement demo ([DEMOS]) looping on a Canvas in theme colours; nothing if [id] is unknown. */
 @Composable
-fun MovementDemo(id: String, height: Dp = 200.dp) {
+fun MovementDemo(id: String, height: Dp = 200.dp, clockMs: Long? = null) {
     val demo = DEMOS[id] ?: return
     val cs = MaterialTheme.colorScheme
     val (ink, line, accent) = Triple(cs.onSurface, cs.outline, cs.primary)
     var ms by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(id) {
+    LaunchedEffect(id, clockMs == null) {
+        if (clockMs != null) return@LaunchedEffect // driven from outside (the rep counter)
         val start = withInfiniteAnimationFrameMillis { it }
         while (true) withInfiniteAnimationFrameMillis { ms = it - start } // stops with the composable
     }
@@ -39,7 +40,7 @@ fun MovementDemo(id: String, height: Dp = 200.dp) {
         val w = 3f * s
         if (demo.wall) drawLine(line, o(Pt(WALL_X, 4f)), o(Pt(WALL_X, FLOOR_Y)), w, StrokeCap.Round)
         drawLine(line, o(Pt(12f, FLOOR_Y)), o(Pt(150f, FLOOR_Y)), w, StrokeCap.Round)
-        val pose = poseAt(demo, ms)
+        val pose = poseAt(demo, clockMs ?: ms)
         BONES.forEachIndexed { i, (a, b) ->
             val moving = i == BONES.lastIndex
             drawLine(if (moving) accent else ink, o(pose.getValue(a)), o(pose.getValue(b)), if (moving) w * 1.2f else w, StrokeCap.Round)

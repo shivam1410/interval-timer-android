@@ -148,6 +148,26 @@ class HabitTest {
         // clip-old.gif (local, unused) is neither uploaded nor deleted: it may be a pick not saved yet.
     }
 
+    @Test fun countsRepsSetBySetWithRestBetween() {
+        val s = Stage(7, sets = 2, reps = 3)
+        assertEquals(Count(set = 1, done = 0, of = 3, sets = 2), countAt(0, s, repMs = 1000, restMs = 5000))
+        assertEquals(2, countAt(2500, s, 1000, 5000).done) // a rep counts when its movement ends
+        val rest = countAt(3000, s, 1000, 5000)
+        assertTrue(rest.resting)
+        assertEquals(5, rest.restLeftSec)
+        assertEquals(3, rest.done) // set 1 shows complete while resting
+        assertEquals(Count(set = 2, done = 0, of = 3, sets = 2), countAt(8000, s, 1000, 5000))
+        assertTrue(countAt(11_000, s, 1000, 5000).finished)
+        assertFalse(countAt(10_999, s, 1000, 5000).finished)
+    }
+
+    @Test fun holdsCountSeconds() {
+        val s = Stage(7, sets = 1, reps = 0, holdSec = 30)
+        assertEquals(12, countAt(12_400, s, repMs = 1800, restMs = 30_000).done)
+        assertEquals(30, countAt(12_400, s, 1800, 30_000).of)
+        assertTrue(countAt(30_000, s, 1800, 30_000).finished)
+    }
+
     @Test fun progressCountsDoneDaysInsideTheProgram() {
         val h = habit(done = setOf(day(1), day(2), day(40), start.minusDays(1)))
         assertEquals(2, h.doneCount)
