@@ -19,7 +19,7 @@ data class Stage(
 )
 
 /**
- * One library item ([itemId]) done daily for the stages' total days, counted in calendar days from
+ * A habit of its own ([title]), optionally linked to a library exercise ([itemId], "" = none), done daily for the stages' total days, counted in calendar days from
  * [start]: a missed day still moves the program on. [done] holds the days you tapped Done.
  */
 data class Habit(
@@ -31,6 +31,7 @@ data class Habit(
     val done: Set<LocalDate>,
     val updatedAt: Long,
     val ended: Boolean = false,
+    val title: String = "", // its own name; "" on habits made before names (they use the linked exercise's)
 ) {
     val totalDays get() = stages.sumOf { it.days }
 
@@ -74,6 +75,10 @@ fun reminderText(h: Habit, today: LocalDate): String? {
     val change = if (h.isStageStart(day) && day > 1 && stage.note.isNotBlank()) " · ${stage.note}" else ""
     return "${label(stage)} today$change"
 }
+
+/** What to call [h]: its own name, else the linked exercise's, else "Habit". */
+fun habitTitle(h: Habit, items: List<LibraryItem>): String =
+    h.title.ifBlank { items.firstOrNull { it.id == h.itemId && !it.deleted }?.title ?: "Habit" }
 
 fun label(s: Stage) = if (s.holdSec > 0) "${s.sets} × ${s.holdSec} s" else "${s.sets} × ${s.reps}"
 
@@ -125,19 +130,19 @@ private fun decodeStage(t: String): Stage {
 fun encodeHabits(all: List<Habit>): String = all.joinToString("\n") { h ->
     listOf(
         h.id, h.itemId, h.start, h.remindMin ?: -1, h.updatedAt, if (h.ended) 1 else 0,
-        h.done.sorted().joinToString(","), h.stages.joinToString(";", transform = ::encodeStage),
+        h.done.sorted().joinToString(","), h.stages.joinToString(";", transform = ::encodeStage), enc(h.title),
     ).joinToString("|")
 }
 
 fun decodeHabits(text: String?): List<Habit> =
     text.orEmpty().lines().mapNotNull { line ->
         val p = line.split("|")
-        if (p.size != 8) return@mapNotNull null
+        if (p.size != 8 && p.size != 9) return@mapNotNull null // 8 = before habits had names
         runCatching {
             Habit(
                 p[0], p[1], LocalDate.parse(p[2]), p[7].split(";").filter { it.isNotEmpty() }.map(::decodeStage),
                 p[3].toInt().takeIf { it >= 0 }, p[6].split(",").filter { it.isNotEmpty() }.map(LocalDate::parse).toSet(),
-                p[4].toLong(), p[5] == "1",
+                p[4].toLong(), p[5] == "1", p.getOrNull(8)?.let(::dec).orEmpty(),
             )
         }.getOrNull()
     }

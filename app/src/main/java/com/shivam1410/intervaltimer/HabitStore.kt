@@ -33,11 +33,11 @@ object Habits {
         arm() // alarms don't survive a reboot; boot starts the process, which lands here
     }
 
-    /** Starts [itemId] as the habit from today, ending any other one (one habit at a time). */
-    fun start(itemId: String, stages: List<Stage>, remindMin: Int? = DEFAULT_REMIND_MIN) {
+    /** Starts a habit from today ([title], or linked to library exercise [itemId]), ending any other one (one at a time). */
+    fun start(itemId: String, stages: List<Stage>, remindMin: Int? = DEFAULT_REMIND_MIN, title: String = "") {
         val now = System.currentTimeMillis()
         val ended = all.value.map { if (it.ended) it else it.copy(ended = true, updatedAt = now) }
-        replaceAll(ended + Habit(UUID.randomUUID().toString().take(8), itemId, LocalDate.now(), stages, remindMin, emptySet(), now))
+        replaceAll(ended + Habit(UUID.randomUUID().toString().take(8), itemId, LocalDate.now(), stages, remindMin, emptySet(), now, title = title))
     }
 
     /** New stages for the running habit; its start date and done days stay. */
@@ -58,7 +58,7 @@ object Habits {
         arm()
         val h = active ?: return
         val text = reminderText(h, LocalDate.now()) ?: return
-        val title = Library.items.value.firstOrNull { it.id == h.itemId }?.title ?: "Your habit"
+        val title = habitTitle(h, Library.items.value)
         val open = PendingIntent.getActivity(app, 0, Intent(app, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val done = PendingIntent.getBroadcast(app, 6, Intent(app, Receiver::class.java).setAction(Receiver.HABIT_DONE), PendingIntent.FLAG_IMMUTABLE)
         app.getSystemService(NotificationManager::class.java).notify(

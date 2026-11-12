@@ -37,13 +37,16 @@ import java.time.format.FormatStyle
 private enum class Template { PROGRAM, SAME, GROW }
 
 /**
- * "Make it a habit": pick one of three templates, change at most a number or two, pick a length and a
+ * Start a habit: on its own ([item] null: you name it) or for a library exercise. Pick one of three templates, change at most a number or two, pick a length and a
  * reminder, Start. No stage list: the template builds the stages.
  */
 @Composable
-fun HabitStartSheet(item: LibraryItem, onDismiss: () -> Unit) {
-    val hasProgram = demoFor(item.title) == "tib-raise"
-    var template by remember { mutableStateOf(if (hasProgram) Template.PROGRAM else Template.SAME) }
+fun HabitStartSheet(item: LibraryItem?, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf(item?.title.orEmpty()) }
+    val hasProgram = demoFor(name) == "tib-raise"
+    // Until you pick one, a name that has a built-in program ("Tib raises") selects it.
+    var picked by remember { mutableStateOf<Template?>(null) }
+    val template = picked?.takeIf { it != Template.PROGRAM || hasProgram } ?: if (hasProgram) Template.PROGRAM else Template.SAME
     var days by remember { mutableIntStateOf(30) }
     var sets by remember { mutableIntStateOf(1) }
     var count by remember { mutableIntStateOf(10) } // reps, or seconds when [hold]
@@ -54,19 +57,23 @@ fun HabitStartSheet(item: LibraryItem, onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("${item.title}: habit") },
+        title = { Text(if (item == null) "New habit" else "${item.title}: habit") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (item == null) androidx.compose.material3.OutlinedTextField(
+                    name, { name = it.take(60) }, Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(12.dp),
+                    label = { Text("Name") }, placeholder = { Text("Tib raises, stairs, shoulder push…") },
+                )
                 if (Habits.active != null) Text("This replaces your current habit.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 if (hasProgram) TemplateCard("Tib raises program", "10 → 20 → lean forward → 2 × 20, over 30 days", template == Template.PROGRAM) {
-                    template = Template.PROGRAM
+                    picked = Template.PROGRAM
                 }
-                TemplateCard("Same every day", "$sets × $count$unit".trim(), template == Template.SAME) { template = Template.SAME }
+                TemplateCard("Same every day", "$sets × $count$unit".trim(), template == Template.SAME) { picked = Template.SAME }
                 if (template == Template.SAME) {
                     Stepper(if (hold) "Seconds" else "Reps", count, unit, 1..300) { count = it }
                     Stepper("Sets", sets, "", 1..10) { sets = it }
                 }
-                TemplateCard("Grow each week", "start $count$unit · +$add$unit a week", template == Template.GROW) { template = Template.GROW }
+                TemplateCard("Grow each week", "start $count$unit · +$add$unit a week", template == Template.GROW) { picked = Template.GROW }
                 if (template == Template.GROW) {
                     Stepper(if (hold) "Start (s)" else "Start reps", count, unit, 1..300) { count = it }
                     Stepper("Add each week", add, unit, 1..100) { add = it }
@@ -90,9 +97,10 @@ fun HabitStartSheet(item: LibraryItem, onDismiss: () -> Unit) {
                     Template.SAME -> sameEveryDay(days, sets, if (hold) 0 else count, if (hold) count else 0)
                     Template.GROW -> growWeekly(days, 1, count, add, hold)
                 }
-                Habits.start(item.id, stages, remind)
+                // A linked habit keeps no name of its own, so renaming the exercise renames it too.
+                Habits.start(item?.id.orEmpty(), stages, remind, if (item == null) name.trim() else "")
                 onDismiss()
-            }) { Text("Start") }
+            }, enabled = name.isNotBlank()) { Text("Start") }
         },
         dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
     )

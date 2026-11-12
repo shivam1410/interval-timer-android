@@ -34,6 +34,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.animation.core.withInfiniteAnimationFrameMillis
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 
 /** Rest between sets while counting. */
@@ -44,9 +48,12 @@ private const val REST_MS = 30_000
 fun HabitCard(onCalendar: () -> Unit) {
     val habits by Habits.all.collectAsState()
     val items by Library.items.collectAsState()
-    val h = habits.firstOrNull { !it.ended } ?: return
+    var starting by remember { mutableStateOf(false) }
+    if (starting) HabitStartSheet(null) { starting = false }
+    val h = habits.firstOrNull { !it.ended }
+    if (h == null) { StartHabitRow { starting = true }; return }
     val item = items.firstOrNull { it.id == h.itemId && !it.deleted }
-    val title = item?.title ?: "Habit"
+    val title = habitTitle(h, items)
     val today = LocalDate.now()
     val day = h.dayOf(today)
     val cs = MaterialTheme.colorScheme
@@ -105,5 +112,20 @@ fun HabitCard(onCalendar: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+/** Home with no habit running: the Habit heading and one row to start one (no library needed). */
+@Composable
+private fun StartHabitRow(onStart: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Text("Habit", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainerHigh)
+            .clickable(onClickLabel = "Start a habit", onClick = onStart).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("📅", fontSize = 20.sp)
+        Text("Start a 30-day habit", Modifier.padding(start = 12.dp), color = cs.onSurface)
     }
 }

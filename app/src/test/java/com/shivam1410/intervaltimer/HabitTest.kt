@@ -168,6 +168,17 @@ class HabitTest {
         assertTrue(countAt(30_000, s, 1800, 30_000).finished)
     }
 
+    @Test fun habitStandsAloneWithItsOwnName() {
+        val own = habit().copy(itemId = "", title = "Stairs | 3 floors")
+        assertEquals(own, decodeHabits(encodeHabits(listOf(own))).single())
+        val old = "h1|item1|2026-11-01|-1|1|0||7,1,10,0,note," // 8 fields: before habits had names
+        assertEquals("", decodeHabits(old).single().title)
+        val items = listOf(LibraryItem("item1", "Tib raises", "", "", 10, 1))
+        assertEquals("Stairs | 3 floors", habitTitle(own, items))
+        assertEquals("Tib raises", habitTitle(habit(), items)) // older habits take the linked exercise's name
+        assertEquals("Habit", habitTitle(habit().copy(itemId = "gone"), items))
+    }
+
     @Test fun progressCountsDoneDaysInsideTheProgram() {
         val h = habit(done = setOf(day(1), day(2), day(40), start.minusDays(1)))
         assertEquals(2, h.doneCount)

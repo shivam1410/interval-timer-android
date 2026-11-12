@@ -54,7 +54,7 @@ fun HabitCalendarScreen(onBack: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     var editing by remember { mutableStateOf<Int?>(null) }
     var ending by remember { mutableStateOf(false) }
-    val title = h?.let { hh -> items.firstOrNull { it.id == hh.itemId }?.title } ?: "Habit"
+    val title = h?.let { habitTitle(it, items) } ?: "Habit"
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
@@ -62,7 +62,7 @@ fun HabitCalendarScreen(onBack: () -> Unit) {
             Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
         }
         if (h == null) {
-            Text("No habit running. Long-press an exercise in My library to start one.", color = cs.onSurfaceVariant)
+            Text("No habit running. Start one from Home.", color = cs.onSurfaceVariant)
             return@Column
         }
         val today = LocalDate.now()

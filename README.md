@@ -16,8 +16,9 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - **Plain exercises**: leave the link empty for your own exercise (tib raises, stairs, a shoulder
     isometric), with a "How to do it" note and, optionally, a short clip of the movement (video or GIF
     from the photo picker) that loops muted on the timer. Tib raises get a built-in animated figure
-- **Habit** (one at a time): long-press a library exercise › **Make it a 30-day habit**, then pick
-  **Same every day**, **Grow each week** or the built-in **Tib raises program** (10 → 20 → lean
+- **Habit** (one at a time, its own thing; a library exercise is optional): Home › **Start a 30-day
+  habit**, give it a name (or long-press a library exercise › **Make it a 30-day habit** to use its
+  clip), then pick **Same every day**, **Grow each week** or the built-in **Tib raises program** (10 → 20 → lean
   forward → 2 × 20); 14, 30 or 60 days; a daily reminder (08:00 by default) with a Done button.
   Home shows a card with the animation, today's sets × reps, the stage note and **Done**. **Count**
   counts the reps with the figure (30 s rest between sets) and marks the day done. **Calendar** shows
