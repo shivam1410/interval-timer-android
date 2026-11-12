@@ -90,6 +90,7 @@ fun HabitsPage(open: (String) -> Unit) {
             }
         }
     }
+    RoutinesSettings()
     if (custom) HabitStartSheet(null) { custom = false }
 }
 

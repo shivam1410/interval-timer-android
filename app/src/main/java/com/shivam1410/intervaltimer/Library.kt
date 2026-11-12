@@ -38,6 +38,9 @@ data class LibraryItem(
     )
 }
 
+/** At most [n] characters as you see them (code points): a plain take(n) can cut an emoji in half. */
+fun String.clip(n: Int): String = if (codePointCount(0, length) <= n) this else substring(0, offsetByCodePoints(0, n))
+
 private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 private fun dec(s: String) = URLDecoder.decode(s, "UTF-8")
 

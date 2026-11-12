@@ -62,3 +62,13 @@ fun mergeRoutines(a: List<Routine>, b: List<Routine>): List<Routine> =
         val done = same.flatMap { it.done.entries }.groupBy({ it.key }, { it.value }).mapValues { (_, v) -> v.min() }
         same.maxBy { it.updatedAt }.copy(done = done)
     }
+
+/** When the routine alarm should next go off: the soonest reminder among routines, or null. */
+fun nextRoutineAt(rs: List<Routine>, now: Long, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): Long? =
+    rs.filter { !it.deleted }.mapNotNull { it.remindMin }.minOfOrNull { nextDaily(now, it, zone) }
+
+/** Routines whose reminder is for exactly [at], skipping deleted ones and ones already finished that day. */
+fun routineDue(rs: List<Routine>, at: Long, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): List<Routine> {
+    val day = java.time.Instant.ofEpochMilli(at).atZone(zone.toZoneId()).toLocalDate()
+    return rs.filter { r -> !r.deleted && day !in r.done && r.remindMin?.let { nextDaily(at - 1, it, zone) == at } == true }
+}

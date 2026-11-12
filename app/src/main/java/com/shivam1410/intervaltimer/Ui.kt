@@ -131,6 +131,11 @@ fun Root(now: Long) {
     LaunchedEffect(nudged) {
         nudged?.let { page = ""; countdown = it; Nudges.requestedQuick.value = null }
     }
+    // A routine reminder's Start: open that routine.
+    val routine by Routines.requested.collectAsState()
+    LaunchedEffect(routine) {
+        routine?.let { page = "routine:$it"; Routines.requested.value = null }
+    }
 
     // Power nap goes fully black, status bar included, with light status icons.
     val napping = session.running(plan) && !session.paused && plan[session.index].kind == Kind.ACTIVITY && (session.quick ?: settings.activity) == "nap"

@@ -61,7 +61,7 @@ fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
     // A catalog plan and a habit's calendar are full screens with their own back arrow.
     if (sub.startsWith("plan:")) return PlanScreen(sub.removePrefix("plan:"), onBack = { back() }) { sub = "habits" }
     if (sub.startsWith("habit:")) return HabitCalendarScreen(sub.removePrefix("habit:")) { back() }
-    val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Notifications"; "toggl" -> "Toggl Track"; "habits" -> "Habits"; else -> "Settings" }
+    val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Notifications"; "toggl" -> "Toggl Track"; "habits" -> "Habits & routines"; else -> "Settings" }
     val cs = MaterialTheme.colorScheme
 
     val signedIn = Drive.profile.collectAsState().value != null
@@ -126,7 +126,7 @@ private fun SettingsList(open: (String) -> Unit) {
         Entry(open = { open("habits") }) {
             Icon(painterResource(R.drawable.ic_calendar), null, Modifier.size(28.dp), tint = cs.primary)
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
-                Text("Habits", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("Habits & routines", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 val n = habits.count { !it.ended }
                 Text(if (n == 0) "Pick a 30-day plan from the catalog" else "$n running · catalog", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }

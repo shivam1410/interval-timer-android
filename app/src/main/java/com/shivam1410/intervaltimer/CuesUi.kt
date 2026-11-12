@@ -64,7 +64,7 @@ private fun CueListEditor(title: String, lines: List<String>, onChange: (List<St
         lines.forEachIndexed { i, line ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
-                    line, { v -> onChange(lines.mapIndexed { j, l -> if (j == i) v.take(60) else l }) },
+                    line, { v -> onChange(lines.mapIndexed { j, l -> if (j == i) v.clip(60) else l }) },
                     Modifier.weight(1f), singleLine = true, shape = RoundedCornerShape(12.dp),
                 )
                 IconButton({ onChange(lines.filterIndexed { j, _ -> j != i }) }) { Text("×", style = MaterialTheme.typography.titleLarge) }

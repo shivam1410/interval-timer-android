@@ -35,6 +35,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.mutableStateOf
 import java.time.LocalDate
 
 /** Home, under Habits: one chip per routine; "☀️ Morning ✓ 8:14" once it's done today. Tap to run it. */
@@ -96,4 +104,84 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
             }
         }
     }
+}
+
+/** Settings › Habits & routines: each routine (tap to edit) and New routine. */
+@Composable
+fun RoutinesSettings() {
+    val all by Routines.all.collectAsState()
+    val cs = MaterialTheme.colorScheme
+    var editing by remember { mutableStateOf<Routine?>(null) }
+    Text("Routines", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 20.dp, bottom = 8.dp))
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        all.filterNot { it.deleted }.forEach { r ->
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainer)
+                    .clickable(onClickLabel = "Edit ${r.name}") { editing = r }.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(r.emoji, fontSize = 22.sp)
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text(r.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("${r.steps.size} steps" + (r.remindMin?.let { " · reminder ${fmtMinute(it)}" } ?: ""), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                }
+                Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainerHigh)
+                .clickable(onClickLabel = "New routine") { editing = Routine(java.util.UUID.randomUUID().toString().take(8), "⭐", "", listOf(""), null, emptyMap(), 0) }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("➕", fontSize = 20.sp)
+            Text("New routine", Modifier.padding(start = 12.dp))
+        }
+    }
+    editing?.let { r -> RoutineEditor(r, isNew = all.none { it.id == r.id }) { editing = null } }
+}
+
+/** Name, emoji, steps (edit, add, remove, move up) and a daily reminder; Save, Delete or Cancel. */
+@Composable
+private fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf(r.name) }
+    var emoji by remember { mutableStateOf(r.emoji) }
+    var steps by remember { mutableStateOf(r.steps) }
+    var remind by remember { mutableStateOf(r.remindMin) }
+    val clean = steps.map { it.trim() }.filter { it.isNotEmpty() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (isNew) "New routine" else "Edit routine") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(emoji, { emoji = it.clip(2) }, Modifier.width(72.dp), singleLine = true, label = { Text("Icon") }, shape = RoundedCornerShape(12.dp))
+                    OutlinedTextField(name, { name = it.clip(40) }, Modifier.weight(1f), singleLine = true, label = { Text("Name") }, shape = RoundedCornerShape(12.dp))
+                }
+                Text("Steps, in order", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 4.dp))
+                steps.forEachIndexed { i, s ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            s, { v -> steps = steps.mapIndexed { j, x -> if (j == i) v.clip(60) else x } },
+                            Modifier.weight(1f), singleLine = true, shape = RoundedCornerShape(12.dp),
+                        )
+                        if (i > 0) IconButton({ steps = steps.toMutableList().apply { add(i - 1, removeAt(i)) }.toList() }) { Text("↑") }
+                        IconButton({ steps = steps.filterIndexed { j, _ -> j != i } }) { Text("×", style = MaterialTheme.typography.titleLarge) }
+                    }
+                }
+                TextButton({ steps = steps + "" }) { Text("+ Add step") }
+                ReminderRow(remind) { remind = it }
+            }
+        },
+        confirmButton = {
+            TextButton({ Routines.save(r.copy(name = name.trim(), emoji = emoji.ifBlank { "⭐" }, steps = clean, remindMin = remind)); onDismiss() },
+                enabled = name.isNotBlank() && clean.isNotEmpty()) { Text("Save") }
+        },
+        dismissButton = {
+            Row {
+                if (!isNew) TextButton({ Routines.delete(r.id); onDismiss() }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Delete") }
+                TextButton(onDismiss) { Text("Cancel") }
+            }
+        },
+    )
 }

@@ -33,6 +33,28 @@ class RoutineTest {
         assertEquals(emptyList<Routine>(), decodeRoutines(null))
     }
 
+    @Test fun remindersAtTheirTimeUnlessDoneOrDeleted() {
+        val utc = java.util.TimeZone.getTimeZone("UTC")
+        val morning = r("m").copy(remindMin = 7 * 60 + 30)
+        val evening = r("e").copy(remindMin = 22 * 60)
+        val gone = r("g").copy(remindMin = 9 * 60, deleted = true)
+        val noTime = r("n").copy(remindMin = null)
+        val all = listOf(morning, evening, gone, noTime)
+        val eightAm = java.time.Instant.parse("2026-11-12T08:00:00Z").toEpochMilli()
+        val tenPm = java.time.Instant.parse("2026-11-12T22:00:00Z").toEpochMilli()
+        assertEquals(tenPm, nextRoutineAt(all, eightAm, utc)) // 07:30 passed, 09:00 is deleted
+        assertEquals(listOf("e"), routineDue(all, tenPm, utc).map { it.id })
+        val doneTonight = evening.copy(done = mapOf(today to 21 * 60))
+        assertEquals(emptyList<Routine>(), routineDue(listOf(doneTonight), tenPm, utc)) // already did it: no nagging
+        assertNull(nextRoutineAt(listOf(gone, noTime), eightAm, utc))
+    }
+
+    @Test fun typedTextIsCutWithoutSplittingAnEmoji() {
+        assertEquals("ii🌙", "ii🌙x".clip(3)) // 3 characters as you see them, the moon kept whole
+        assertEquals("ab", "ab".clip(4))
+        assertEquals("🌙🌙", "🌙🌙🌙".clip(2))
+    }
+
     @Test fun mergeKeepsNewestEditAndEveryFinish() {
         val mine = r(at = 5, done = mapOf(today to 494))
         val theirs = r(at = 9, done = mapOf(today.minusDays(1) to 500)).copy(name = "Mornings")

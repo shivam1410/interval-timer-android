@@ -217,8 +217,8 @@ fun LibraryDialog(
                         }
                     }
                 }
-                OutlinedTextField(title, { title = it.take(80) }, Modifier.fillMaxWidth(), label = { Text("Title") }, singleLine = true, shape = FieldShape)
-                OutlinedTextField(note, { note = it.take(300) }, Modifier.fillMaxWidth(), label = { Text("How to do it (optional)") }, minLines = 2, maxLines = 4, shape = FieldShape)
+                OutlinedTextField(title, { title = it.clip(80) }, Modifier.fillMaxWidth(), label = { Text("Title") }, singleLine = true, shape = FieldShape)
+                OutlinedTextField(note, { note = it.clip(300) }, Modifier.fillMaxWidth(), label = { Text("How to do it (optional)") }, minLines = 2, maxLines = 4, shape = FieldShape)
                 // A plain exercise can carry a short looping clip of the movement.
                 if (url.isBlank() && file.isEmpty()) {
                     if (clip.isNotEmpty()) {
@@ -231,7 +231,7 @@ fun LibraryDialog(
                 }
                 // Your Toggl tags first (the tag is what Toggl gets), then tags already used here.
                 val toggl by TogglSync.tags.collectAsState()
-                TagField(tag, (toggl + existingTags).filter { it != "Untagged" }.distinct()) { tag = it.take(30) }
+                TagField(tag, (toggl + existingTags).filter { it != "Untagged" }.distinct()) { tag = it.clip(30) }
                 Stepper("Length", minutes, "min", 1..120) { minutes = it; minutesSet = true }
                 // An existing item can become the 30-day habit (unless it already is).
                 if (item != null && Habits.running.none { it.itemId == item.id }) OutlinedButton({ makeHabit = true }, Modifier.fillMaxWidth(), shape = FieldShape) {

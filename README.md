@@ -25,6 +25,13 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   (counts the reps with the figure, 30 s rest between sets, then marks the day done); **📅 Day x/30** opens its
   calendar (tap a day to change it, a past day to mark it done). Each habit has its own reminder with a
   Completed button. Done days get a dot in History. Synced to Drive (`habits.json`, clips too)
+- **Cues** (Settings › Notifications › Cues): a one-line prompt on the workday's gongs — *Pick today's top 3*
+  on the first work block, a rotating break cue (*Drink water*, *Stand up and stretch*, *Look out a window for
+  20 s*, …) on each break's notification and screen, and *Write tomorrow's first task · Close the laptop* at
+  the end (also when you End and Save early). Edit or turn off the lists there
+- **Routines**: Morning, Leaving the house and Evening as chips on Home; tap one for a single step at a time in
+  big text with a big **✓ Done**. Finishing records the time ("☀️ Morning ✓ 8:14"). Optional daily reminder
+  with **Start**; edit, add or delete routines in Settings › Habits & routines. Synced to Drive (`routines.json`)
   - **Share into it**: in YouTube or YouTube Music tap Share -> Interval Timer; the link and its title
     are filled in, you pick a tag and length
   - **MP3 / MP4 files**: share one from Files, Downloads or any app -> Interval Timer. It's kept in the app

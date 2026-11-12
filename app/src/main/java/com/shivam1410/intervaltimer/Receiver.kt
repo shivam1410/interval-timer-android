@@ -22,6 +22,7 @@ class Receiver : BroadcastReceiver() {
             NUDGE_CHECK -> Nudges.check()
             HABIT_REMIND -> Habits.remind()
             HABIT_DONE -> Habits.doneFromReminder(intent.getStringExtra(Habits.EXTRA_HABIT))
+            ROUTINE_REMIND -> Routines.remind()
             AMBIENT_OFF -> Timer.playAmbient(null)
             // Android doesn't let music start from boot; after an update it may, so the session's music resumes.
             Intent.ACTION_BOOT_COMPLETED -> Timer.sync(playCue = false)
@@ -57,6 +58,7 @@ class Receiver : BroadcastReceiver() {
         const val NUDGE_CHECK = "it.NUDGE_CHECK"
         const val HABIT_REMIND = "it.HABIT_REMIND"
         const val HABIT_DONE = "it.HABIT_DONE"
+        const val ROUTINE_REMIND = "it.ROUTINE_REMIND"
         const val AMBIENT_OFF = "it.AMBIENT_OFF"
         const val INSTALL_STATUS = "it.INSTALL_STATUS"
     }

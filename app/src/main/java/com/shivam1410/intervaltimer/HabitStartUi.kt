@@ -74,7 +74,7 @@ fun HabitStartSheet(item: LibraryItem?, onDismiss: () -> Unit) {
                         }
                     }
                     androidx.compose.material3.OutlinedTextField(
-                        name, { name = it.take(60); linked = null }, Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(12.dp),
+                        name, { name = it.clip(60); linked = null }, Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(12.dp),
                         label = { Text("Or type a name") }, placeholder = { Text("Stairs, shoulder push…") },
                     )
                 }

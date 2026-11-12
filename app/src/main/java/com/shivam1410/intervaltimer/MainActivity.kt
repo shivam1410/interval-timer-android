@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) { // not again on rotation
             Share.handle(applicationContext, intent)
             Nudges.handle(intent)
+            Routines.handle(intent)
         }
     }
 
@@ -52,6 +53,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         Share.handle(applicationContext, intent)
         Nudges.handle(intent)
+        Routines.handle(intent)
     }
 
     override fun onStart() {

@@ -34,6 +34,7 @@ object Drive {
     private const val TIMELINE_FILE = "timeline.json"
     private const val LIBRARY_FILE = "library.json"
     private const val HABITS_FILE = "habits.json"
+    private const val ROUTINES_FILE = "routines.json"
     private const val AMBIENT_FILE = "ambient.json"
     private const val API = "https://www.googleapis.com"
 
@@ -151,6 +152,11 @@ object Drive {
                 val merged = mergeHabits(Habits.all.value, decodeHabits(remote?.let { JSONObject(it).optString("items") }))
                 Habits.replaceAll(merged, sync = false)
                 JSONObject().put("items", encodeHabits(merged)).toString()
+            }
+            exchange(token, ROUTINES_FILE) { remote ->
+                val merged = mergeRoutines(Routines.all.value, decodeRoutines(remote?.let { JSONObject(it).optString("items") }))
+                Routines.replaceAll(merged, sync = false)
+                JSONObject().put("items", encodeRoutines(merged)).toString()
             }
             exchange(token, AMBIENT_FILE) { remote ->
                 val theirs = remote?.let { JSONObject(it) }?.let { o -> o.keys().asSequence().associateWith { o.getLong(it) } }.orEmpty()
