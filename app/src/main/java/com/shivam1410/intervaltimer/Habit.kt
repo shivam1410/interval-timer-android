@@ -80,7 +80,11 @@ fun reminderText(h: Habit, today: LocalDate): String? {
 fun habitTitle(h: Habit, items: List<LibraryItem>): String =
     h.title.ifBlank { items.firstOrNull { it.id == h.itemId && !it.deleted }?.title ?: "Habit" }
 
-fun label(s: Stage) = if (s.holdSec > 0) "${s.sets} × ${s.holdSec} s" else "${s.sets} × ${s.reps}"
+fun label(s: Stage) = when {
+    s.holdSec > 0 && s.reps > 0 -> "${s.sets} × ${s.reps} · ${s.holdSec} s hold" // reps, each held (isometrics)
+    s.holdSec > 0 -> "${s.sets} × ${s.holdSec} s"
+    else -> "${s.sets} × ${s.reps}"
+}
 
 /** Template: the same target every day for [days]. */
 fun sameEveryDay(days: Int, sets: Int, reps: Int, holdSec: Int = 0) = listOf(Stage(days, sets, reps, holdSec))
@@ -100,7 +104,7 @@ fun setFrom(h: Habit, day: Int, sets: Int, reps: Int, holdSec: Int, onlyThisDay:
     val daily = h.stages.flatMap { s -> List(s.days) { s.copy(days = 1) } }
     val edited = daily.mapIndexed { i, s ->
         val d = i + 1
-        if (d == day || (!onlyThisDay && d > day)) s.copy(sets = sets, reps = if (holdSec > 0) 0 else reps, holdSec = holdSec) else s
+        if (d == day || (!onlyThisDay && d > day)) s.copy(sets = sets, reps = reps, holdSec = holdSec) else s
     }
     return edited.fold(emptyList()) { acc, s ->
         val last = acc.lastOrNull()
@@ -170,16 +174,24 @@ data class Count(
     val set: Int, val done: Int, val of: Int, val sets: Int,
     val resting: Boolean = false, val restLeftSec: Int = 0, val finished: Boolean = false,
     val setMs: Long = 0, // ms into the current set: drives the figure in step with the count
+    val holdLeftSec: Int = 0, // reps held for seconds: seconds left in this rep's hold, 0 while relaxing
 )
+
+/** Reps held for seconds: the pause after each hold before the next rep. */
+const val RELAX_MS = 2_000
 
 /** The count [ms] after starting [s]: a rep every [repMs] (one loop of its movement), a second per held second, [restMs] between sets. */
 fun countAt(ms: Long, s: Stage, repMs: Int, restMs: Int): Count {
-    val of = if (s.holdSec > 0) s.holdSec else s.reps
-    val unit = if (s.holdSec > 0) 1000L else repMs.toLong()
+    val repHold = s.holdSec > 0 && s.reps > 0
+    val of = if (s.holdSec > 0 && !repHold) s.holdSec else s.reps
+    val unit = when { repHold -> s.holdSec * 1000L + RELAX_MS; s.holdSec > 0 -> 1000L; else -> repMs.toLong() }
     val setLen = of * unit
     var t = ms
     for (set in 1..s.sets) {
-        if (t < setLen) return Count(set, (t / unit).toInt(), of, s.sets, setMs = t)
+        if (t < setLen) {
+            val holdLeft = if (repHold) ((s.holdSec * 1000L - t % unit + 999) / 1000).toInt().coerceAtLeast(0) else 0
+            return Count(set, (t / unit).toInt(), of, s.sets, setMs = t, holdLeftSec = holdLeft)
+        }
         t -= setLen
         if (set == s.sets) break
         if (t < restMs) return Count(set, of, of, s.sets, resting = true, restLeftSec = ((restMs - t + 999) / 1000).toInt())

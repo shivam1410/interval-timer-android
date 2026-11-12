@@ -104,13 +104,17 @@ private fun HabitCard(h: Habit, items: List<LibraryItem>, onCalendar: () -> Unit
                     if (counting && c.finished) { Habits.markDone(h.id, today, true); countStart = null }
                 }
                 // While counting, the figure moves in step with the count (still during the rest).
-                if (counting && clip.isEmpty() && demo != null) MovementDemo(demo, clockMs = if (c.resting) 0 else c.setMs)
+                val repHold = stage.holdSec > 0 && stage.reps > 0
+                // Reps held for seconds: the figure holds its press pose during the hold, rests while relaxing.
+                val clock = when { c.resting -> 0L; repHold -> if (c.holdLeftSec > 0) 1500L else 0L; else -> c.setMs }
+                if (counting && clip.isEmpty() && demo != null) MovementDemo(demo, clockMs = clock)
                 else ExerciseMedia(clip, demo)
                 if (counting) {
                     Text(
-                        if (c.resting) "Rest ${c.restLeftSec}s" else "${c.done} / ${c.of}${if (stage.holdSec > 0) " s" else ""}",
+                        if (c.resting) "Rest ${c.restLeftSec}s" else "${c.done} / ${c.of}${if (stage.holdSec > 0 && !repHold) " s" else ""}",
                         style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
                     )
+                    if (repHold && !c.resting) Text(if (c.holdLeftSec > 0) "Hold ${c.holdLeftSec}" else "Relax", style = MaterialTheme.typography.headlineSmall, color = cs.primary)
                     Text(if (c.resting) "Set ${c.set + 1} of ${c.sets} next" else "Set ${c.set} of ${c.sets}", color = cs.onSurfaceVariant)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Button({ Habits.markDone(h.id, today, true); countStart = null }, Modifier.weight(1f)) { Text("Completed") }

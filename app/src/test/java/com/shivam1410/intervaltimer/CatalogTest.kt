@@ -30,6 +30,13 @@ class CatalogTest {
         assertEquals("6 × 45 s", on(planFor(push, Level.ADVANCED), 22))
     }
 
+    @Test fun supraspinatusIsTwentyRepsOfFiveSecondsEveryDay() {
+        val plan = planFor(entry("supraspinatus"), Level.BEGINNER)
+        assertEquals("1 × 20 · 5 s hold", on(plan, 1))
+        assertEquals("1 × 20 · 5 s hold", on(plan, 30)) // a physio dose: it doesn't grow each week
+        assertEquals("2 × 20 · 5 s hold", on(planFor(entry("supraspinatus"), Level.INTERMEDIATE), 22))
+    }
+
     @Test fun tibRaisesLeanFromWeekThreeAndEveryMoveHasAnAnimation() {
         val plan = planFor(entry("tib-raises"), Level.BEGINNER)
         assertEquals("tib-raise", h(plan).demoOn(8, ""))

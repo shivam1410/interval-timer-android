@@ -126,7 +126,7 @@ fun PlanScreen(entryId: String, onBack: () -> Unit, onStarted: () -> Unit) {
             }
         }
         Text(
-            "Week 1: ${label(stages.first())} · then one more set each week",
+            if (e.grow) "Week 1: ${label(stages.first())} · then one more set each week" else "Every day: ${label(stages.first())}",
             style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
         )
         Text("Your 30 days, from today", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(bottom = 4.dp))

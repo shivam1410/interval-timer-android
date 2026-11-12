@@ -130,15 +130,15 @@ private fun DayTile(h: Habit, d: Int, todayN: Int, modifier: Modifier, onClick: 
 }
 
 /** Tile-sized target: "10", "2×20", "30s". */
-private fun shortLabel(s: Stage) = (if (s.sets > 1) "${s.sets}×" else "") + (if (s.holdSec > 0) "${s.holdSec}s" else "${s.reps}")
+private fun shortLabel(s: Stage) = (if (s.sets > 1) "${s.sets}×" else "") + (if (s.holdSec > 0 && s.reps == 0) "${s.holdSec}s" else "${s.reps}")
 
 /** Change [day]'s target: sets, reps (or seconds), for this day only or from this day on. */
 @Composable
 fun DayEditDialog(h: Habit, day: Int, onDismiss: () -> Unit, onSave: (List<Stage>) -> Unit) {
     val s = h.stageOn(day) ?: return
-    val hold = s.holdSec > 0
     var sets by remember { mutableIntStateOf(s.sets) }
-    var count by remember { mutableIntStateOf(if (hold) s.holdSec else s.reps) }
+    var reps by remember { mutableIntStateOf(s.reps) }
+    var secs by remember { mutableIntStateOf(s.holdSec) }
     var onlyThis by remember { mutableStateOf(false) }
     val date = h.start.plusDays(day - 1L)
     AlertDialog(
@@ -146,7 +146,8 @@ fun DayEditDialog(h: Habit, day: Int, onDismiss: () -> Unit, onSave: (List<Stage
         title = { Text("Day $day · ${date.dayOfMonth} ${date.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault())}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Stepper(if (hold) "Seconds" else "Reps", count, if (hold) "s" else "", 1..600) { count = it }
+                if (s.reps > 0) Stepper("Reps", reps, "", 1..600) { reps = it }
+                if (s.holdSec > 0) Stepper(if (s.reps > 0) "Hold each" else "Seconds", secs, "s", 1..600) { secs = it }
                 Stepper("Sets", sets, "", 1..10) { sets = it }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(!onlyThis, { onlyThis = false }, { Text("From this day on") })
@@ -156,7 +157,7 @@ fun DayEditDialog(h: Habit, day: Int, onDismiss: () -> Unit, onSave: (List<Stage
         },
         confirmButton = {
             TextButton({
-                onSave(setFrom(h, day, sets, if (hold) 0 else count, if (hold) count else 0, onlyThis))
+                onSave(setFrom(h, day, sets, reps, secs, onlyThis))
                 onDismiss()
             }) { Text("Save") }
         },
