@@ -122,7 +122,7 @@ fun Root(now: Long) {
     val updateError by Updater.error.collectAsState()
     val plan = remember(settings, session.quick) { session.quick?.let(::quickPlan) ?: plan(settings) }
     val ctx = LocalContext.current
-    var page by rememberSaveable { mutableStateOf("") } // "", "history", "settings", "habit"
+    var page by rememberSaveable { mutableStateOf("") } // "", "history", "settings", "habits", "habit:<id>"
     var countdown by rememberSaveable { mutableStateOf<String?>(null) } // quick timer about to start
     BackHandler(page.isNotEmpty()) { page = "" }
     BackHandler(countdown != null) { countdown = null }
@@ -159,9 +159,10 @@ fun Root(now: Long) {
         when {
             page == "history" -> HistoryScreen { page = "" }
             page == "settings" -> SettingsScreen(settings) { page = "" }
-            page == "habit" -> HabitCalendarScreen { page = "" }
+            page == "habits" -> SettingsScreen(settings, start = "habits") { page = "" }
+            page.startsWith("habit:") -> HabitCalendarScreen(page.removePrefix("habit:")) { page = "" }
             countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null } }
-            session.idle -> Setup(settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit" }, onQuick = { countdown = it })
+            session.idle -> Setup(settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit:$it" }, onAddHabit = { page = "habits" }, onQuick = { countdown = it })
             session.done(plan) -> Done(session, settings) { page = "history" }
             else -> Running(plan, session, settings, now)
         }
@@ -201,7 +202,7 @@ private fun Banner(text: String, action: String, onClick: () -> Unit) {
 // ---------- Setup ----------
 
 @Composable
-private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () -> Unit, onHabit: () -> Unit, onQuick: (String) -> Unit) {
+private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () -> Unit, onHabit: (String) -> Unit, onAddHabit: () -> Unit, onQuick: (String) -> Unit) {
     val total = plan(s).sumOf { it.ms }
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val first = Drive.profile.collectAsState().value?.displayName?.substringBefore(' ').orEmpty()
@@ -253,7 +254,7 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
                 }
             }
 
-            HabitCard(onHabit)
+            HabitsSection(onHabit, onAddHabit)
             QuickTimers(onQuick)
             MyLibrary()
             val ambient by Timer.ambient.collectAsState()

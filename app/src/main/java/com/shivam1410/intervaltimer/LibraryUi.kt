@@ -234,7 +234,7 @@ fun LibraryDialog(
                 TagField(tag, (toggl + existingTags).filter { it != "Untagged" }.distinct()) { tag = it.take(30) }
                 Stepper("Length", minutes, "min", 1..120) { minutes = it; minutesSet = true }
                 // An existing item can become the 30-day habit (unless it already is).
-                if (item != null && Habits.active?.itemId != item.id) OutlinedButton({ makeHabit = true }, Modifier.fillMaxWidth(), shape = FieldShape) {
+                if (item != null && Habits.running.none { it.itemId == item.id }) OutlinedButton({ makeHabit = true }, Modifier.fillMaxWidth(), shape = FieldShape) {
                     Text("📅  Make it a 30-day habit")
                 }
                 if (busy.isNotEmpty()) Text(busy, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -255,7 +255,7 @@ fun LibraryDialog(
         },
     )
     // Started (this item is now the habit): close the edit dialog too; Cancel goes back to it.
-    if (makeHabit && item != null) HabitStartSheet(item) { makeHabit = false; if (Habits.active?.itemId == item.id) onDismiss() }
+    if (makeHabit && item != null) HabitStartSheet(item) { makeHabit = false; if (Habits.running.any { it.itemId == item.id }) onDismiss() }
 }
 
 /** Rounded corners shared by every box in the Add to library form. */

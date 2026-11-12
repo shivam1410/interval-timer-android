@@ -179,6 +179,23 @@ class HabitTest {
         assertEquals("Habit", habitTitle(habit().copy(itemId = "gone"), items))
     }
 
+    @Test fun severalHabitsShareOneAlarmAtTheNextReminder() {
+        val utc = java.util.TimeZone.getTimeZone("UTC")
+        val tib = habit().copy(id = "a", remindMin = 8 * 60)
+        val stairs = habit().copy(id = "b", remindMin = 18 * 60)
+        val off = habit().copy(id = "c", remindMin = null)
+        val ended = habit().copy(id = "d", remindMin = 7 * 60, ended = true)
+        val all = listOf(tib, stairs, off, ended)
+        val nineAm = java.time.Instant.parse("2026-11-12T09:00:00Z").toEpochMilli()
+        val sixPm = java.time.Instant.parse("2026-11-12T18:00:00Z").toEpochMilli()
+        assertEquals(sixPm, nextReminderAt(all, nineAm, utc)) // 08:00 passed; 07:00 belongs to an ended habit
+        assertEquals(listOf("b"), dueAt(all, sixPm, utc).map { it.id })
+        assertNull(nextReminderAt(listOf(off, ended), nineAm, utc)) // nothing to remind: no alarm
+        val both = listOf(tib, stairs.copy(remindMin = 8 * 60))
+        val eightAm = java.time.Instant.parse("2026-11-13T08:00:00Z").toEpochMilli()
+        assertEquals(listOf("a", "b"), dueAt(both, eightAm, utc).map { it.id }) // same time: both remind
+    }
+
     @Test fun progressCountsDoneDaysInsideTheProgram() {
         val h = habit(done = setOf(day(1), day(2), day(40), start.minusDays(1)))
         assertEquals(2, h.doneCount)

@@ -187,3 +187,11 @@ fun countAt(ms: Long, s: Stage, repMs: Int, restMs: Int): Count {
     }
     return Count(s.sets, of, of, s.sets, finished = true)
 }
+
+/** When the shared habit alarm should next go off: the soonest daily reminder among running habits, or null. */
+fun nextReminderAt(habits: List<Habit>, now: Long, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): Long? =
+    habits.filter { !it.ended }.mapNotNull { it.remindMin }.minOfOrNull { nextDaily(now, it, zone) }
+
+/** The running habits whose reminder is for exactly [at] (several can share a time). */
+fun dueAt(habits: List<Habit>, at: Long, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): List<Habit> =
+    habits.filter { h -> !h.ended && h.remindMin?.let { nextDaily(at - 1, it, zone) == at } == true }

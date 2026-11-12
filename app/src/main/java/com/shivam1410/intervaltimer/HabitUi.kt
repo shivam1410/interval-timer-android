@@ -41,20 +41,28 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Icon
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.key
 import java.time.LocalDate
 
 /** Rest between sets while counting. */
 private const val REST_MS = 30_000
 
-/** Home card for the running habit: 📅 day (opens the calendar), today's sets × reps, the stage note, Completed and Start. */
+/** Home's Habit section: a card per running habit, then a row to add one (opens Settings › Habits). */
 @Composable
-fun HabitCard(onCalendar: () -> Unit) {
+fun HabitsSection(onCalendar: (String) -> Unit, onAdd: () -> Unit) {
     val habits by Habits.all.collectAsState()
     val items by Library.items.collectAsState()
-    var starting by remember { mutableStateOf(false) }
-    if (starting) HabitStartSheet(null) { starting = false }
-    val h = habits.firstOrNull { !it.ended }
-    if (h == null) { StartHabitRow { starting = true }; return }
+    val running = habits.filter { !it.ended }
+    Text("Habits", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        running.forEach { h -> key(h.id) { HabitCard(h, items) { onCalendar(h.id) } } }
+        AddHabitRow(if (running.isEmpty()) "Start a 30-day habit" else "Add a habit", onAdd)
+    }
+}
+
+/** One running habit: 📅 day (opens its calendar), today's sets × reps, the stage note, Completed and Start. */
+@Composable
+private fun HabitCard(h: Habit, items: List<LibraryItem>, onCalendar: () -> Unit) {
     val item = items.firstOrNull { it.id == h.itemId && !it.deleted }
     val title = habitTitle(h, items)
     val today = LocalDate.now()
@@ -68,7 +76,6 @@ fun HabitCard(onCalendar: () -> Unit) {
         while (true) withInfiniteAnimationFrameMillis { elapsed = System.currentTimeMillis() - start }
     }
 
-    Text("Habit", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     Card(colors = CardDefaults.cardColors(containerColor = cs.surfaceContainer)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -85,7 +92,7 @@ fun HabitCard(onCalendar: () -> Unit) {
             if (stage == null) {
                 Text("Finished ${h.totalDays} days · ${h.doneCount} done")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button({ Habits.start(h.itemId, h.stages, h.remindMin) }) { Text("Repeat") }
+                    Button({ Habits.repeat(h.id) }) { Text("Repeat") }
                     OutlinedButton({ Habits.end(h.id) }) { Text("End") }
                 }
             } else {
@@ -118,7 +125,7 @@ fun HabitCard(onCalendar: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     val doneToday = today in h.done
                     // Completed marks today (tap again to undo); Start counts the reps with the figure.
-                    if (doneToday) FilledTonalButton({ Habits.markDone(h.id, today, false) }, Modifier.weight(1f)) { Text("Completed today ✓", maxLines = 1) }
+                    if (doneToday) FilledTonalButton({ Habits.markDone(h.id, today, false) }, Modifier.weight(1f)) { Text("Completed ✓", maxLines = 1) }
                     else OutlinedButton({ Habits.markDone(h.id, today, true) }, Modifier.weight(1f)) { Text("Completed") }
                     Button({ elapsed = 0; countStart = System.currentTimeMillis() }, Modifier.weight(1f)) { Text("Start") }
                 }
@@ -127,17 +134,16 @@ fun HabitCard(onCalendar: () -> Unit) {
     }
 }
 
-/** Home with no habit running: the Habit heading and one row to start one (no library needed). */
+/** The row under the habit cards: start one, or add another (the catalog, in Settings › Habits). */
 @Composable
-private fun StartHabitRow(onStart: () -> Unit) {
+private fun AddHabitRow(label: String, onStart: () -> Unit) {
     val cs = MaterialTheme.colorScheme
-    Text("Habit", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainerHigh)
             .clickable(onClickLabel = "Start a habit", onClick = onStart).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("📅", fontSize = 20.sp)
-        Text("Start a 30-day habit", Modifier.padding(start = 12.dp), color = cs.onSurface)
+        Text(label, Modifier.padding(start = 12.dp), color = cs.onSurface)
     }
 }

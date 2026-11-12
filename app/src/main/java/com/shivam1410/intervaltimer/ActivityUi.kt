@@ -78,13 +78,13 @@ fun ActivityCue(a: Activity, elapsedMs: Long, paused: Boolean) {
 /** A library exercise's built-in movement: today's habit stage's, else the one its title asks for. */
 private fun demoFor(a: Activity): String? {
     if (!a.id.startsWith("lib:")) return null
-    val h = Habits.active?.takeIf { "lib:${it.itemId}" == a.id } ?: return demoFor(a.name)
+    val h = Habits.running.firstOrNull { "lib:${it.itemId}" == a.id } ?: return demoFor(a.name)
     return h.demoOn(h.dayOf(java.time.LocalDate.now()), a.name)
 }
 
 /** A library exercise's clip; when it's the running habit, today's stage clip instead. */
 private fun clipFor(a: Activity): String? {
-    val h = Habits.active?.takeIf { "lib:${it.itemId}" == a.id } ?: return a.clip
+    val h = Habits.running.firstOrNull { "lib:${it.itemId}" == a.id } ?: return a.clip
     return h.clipOn(h.dayOf(java.time.LocalDate.now()), a.clip.orEmpty()).ifEmpty { null }
 }
 

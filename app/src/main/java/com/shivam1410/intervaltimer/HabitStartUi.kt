@@ -78,7 +78,6 @@ fun HabitStartSheet(item: LibraryItem?, onDismiss: () -> Unit) {
                         label = { Text("Or type a name") }, placeholder = { Text("Stairs, shoulder push…") },
                     )
                 }
-                if (Habits.active != null) Text("This replaces your current habit.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 if (hasProgram) TemplateCard("Tib raises program", "10 → 20 → lean forward → 2 × 20, over 30 days", template == Template.PROGRAM) {
                     picked = Template.PROGRAM
                 }

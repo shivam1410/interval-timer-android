@@ -41,8 +41,8 @@ fun MovementDemo(id: String, height: Dp = 200.dp, clockMs: Long? = null) {
         if (demo.wall) drawLine(line, o(Pt(WALL_X, 4f)), o(Pt(WALL_X, FLOOR_Y)), w, StrokeCap.Round)
         drawLine(line, o(Pt(12f, FLOOR_Y)), o(Pt(150f, FLOOR_Y)), w, StrokeCap.Round)
         val pose = poseAt(demo, clockMs ?: ms)
-        BONES.forEachIndexed { i, (a, b) ->
-            val moving = i == BONES.lastIndex
+        demo.bones.forEachIndexed { i, (a, b) ->
+            val moving = i == demo.bones.lastIndex
             drawLine(if (moving) accent else ink, o(pose.getValue(a)), o(pose.getValue(b)), if (moving) w * 1.2f else w, StrokeCap.Round)
         }
         drawCircle(ink, HEAD_R * s, o(pose.getValue(Joint.HEAD)), style = Stroke(w))

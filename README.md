@@ -16,14 +16,15 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - **Plain exercises**: leave the link empty for your own exercise (tib raises, stairs, a shoulder
     isometric), with a "How to do it" note and, optionally, a short clip of the movement (video or GIF
     from the photo picker) that loops muted on the timer. Tib raises get a built-in animated figure
-- **Habit** (one at a time, its own thing; a library exercise is optional): Home › **Start a 30-day
-  habit**, tap a name chip (Tib raises or one of your exercises) or type one (or long-press a library exercise › **Make it a 30-day habit** to use its
-  clip), then pick **Same every day**, **Grow each week** or the built-in **Tib raises program** (10 → 20 → lean
-  forward → 2 × 20); 14, 30 or 60 days; a daily reminder (08:00 by default) with a Completed button.
-  Home shows a card with the animation, today's sets × reps, the stage note, **Completed** and **Start**: Start
-  counts the reps with the figure (30 s rest between sets) and marks the day done. **📅 Day x/30** opens a calendar of
-  the days as tiles with each day's target: tap a day to change it (that day or from then on), tap a
-  past day to mark it done. Done days get a dot in History. Synced to Drive (`habits.json`, clips too)
+- **Habits** (several at once): Settings › **Habits** (or Home › **Add a habit**) has a **catalog** of fixed
+  30-day plans with built-in animated figures: **Tib raises**, **Calf raises**, **Shoulder wall push** (a hold,
+  in seconds) and **Squats**. Tap one to see the whole plan as day tiles, pick **Beginner** (10 × 1),
+  **Intermediate** (15 × 2) or **Advanced** (20 × 3), one more set each week (holds: 20 s / 30 s / 45 s), tap
+  any day to tweak it, set a reminder and **Start**. **Make your own** is there too (name chips, templates).
+  Home shows a card per habit: the animation, today's sets × reps, the note, **Completed** and **Start**
+  (counts the reps with the figure, 30 s rest between sets, then marks the day done); **📅 Day x/30** opens its
+  calendar (tap a day to change it, a past day to mark it done). Each habit has its own reminder with a
+  Completed button. Done days get a dot in History. Synced to Drive (`habits.json`, clips too)
   - **Share into it**: in YouTube or YouTube Music tap Share -> Interval Timer; the link and its title
     are filled in, you pick a tag and length
   - **MP3 / MP4 files**: share one from Files, Downloads or any app -> Interval Timer. It's kept in the app

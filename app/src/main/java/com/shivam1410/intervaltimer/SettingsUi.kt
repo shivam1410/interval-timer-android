@@ -45,20 +45,29 @@ import java.text.DateFormat
 import java.util.Date
 
 /**
- * Opened from the profile photo: three entries (Profile, Notifications, Toggl Track), each opening
- * its own page. Back goes to the list, then home.
+ * Opened from the profile photo: four entries (Profile, Notifications, Toggl Track, Habits), each opening
+ * its own page. Back goes to the list, then home; opened straight on a page ([start], e.g. Home's
+ * "Add a habit"), back from that page goes home.
  */
 @Composable
-fun SettingsScreen(s: Settings, onBack: () -> Unit) {
-    var sub by rememberSaveable { mutableStateOf("") } // "", "profile", "notifications", "toggl"
-    BackHandler(sub.isNotEmpty()) { sub = "" }
-    val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Notifications"; "toggl" -> "Toggl Track"; else -> "Settings" }
+fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
+    var sub by rememberSaveable { mutableStateOf(start) } // "", "profile", "notifications", "toggl", "habits", "plan:<id>", "habit:<id>"
+    fun back() = when {
+        sub.startsWith("plan:") || sub.startsWith("habit:") -> sub = "habits"
+        sub.isEmpty() || sub == start -> onBack()
+        else -> sub = ""
+    }
+    BackHandler { back() }
+    // A catalog plan and a habit's calendar are full screens with their own back arrow.
+    if (sub.startsWith("plan:")) return PlanScreen(sub.removePrefix("plan:"), onBack = { back() }) { sub = "habits" }
+    if (sub.startsWith("habit:")) return HabitCalendarScreen(sub.removePrefix("habit:")) { back() }
+    val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Notifications"; "toggl" -> "Toggl Track"; "habits" -> "Habits"; else -> "Settings" }
     val cs = MaterialTheme.colorScheme
 
     val signedIn = Drive.profile.collectAsState().value != null
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
-            IconButton({ if (sub.isEmpty()) onBack() else sub = "" }) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
+            IconButton({ back() }) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
             Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
@@ -66,6 +75,7 @@ fun SettingsScreen(s: Settings, onBack: () -> Unit) {
                 "profile" -> ProfilePage()
                 "notifications" -> NotificationsPage(s)
                 "toggl" -> TogglSection()
+                "habits" -> HabitsPage { sub = it }
                 else -> SettingsList { sub = it }
             }
             Box(Modifier.height(24.dp))
@@ -110,6 +120,15 @@ private fun SettingsList(open: (String) -> Unit) {
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text("Toggl Track", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(if (toggl) "Connected" else "Not connected", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+            }
+        }
+        val habits by Habits.all.collectAsState()
+        Entry(open = { open("habits") }) {
+            Icon(painterResource(R.drawable.ic_calendar), null, Modifier.size(28.dp), tint = cs.primary)
+            Column(Modifier.weight(1f).padding(start = 16.dp)) {
+                Text("Habits", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                val n = habits.count { !it.ended }
+                Text(if (n == 0) "Pick a 30-day plan from the catalog" else "$n running · catalog", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
         }
     }

@@ -21,7 +21,7 @@ class Receiver : BroadcastReceiver() {
             START_AT -> Timer.startScheduled()
             NUDGE_CHECK -> Nudges.check()
             HABIT_REMIND -> Habits.remind()
-            HABIT_DONE -> Habits.doneFromReminder()
+            HABIT_DONE -> Habits.doneFromReminder(intent.getStringExtra(Habits.EXTRA_HABIT))
             AMBIENT_OFF -> Timer.playAmbient(null)
             // Android doesn't let music start from boot; after an update it may, so the session's music resumes.
             Intent.ACTION_BOOT_COMPLETED -> Timer.sync(playCue = false)

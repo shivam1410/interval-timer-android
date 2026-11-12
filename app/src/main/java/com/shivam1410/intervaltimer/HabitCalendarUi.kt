@@ -42,15 +42,14 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 
 /**
- * The running habit as a grid of day tiles (Mon–Sun rows): each shows the date and that day's target.
- * Done = filled with ✓, missed = dimmed, today = outlined. Tap today or a later day to change its target;
- * tap a past day to mark it done or not done.
+ * One habit ([habitId]) as a grid of day tiles: done = filled with ✓, missed = dimmed, today = outlined.
+ * Tap today or a later day to change its target; tap a past day to mark it done or not done.
  */
 @Composable
-fun HabitCalendarScreen(onBack: () -> Unit) {
+fun HabitCalendarScreen(habitId: String, onBack: () -> Unit) {
     val habits by Habits.all.collectAsState()
     val items by Library.items.collectAsState()
-    val h = habits.firstOrNull { !it.ended }
+    val h = habits.firstOrNull { it.id == habitId && !it.ended }
     val cs = MaterialTheme.colorScheme
     var editing by remember { mutableStateOf<Int?>(null) }
     var ending by remember { mutableStateOf(false) }
@@ -62,40 +61,17 @@ fun HabitCalendarScreen(onBack: () -> Unit) {
             Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
         }
         if (h == null) {
-            Text("No habit running. Start one from Home.", color = cs.onSurfaceVariant)
+            Text("This habit has ended.", color = cs.onSurfaceVariant)
             return@Column
         }
-        val today = LocalDate.now()
-        val todayN = h.dayOf(today)
+        val todayN = h.dayOf(LocalDate.now())
         Text(
             "Day ${todayN.coerceIn(1, h.totalDays)} of ${h.totalDays} · ${h.doneCount} done",
             color = cs.onSurfaceVariant, modifier = Modifier.padding(bottom = 12.dp),
         )
-        Row(Modifier.fillMaxWidth()) {
-            listOf("M", "T", "W", "T", "F", "S", "S").forEach {
-                Text(it, Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
-            }
-        }
-        // Rows start on the Monday of the start date's week; blanks before day 1 and after the last day.
-        val lead = h.start.dayOfWeek.value - DayOfWeek.MONDAY.value
-        val cells = List(lead) { null } + (1..h.totalDays).toList()
-        cells.chunked(7).forEach { week ->
-            week.filterNotNull().firstOrNull { h.isStageStart(it) && !h.stageOn(it)?.note.isNullOrBlank() }?.let { d ->
-                // Tiles show dates, so the line names the date the change starts on ("From Thu 19: …").
-                val date = h.start.plusDays(d - 1L)
-                val dow = date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault())
-                Text(if (d == 1) "${h.stageOn(d)?.note}" else "From $dow ${date.dayOfMonth}: ${h.stageOn(d)?.note}", style = MaterialTheme.typography.bodySmall, color = cs.primary, modifier = Modifier.padding(top = 8.dp))
-            }
-            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                week.forEach { d ->
-                    if (d == null) Spacer(Modifier.weight(1f))
-                    else DayTile(h, d, todayN, Modifier.weight(1f)) {
-                        if (d < todayN) Habits.markDone(h.id, h.start.plusDays(d - 1L), h.start.plusDays(d - 1L) !in h.done)
-                        else editing = d
-                    }
-                }
-                repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
-            }
+        PlanGrid(h, todayN) { d ->
+            if (d < todayN) Habits.markDone(h.id, h.start.plusDays(d - 1L), h.start.plusDays(d - 1L) !in h.done)
+            else editing = d
         }
         Text("Tap today or a later day to change it. Tap a past day to mark it done.", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(16.dp))
@@ -104,7 +80,7 @@ fun HabitCalendarScreen(onBack: () -> Unit) {
     }
 
     h ?: return
-    editing?.let { d -> DayEditDialog(h, d) { editing = null } }
+    editing?.let { d -> DayEditDialog(h, d, onDismiss = { editing = null }) { Habits.edit(h.id, it, h.remindMin) } }
     if (ending) AlertDialog(
         onDismissRequest = { ending = false },
         title = { Text("End $title?") },
@@ -112,6 +88,32 @@ fun HabitCalendarScreen(onBack: () -> Unit) {
         confirmButton = { TextButton({ Habits.end(h.id); ending = false; onBack() }) { Text("End habit") } },
         dismissButton = { TextButton({ ending = false }) { Text("Keep going") } },
     )
+}
+
+/** Mon–Sun rows of day tiles from [h]'s start, with a line where a week's note begins; [todayN] is outlined. */
+@Composable
+fun PlanGrid(h: Habit, todayN: Int, onDay: (Int) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Row(Modifier.fillMaxWidth()) {
+        listOf("M", "T", "W", "T", "F", "S", "S").forEach {
+            Text(it, Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+        }
+    }
+    // Rows start on the Monday of the start date's week; blanks before day 1 and after the last day.
+    val lead = h.start.dayOfWeek.value - DayOfWeek.MONDAY.value
+    val cells = List(lead) { null } + (1..h.totalDays).toList()
+    cells.chunked(7).forEach { week ->
+        week.filterNotNull().firstOrNull { h.isStageStart(it) && !h.stageOn(it)?.note.isNullOrBlank() }?.let { d ->
+            // Tiles show dates, so the line names the date the change starts on ("From Thu 19: …").
+            val date = h.start.plusDays(d - 1L)
+            val dow = date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault())
+            Text(if (d == 1) "${h.stageOn(d)?.note}" else "From $dow ${date.dayOfMonth}: ${h.stageOn(d)?.note}", style = MaterialTheme.typography.bodySmall, color = cs.primary, modifier = Modifier.padding(top = 8.dp))
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            week.forEach { d -> if (d == null) Spacer(Modifier.weight(1f)) else DayTile(h, d, todayN, Modifier.weight(1f)) { onDay(d) } }
+            repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
+        }
+    }
 }
 
 @Composable
@@ -138,7 +140,7 @@ private fun shortLabel(s: Stage) = (if (s.sets > 1) "${s.sets}×" else "") + (if
 
 /** Change [day]'s target: sets, reps (or seconds), for this day only or from this day on. */
 @Composable
-private fun DayEditDialog(h: Habit, day: Int, onDismiss: () -> Unit) {
+fun DayEditDialog(h: Habit, day: Int, onDismiss: () -> Unit, onSave: (List<Stage>) -> Unit) {
     val s = h.stageOn(day) ?: return
     val hold = s.holdSec > 0
     var sets by remember { mutableIntStateOf(s.sets) }
@@ -160,7 +162,7 @@ private fun DayEditDialog(h: Habit, day: Int, onDismiss: () -> Unit) {
         },
         confirmButton = {
             TextButton({
-                Habits.edit(h.id, setFrom(h, day, sets, if (hold) 0 else count, if (hold) count else 0, onlyThis), h.remindMin)
+                onSave(setFrom(h, day, sets, if (hold) 0 else count, if (hold) count else 0, onlyThis))
                 onDismiss()
             }) { Text("Save") }
         },
