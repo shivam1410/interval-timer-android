@@ -222,5 +222,6 @@ class HabitTest {
         val c = habit().copy(id = "c")
         assertEquals(listOf("b", "c", "a"), habitDeck(listOf(a, b, c), day(3)).map { it.id })
         assertEquals(listOf("a", "b", "c"), habitDeck(listOf(a, b, c), day(4)).map { it.id }) // new day: all back on
+        assertEquals(listOf("a", "c"), habitDeck(listOf(a, b, c), day(4), hidden = setOf("b")).map { it.id }) // b lives in a routine
     }
 }

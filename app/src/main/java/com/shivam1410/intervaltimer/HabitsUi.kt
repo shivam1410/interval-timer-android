@@ -1,6 +1,7 @@
 package com.shivam1410.intervaltimer
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,9 +41,8 @@ import androidx.compose.ui.draw.clip
 import java.time.LocalDate
 
 /**
- * Settings › Habits: your running habits (tap for its calendar), the catalog of fixed 30-day plans
- * (tap to see and tweak the whole plan before starting), and "Make your own". [open] takes
- * "habit:<id>" or "plan:<catalog id>".
+ * Settings › Habits & routines: your running habits (tap for its calendar), Browse stretches (the catalog,
+ * its own page), "Make your own", then your routines. [open] takes "habit:<id>" or "stretches".
  */
 @Composable
 fun HabitsPage(open: (String) -> Unit) {
@@ -71,16 +71,13 @@ fun HabitsPage(open: (String) -> Unit) {
                 }
             }
         }
-        Text("Catalog · 30-day plans", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 8.dp))
-        CATALOG.forEach { e ->
-            Row(card().clickable(onClickLabel = "See the plan") { open("plan:${e.id}") }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.width(72.dp)) { MovementDemo(e.demos.first(), 72.dp) }
-                Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                    Text(e.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(e.blurb, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
-                }
-                Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
+        Row(card().clickable(onClickLabel = "Browse stretches") { open("stretches") }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("🤸", fontSize = 20.sp)
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text("Browse stretches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("${CATALOG.size} ready-made 30-day plans", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
+            Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
         }
         Row(card().clickable(onClickLabel = "Make your own habit") { custom = true }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("✏️", fontSize = 20.sp)
@@ -92,6 +89,24 @@ fun HabitsPage(open: (String) -> Unit) {
     }
     RoutinesSettings()
     if (custom) HabitStartSheet(null) { custom = false }
+}
+
+/** Settings › Habits & routines › Stretches: the catalog of fixed 30-day plans; tap one to see and tweak it ("plan:<id>"). */
+@Composable
+fun StretchesPage(open: (String) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CATALOG.forEach { e ->
+            Row(card().clickable(onClickLabel = "See the plan") { open("plan:${e.id}") }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(72.dp)) { MovementDemo(e.demos.first(), 72.dp) }
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text(e.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(e.blurb, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                }
+                Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
+            }
+        }
+    }
 }
 
 /** A list row's background: full width, rounded, card colour. */
@@ -110,6 +125,7 @@ fun PlanScreen(entryId: String, onBack: () -> Unit, onStarted: () -> Unit) {
     var stages by remember(level) { mutableStateOf(planFor(e, level)) } // a new level starts from its plan again
     var remind by remember { mutableStateOf<Int?>(Habits.DEFAULT_REMIND_MIN) }
     var editing by remember { mutableStateOf<Int?>(null) }
+    var inRoutine by remember { mutableStateOf<String?>(null) }
     val draft = Habit("draft", "", LocalDate.now(), stages, remind, emptySet(), 0, title = e.name)
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
@@ -133,9 +149,25 @@ fun PlanScreen(entryId: String, onBack: () -> Unit, onStarted: () -> Unit) {
         PlanGrid(draft, todayN = 1) { editing = it }
         Text("Tap a day to change it before you start.", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
         Spacer(Modifier.height(12.dp))
-        ReminderRow(remind) { remind = it }
+        // Do it as part of a routine (its time reminds you), or on its own with its own reminder.
+        val routines by Routines.all.collectAsState()
+        val choices = routines.filterNot { it.deleted }
+        if (choices.isNotEmpty()) {
+            Text("Do it in", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 4.dp, bottom = 4.dp))
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(inRoutine == null, { inRoutine = null }, { Text("On its own") })
+                choices.forEach { r ->
+                    FilterChip(inRoutine == r.id, { inRoutine = r.id }, { Text("${r.emoji} ${r.name}" + (r.remindMin?.let { " · ${fmtMinute(it)}" } ?: "")) })
+                }
+            }
+        }
+        if (inRoutine == null) ReminderRow(remind) { remind = it }
         Button(
-            { Habits.start("", stages, remind, "${e.name} · ${level.label}"); onStarted() },
+            {
+                val id = Habits.start("", stages, if (inRoutine == null) remind else null, "${e.name} · ${level.label}")
+                inRoutine?.let { Routines.addHabit(it, id) }
+                onStarted()
+            },
             Modifier.fillMaxWidth().padding(vertical = 16.dp).height(52.dp),
         ) { Text("Start") }
     }

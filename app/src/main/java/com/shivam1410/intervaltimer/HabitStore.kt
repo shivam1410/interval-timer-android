@@ -36,9 +36,10 @@ object Habits {
     }
 
     /** Starts a habit from today ([title], or linked to library exercise [itemId]); others keep running. */
-    fun start(itemId: String, stages: List<Stage>, remindMin: Int? = DEFAULT_REMIND_MIN, title: String = "") {
+    fun start(itemId: String, stages: List<Stage>, remindMin: Int? = DEFAULT_REMIND_MIN, title: String = ""): String {
         val h = Habit(UUID.randomUUID().toString().take(8), itemId, LocalDate.now(), stages, remindMin, emptySet(), System.currentTimeMillis(), title = title)
         replaceAll(all.value + h)
+        return h.id
     }
 
     /** A finished habit's Repeat: the same plan again from today; the finished one is ended. */
@@ -61,13 +62,14 @@ object Habits {
         id?.let { markDone(it, LocalDate.now(), true) }
     }
 
-    /** Alarm fired: one notification per habit due now ("Tib raises: 1 × 20 today"), skipping done or finished ones. */
+    /** Alarm fired: one notification per habit due now ("Tib raises: 1 × 20 today"), skipping done or finished ones and ones in a routine. */
     fun remind() {
         val at = prefs.getLong("nextAt", 0)
         arm()
         val today = LocalDate.now()
         val open = PendingIntent.getActivity(app, 0, Intent(app, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        dueAt(all.value, at).forEach { h ->
+        val inRoutine = habitsInRoutines(Routines.all.value) // their routine's reminder covers them
+        dueAt(all.value, at).filterNot { it.id in inRoutine }.forEach { h ->
             val text = reminderText(h, today) ?: return@forEach
             val done = PendingIntent.getBroadcast(
                 app, notifId(h.id), Intent(app, Receiver::class.java).setAction(Receiver.HABIT_DONE).putExtra(EXTRA_HABIT, h.id),

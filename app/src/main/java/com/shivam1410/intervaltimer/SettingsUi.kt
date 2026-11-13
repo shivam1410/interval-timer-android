@@ -51,9 +51,10 @@ import java.util.Date
  */
 @Composable
 fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
-    var sub by rememberSaveable { mutableStateOf(start) } // "", "profile", "notifications", "toggl", "habits", "plan:<id>", "habit:<id>"
+    var sub by rememberSaveable { mutableStateOf(start) } // "", "profile", "notifications", "toggl", "habits", "stretches", "plan:<id>", "habit:<id>"
     fun back() = when {
-        sub.startsWith("plan:") || sub.startsWith("habit:") -> sub = "habits"
+        sub.startsWith("plan:") -> sub = "stretches"
+        sub.startsWith("habit:") || sub == "stretches" -> sub = "habits"
         sub.isEmpty() || sub == start -> onBack()
         else -> sub = ""
     }
@@ -61,7 +62,7 @@ fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
     // A catalog plan and a habit's calendar are full screens with their own back arrow.
     if (sub.startsWith("plan:")) return PlanScreen(sub.removePrefix("plan:"), onBack = { back() }) { sub = "habits" }
     if (sub.startsWith("habit:")) return HabitCalendarScreen(sub.removePrefix("habit:")) { back() }
-    val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Notifications"; "toggl" -> "Toggl Track"; "habits" -> "Habits & routines"; else -> "Settings" }
+    val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Notifications"; "toggl" -> "Toggl Track"; "habits" -> "Habits & routines"; "stretches" -> "Stretches"; else -> "Settings" }
     val cs = MaterialTheme.colorScheme
 
     val signedIn = Drive.profile.collectAsState().value != null
@@ -76,6 +77,7 @@ fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
                 "notifications" -> NotificationsPage(s)
                 "toggl" -> TogglSection()
                 "habits" -> HabitsPage { sub = it }
+                "stretches" -> StretchesPage { sub = it }
                 else -> SettingsList { sub = it }
             }
             Box(Modifier.height(24.dp))

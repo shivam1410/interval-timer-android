@@ -58,7 +58,8 @@ fun HabitsSection(onCalendar: (String) -> Unit, onAdd: () -> Unit) {
     val running = habits.filter { !it.ended }
     Text("Habits", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     val today = LocalDate.now()
-    val deck = habitDeck(running, today)
+    val routines by Routines.all.collectAsState()
+    val deck = habitDeck(running, today, hidden = habitsInRoutines(routines))
     val left = deck.count { today !in it.done }
     // Next › turns through the habits still to do (or all of them once everything is done).
     var turn by remember { mutableIntStateOf(0) }
@@ -85,26 +86,17 @@ fun HabitsSection(onCalendar: (String) -> Unit, onAdd: () -> Unit) {
                 if (pool.size > 1) TextButton({ turn = (turn + 1) % pool.size }) { Text("Next ›") }
             }
         }
-        AddHabitRow(if (running.isEmpty()) "Start a 30-day habit" else "Add a habit", onAdd)
+        AddHabitRow(if (deck.isEmpty()) "Start a 30-day habit" else "Add a habit", onAdd)
     }
 }
 
 /** One running habit: 📅 day (opens its calendar), today's sets × reps, the stage note, Completed and Start. */
 @Composable
 private fun HabitCard(h: Habit, items: List<LibraryItem>, onCalendar: () -> Unit) {
-    val item = items.firstOrNull { it.id == h.itemId && !it.deleted }
     val title = habitTitle(h, items)
     val today = LocalDate.now()
     val day = h.dayOf(today)
     val cs = MaterialTheme.colorScheme
-    // "Count with me": when it started (null = not counting) and how long ago, ticking every frame.
-    var countStart by remember { mutableStateOf<Long?>(null) }
-    var elapsed by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(countStart) {
-        val start = countStart ?: return@LaunchedEffect
-        while (true) withInfiniteAnimationFrameMillis { elapsed = System.currentTimeMillis() - start }
-    }
-
     Card(colors = CardDefaults.cardColors(containerColor = cs.surfaceContainer)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -124,45 +116,66 @@ private fun HabitCard(h: Habit, items: List<LibraryItem>, onCalendar: () -> Unit
                     Button({ Habits.repeat(h.id) }) { Text("Repeat") }
                     OutlinedButton({ Habits.end(h.id) }) { Text("End") }
                 }
-            } else {
-                val demo = h.demoOn(day, title)
-                val clip = h.clipOn(day, item?.clip.orEmpty())
-                val counting = countStart != null
-                val c = countAt(elapsed, stage, repMs = demo?.let { DEMOS[it]?.loopMs } ?: 2000, restMs = REST_MS)
-                LaunchedEffect(counting && c.finished) {
-                    if (counting && c.finished) { Habits.markDone(h.id, today, true); countStart = null }
-                }
-                // While counting, the figure moves in step with the count (still during the rest).
-                val repHold = stage.holdSec > 0 && stage.reps > 0
-                // Reps held for seconds: the figure holds its press pose during the hold, rests while relaxing.
-                val clock = when { c.resting -> 0L; repHold -> if (c.holdLeftSec > 0) 1500L else 0L; else -> c.setMs }
-                if (counting && clip.isEmpty() && demo != null) MovementDemo(demo, clockMs = clock)
-                else ExerciseMedia(clip, demo)
-                if (counting) {
-                    Text(
-                        if (c.resting) "Rest ${c.restLeftSec}s" else "${c.done} / ${c.of}${if (stage.holdSec > 0 && !repHold) " s" else ""}",
-                        style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
-                    )
-                    if (repHold && !c.resting) Text(if (c.holdLeftSec > 0) "Hold ${c.holdLeftSec}" else "Relax", style = MaterialTheme.typography.headlineSmall, color = cs.primary)
-                    Text(if (c.resting) "Set ${c.set + 1} of ${c.sets} next" else "Set ${c.set} of ${c.sets}", color = cs.onSurfaceVariant)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Button({ Habits.markDone(h.id, today, true); countStart = null }, Modifier.weight(1f)) { Text("Completed") }
-                        TextButton({ countStart = null }, Modifier.padding(start = 4.dp)) { Text("Cancel") } // started by mistake
-                    }
-                    return@Column
-                }
-                Text(label(stage), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                // A new stage's note is bold on its first day, so the change doesn't go unnoticed.
-                if (stage.note.isNotBlank()) Text(stage.note, fontWeight = if (h.isStageStart(day)) FontWeight.Bold else FontWeight.Normal)
-                LinearProgressIndicator({ day.toFloat() / h.totalDays }, Modifier.fillMaxWidth().padding(vertical = 4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val doneToday = today in h.done
-                    // Completed marks today (tap again to undo); Start counts the reps with the figure.
-                    if (doneToday) FilledTonalButton({ Habits.markDone(h.id, today, false) }, Modifier.weight(1f)) { Text("Completed ✓", maxLines = 1) }
-                    else OutlinedButton({ Habits.markDone(h.id, today, true) }, Modifier.weight(1f)) { Text("Completed") }
-                    Button({ elapsed = 0; countStart = System.currentTimeMillis() }, Modifier.weight(1f)) { Text("Start") }
-                }
+            } else HabitDoer(h, items, stage, day)
+        }
+    }
+}
+
+/**
+ * Doing [h] today ([stage] of [day]): the figure or your clip, sets × reps and the note, Completed and Start
+ * (counts along with the figure). Shared by the Home card and a routine's habit step; [onDone] (routine)
+ * runs once it's marked done, and there Completed moves on instead of toggling.
+ */
+@Composable
+fun HabitDoer(h: Habit, items: List<LibraryItem>, stage: Stage, day: Int, onDone: (() -> Unit)? = null) {
+    val item = items.firstOrNull { it.id == h.itemId && !it.deleted }
+    val title = habitTitle(h, items)
+    val today = LocalDate.now()
+    val cs = MaterialTheme.colorScheme
+    // "Count with me": when it started (null = not counting) and how long ago, ticking every frame.
+    var countStart by remember(h.id) { mutableStateOf<Long?>(null) }
+    var elapsed by remember(h.id) { mutableLongStateOf(0L) }
+    LaunchedEffect(countStart) {
+        val start = countStart ?: return@LaunchedEffect
+        while (true) withInfiniteAnimationFrameMillis { elapsed = System.currentTimeMillis() - start }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        val demo = h.demoOn(day, title)
+        val clip = h.clipOn(day, item?.clip.orEmpty())
+        val counting = countStart != null
+        val c = countAt(elapsed, stage, repMs = demo?.let { DEMOS[it]?.loopMs } ?: 2000, restMs = REST_MS)
+        LaunchedEffect(counting && c.finished) {
+            if (counting && c.finished) { Habits.markDone(h.id, today, true); countStart = null; onDone?.invoke() }
+        }
+        // While counting, the figure moves in step with the count (still during the rest).
+        val repHold = stage.holdSec > 0 && stage.reps > 0
+        // Reps held for seconds: the figure holds its press pose during the hold, rests while relaxing.
+        val clock = when { c.resting -> 0L; repHold -> if (c.holdLeftSec > 0) 1500L else 0L; else -> c.setMs }
+        if (counting && clip.isEmpty() && demo != null) MovementDemo(demo, clockMs = clock)
+        else ExerciseMedia(clip, demo)
+        if (counting) {
+            Text(
+                if (c.resting) "Rest ${c.restLeftSec}s" else "${c.done} / ${c.of}${if (stage.holdSec > 0 && !repHold) " s" else ""}",
+                style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
+            )
+            if (repHold && !c.resting) Text(if (c.holdLeftSec > 0) "Hold ${c.holdLeftSec}" else "Relax", style = MaterialTheme.typography.headlineSmall, color = cs.primary)
+            Text(if (c.resting) "Set ${c.set + 1} of ${c.sets} next" else "Set ${c.set} of ${c.sets}", color = cs.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button({ Habits.markDone(h.id, today, true); countStart = null; onDone?.invoke() }, Modifier.weight(1f)) { Text("Completed") }
+                TextButton({ countStart = null }, Modifier.padding(start = 4.dp)) { Text("Cancel") } // started by mistake
             }
+            return@Column
+        }
+        Text(label(stage), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+        // A new stage's note is bold on its first day, so the change doesn't go unnoticed.
+        if (stage.note.isNotBlank()) Text(stage.note, fontWeight = if (h.isStageStart(day)) FontWeight.Bold else FontWeight.Normal)
+        LinearProgressIndicator({ day.toFloat() / h.totalDays }, Modifier.fillMaxWidth().padding(vertical = 4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val doneToday = today in h.done && onDone == null
+            // Completed marks today (tap again to undo; in a routine it moves on); Start counts the reps with the figure.
+            if (doneToday) FilledTonalButton({ Habits.markDone(h.id, today, false) }, Modifier.weight(1f)) { Text("Completed ✓", maxLines = 1) }
+            else OutlinedButton({ Habits.markDone(h.id, today, true); onDone?.invoke() }, Modifier.weight(1f)) { Text("Completed") }
+            Button({ elapsed = 0; countStart = System.currentTimeMillis() }, Modifier.weight(1f)) { Text("Start") }
         }
     }
 }

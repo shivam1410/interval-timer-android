@@ -26,6 +26,27 @@ val DEFAULT_ROUTINES = listOf(
     Routine("evening", "🌙", "Evening", listOf("Charge phone", "Clothes out for tomorrow", "Lights off", "Phone away from bed"), null, emptyMap(), 0),
 )
 
+/** A routine step: plain text you tick, or one of your habits ([habitStep] strings), done with its count-along. */
+sealed interface RoutineStep
+data class TextStep(val text: String) : RoutineStep
+data class HabitStep(val habitId: String) : RoutineStep
+
+private const val HABIT_PREFIX = "habit:"
+
+/** The stored step string for habit [id]; steps stay plain strings so storage and Drive sync don't change. */
+fun habitStep(id: String) = HABIT_PREFIX + id
+
+fun stepOf(s: String): RoutineStep = if (s.startsWith(HABIT_PREFIX)) HabitStep(s.removePrefix(HABIT_PREFIX)) else TextStep(s)
+
+fun routineSteps(r: Routine): List<RoutineStep> = r.steps.map(::stepOf)
+
+/** Habits that live in a routine (not deleted): Home's deck leaves them out. */
+fun habitsInRoutines(rs: List<Routine>): Set<String> =
+    rs.filterNot { it.deleted }.flatMap(::routineSteps).filterIsInstance<HabitStep>().map { it.habitId }.toSet()
+
+/** A routine not done by this many minutes after its reminder gets one more nudge. */
+const val NUDGE_MIN = 30
+
 /** The minute [r] was finished on [today], or null. */
 fun doneToday(r: Routine, today: LocalDate): Int? = r.done[today]
 
@@ -65,7 +86,20 @@ fun mergeRoutines(a: List<Routine>, b: List<Routine>): List<Routine> =
 
 /** When the routine alarm should next go off: the soonest reminder among routines, or null. */
 fun nextRoutineAt(rs: List<Routine>, now: Long, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): Long? =
-    rs.filter { !it.deleted }.mapNotNull { it.remindMin }.minOfOrNull { nextDaily(now, it, zone) }
+    rs.filter { !it.deleted }.flatMap { r ->
+        val m = r.remindMin ?: return@flatMap emptyList()
+        val nudge = nextDaily(now, nudgeMin(m), zone).takeIf { dayOf(it, zone) !in r.done }
+        listOfNotNull(nextDaily(now, m, zone), nudge)
+    }.minOrNull()
+
+// ponytail: a reminder after 23:30 nudges just after midnight and checks that new day's "done"; fine for one user.
+private fun nudgeMin(m: Int) = (m + NUDGE_MIN) % (24 * 60)
+
+private fun dayOf(at: Long, zone: java.util.TimeZone) = java.time.Instant.ofEpochMilli(at).atZone(zone.toZoneId()).toLocalDate()
+
+/** Routines whose nudge ([NUDGE_MIN] after the reminder) is for exactly [at] and that aren't done that day. */
+fun routineNudgeDue(rs: List<Routine>, at: Long, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): List<Routine> =
+    rs.filter { r -> !r.deleted && dayOf(at, zone) !in r.done && r.remindMin?.let { nextDaily(at - 1, nudgeMin(it), zone) == at } == true }
 
 /** Routines whose reminder is for exactly [at], skipping deleted ones and ones already finished that day. */
 fun routineDue(rs: List<Routine>, at: Long, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): List<Routine> {

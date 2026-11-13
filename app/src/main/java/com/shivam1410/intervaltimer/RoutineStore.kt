@@ -45,19 +45,25 @@ object Routines {
         requested.value = id
     }
 
-    /** Alarm fired: "☀️ Morning routine · 4 steps, first: Take meds" with Start, for each routine due and not done today. */
+    /** Alarm fired: "☀️ Morning routine · 4 steps, first: Take meds" with Start, for each routine due and not done today; 30 min later, "Still to do" if it isn't done. */
     fun remind() {
         val at = prefs.getLong("nextAt", 0)
         arm()
-        routineDue(all.value, at).forEach { r ->
+        val nudges = routineNudgeDue(all.value, at).map { it.id }.toSet()
+        (routineDue(all.value, at) + routineNudgeDue(all.value, at)).forEach { r ->
             val open = PendingIntent.getActivity(
                 app, notifId(r.id), Intent(app, MainActivity::class.java).putExtra(EXTRA_ROUTINE, r.id).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
-            val text = "${r.steps.size} steps · first: ${r.steps.firstOrNull().orEmpty()}"
+            val first = when (val f = routineSteps(r).firstOrNull()) {
+                is HabitStep -> Habits.all.value.firstOrNull { it.id == f.habitId }?.title?.ifBlank { null } ?: "a habit"
+                is TextStep -> f.text
+                null -> ""
+            }
+            val text = "${r.steps.size} steps · first: $first"
             app.getSystemService(NotificationManager::class.java).notify(
                 notifId(r.id),
-                Notification.Builder(app, CH).setSmallIcon(R.drawable.ic_gong).setContentTitle("${r.emoji} ${r.name} routine")
+                Notification.Builder(app, CH).setSmallIcon(R.drawable.ic_gong).setContentTitle(if (r.id in nudges) "Still to do: ${r.emoji} ${r.name}" else "${r.emoji} ${r.name} routine")
                     .setContentText(text).setContentIntent(open).setAutoCancel(true)
                     .addAction(Notification.Action.Builder(null, "Start", open).build()).build(),
             )
@@ -83,6 +89,9 @@ object Routines {
 
     /** New routine when [r]'s id is unknown, otherwise an edit of it. */
     fun save(r: Routine) = replaceAll(mergeRoutines(all.value, listOf(r.copy(updatedAt = System.currentTimeMillis()))))
+
+    /** Puts habit [habitId] at the end of routine [id]; the routine's time is now when you do it. */
+    fun addHabit(id: String, habitId: String) = update(id) { it.copy(steps = it.steps + habitStep(habitId)) }
 
     fun delete(id: String) = update(id) { it.copy(deleted = true) }
 

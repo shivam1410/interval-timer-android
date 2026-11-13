@@ -62,4 +62,25 @@ class RoutineTest {
         assertEquals("Mornings", m.name)
         assertEquals(mapOf(today to 494, today.minusDays(1) to 500), m.done)
     }
+
+    @Test fun aStepCanBeOneOfYourHabits() {
+        val r = r().copy(steps = listOf(habitStep("h1"), "Drink water"))
+        assertEquals(listOf(HabitStep("h1"), TextStep("Drink water")), routineSteps(r))
+        val gone = r("g").copy(steps = listOf(habitStep("h2")), deleted = true)
+        assertEquals(setOf("h1"), habitsInRoutines(listOf(r, gone)))
+    }
+
+    @Test fun anUndoneRoutineNudgesThirtyMinutesLater() {
+        val utc = java.util.TimeZone.getTimeZone("UTC")
+        val ten = r("t").copy(remindMin = 10 * 60)
+        val at10 = java.time.Instant.parse("2026-11-12T10:00:00Z").toEpochMilli()
+        val at1030 = java.time.Instant.parse("2026-11-12T10:30:00Z").toEpochMilli()
+        assertEquals(listOf("t"), routineDue(listOf(ten), at10, utc).map { it.id })
+        assertEquals(emptyList<Routine>(), routineNudgeDue(listOf(ten), at10, utc))
+        assertEquals(at1030, nextRoutineAt(listOf(ten), at10, utc)) // after the 10:00 alarm, the nudge is next
+        assertEquals(listOf("t"), routineNudgeDue(listOf(ten), at1030, utc).map { it.id })
+        val done = ten.copy(done = mapOf(today to 10 * 60 + 12))
+        assertEquals(emptyList<Routine>(), routineNudgeDue(listOf(done), at1030, utc)) // finished: no nudge
+        assertEquals(java.time.Instant.parse("2026-11-13T10:00:00Z").toEpochMilli(), nextRoutineAt(listOf(done), at10, utc))
+    }
 }
