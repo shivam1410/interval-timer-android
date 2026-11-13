@@ -157,6 +157,7 @@ private fun StepGuide(steps: List<Step>, elapsedMs: Long) {
     ) {
         Text("Step ${i + 1} of ${steps.size}", style = MaterialTheme.typography.labelLarge, color = cs.tertiary)
         Text(steps[i].name, style = MaterialTheme.typography.titleMedium, color = cs.onSurface)
+        steps[i].demo?.let { MovementDemo(it) }
         LinearProgressIndicator(
             progress = { 1f - left / steps[i].sec.toFloat() },
             modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),

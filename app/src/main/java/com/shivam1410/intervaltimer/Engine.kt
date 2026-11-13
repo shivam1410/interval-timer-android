@@ -30,7 +30,8 @@ val PRESETS = listOf(
     Preset("Pomodoro", 25, 5, 12),
 )
 
-data class Step(val name: String, val sec: Int)
+/** A guided step; [demo] is a built-in figure ([DEMOS]) shown while it runs. */
+data class Step(val name: String, val sec: Int, val demo: String? = null)
 
 data class Activity(
     val id: String,
@@ -82,6 +83,15 @@ val ACTIVITIES = listOf(
             Step("Neck rolls, slow circles", 40), Step("Shoulder rolls, back and down", 40),
             Step("Chest opener: hands clasped behind you", 40), Step("Side bend, left then right", 40),
             Step("Forward fold, knees soft", 40), Step("Hip flexor lunge, switch at halfway", 60),
+        ),
+    ),
+    Activity(
+        "shoulder", "🙆", "Shoulder", "Move", "Six isometric presses: press 5 s, let go, press again. Gentle, no pain.",
+        quickMin = 5,
+        steps = listOf(
+            Step("Arm out at 90°, press in", 50, "shoulder-in"), Step("Arm out at 90°, press out", 50, "shoulder-out"),
+            Step("By the wall, arm down, press forward", 50, "shoulder-forward"), Step("By the wall, arm down, press back", 50, "shoulder-back"),
+            Step("Arm out at 90°, press up", 50, "shoulder-up"), Step("Arm out at 90°, press down", 50, "shoulder-down"),
         ),
     ),
     Activity("walk", "🚶", "Walk", "Move", "Stand up and walk until the gong. Leave the phone.", quickMin = 15),
@@ -143,7 +153,7 @@ enum class Kind { WORK, PREP, ACTIVITY }
 data class Phase(val kind: Kind, val cycle: Int, val ms: Long)
 
 /** Home quick timers, in the order shown. */
-val QUICK = listOf("nsdr", "sketch", "stretch", "exercise", "walk", "nap", "breathing")
+val QUICK = listOf("nsdr", "sketch", "stretch", "exercise", "walk", "nap", "breathing", "shoulder")
 
 /** A one-off quick timer is a single activity phase. */
 fun quickPlan(id: String): List<Phase> = listOf(Phase(Kind.ACTIVITY, 1, (activity(id).quickMin ?: 10) * MIN))

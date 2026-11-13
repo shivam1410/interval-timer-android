@@ -14,7 +14,13 @@ enum class Joint { HEAD, NECK, SHOULDER, HAND, HIP, KNEE, HEEL, TOE }
 typealias Pose = Map<Joint, Pt>
 
 /** A looping movement: key poses at times (ms), the first at 0; it eases back to the first pose at [loopMs]. [bones] are drawn, the last in the accent colour. */
-data class Demo(val keys: List<Pair<Int, Pose>>, val loopMs: Int, val wall: Boolean = true, val bones: List<Pair<Joint, Joint>> = BONES)
+data class Demo(
+    val keys: List<Pair<Int, Pose>>, val loopMs: Int, val wall: Boolean = true, val bones: List<Pair<Joint, Joint>> = BONES,
+    /** Short bars the hand presses against (a wall, a door frame), in the wall's colour. */
+    val pads: List<Pair<Pt, Pt>> = emptyList(),
+    /** Which way to press, drawn as an accent arrow. */
+    val arrow: Pair<Pt, Pt>? = null,
+)
 
 const val DEMO_W = 160f
 const val DEMO_H = 165f
@@ -121,9 +127,38 @@ private val BRIDGE_DOWN: Pose = mapOf(
 /** Hips up into a straight line from shoulders to knees; shoulders and feet stay down. */
 private val BRIDGE_UP: Pose = BRIDGE_DOWN + mapOf(Joint.HIP to Pt(84f, 128f), Joint.KNEE to Pt(117f, 120f))
 
+/** Front view, arm straight out to the side at shoulder height (90°); TOE is the second foot. */
+private val ARM_OUT: Pose = mapOf(
+    Joint.HEAD to Pt(95f, 30f), Joint.NECK to Pt(95f, 41f), Joint.SHOULDER to Pt(79f, 48f), Joint.HAND to Pt(41f, 48f),
+    Joint.HIP to Pt(95f, 92f), Joint.HEEL to Pt(87f, 150f), Joint.TOE to Pt(103f, 150f),
+)
+private val ARM_OUT_BONES = listOf(Joint.NECK to Joint.HIP, Joint.NECK to Joint.SHOULDER, Joint.HIP to Joint.HEEL, Joint.HIP to Joint.TOE, Joint.SHOULDER to Joint.HAND)
+
+/** Side view, standing straight facing right, arm down by the side. */
+private val ARM_DOWN: Pose = STAND
+private val ARM_DOWN_BONES = listOf(Joint.NECK to Joint.HIP, Joint.HIP to Joint.KNEE, Joint.KNEE to Joint.HEEL, Joint.HEEL to Joint.TOE, Joint.SHOULDER to Joint.HAND)
+
+/** [p] with the upper body moved by (dx, dy): the hand stays put (isometric), the body leans into the press. */
+private fun lean(p: Pose, dx: Float, dy: Float, hip: Boolean = true): Pose = p.mapValues { (j, q) ->
+    if (j in setOf(Joint.HEAD, Joint.NECK, Joint.SHOULDER) || (hip && j == Joint.HIP)) Pt(q.x + dx, q.y + dy) else q
+}
+
+/** An isometric press: rest 1 s, press for 5 s, let go, about 1 s off; the hand never moves. */
+private fun press(rest: Pose, dx: Float, dy: Float, bones: List<Pair<Joint, Joint>>, pad: Pair<Pt, Pt>, arrow: Pair<Pt, Pt>, hip: Boolean = true): Demo {
+    val on = lean(rest, dx, dy, hip)
+    return Demo(listOf(0 to rest, 1000 to rest, 1500 to on, 6000 to on, 6500 to rest), loopMs = 7000, wall = false, bones = bones, pads = listOf(pad), arrow = arrow)
+}
+
 private val LEG_BONES = listOf(Joint.NECK to Joint.HIP, Joint.SHOULDER to Joint.HAND, Joint.HIP to Joint.KNEE, Joint.KNEE to Joint.HEEL, Joint.HEEL to Joint.TOE)
 
 val DEMOS: Map<String, Demo> = mapOf(
+    // Shoulder isometrics: arm out at 90° pressing in / out / up / down, and by the wall pressing forward / back.
+    "shoulder-in" to press(ARM_OUT, 1.5f, 0f, ARM_OUT_BONES, Pt(45f, 40f) to Pt(45f, 56f), Pt(50f, 34f) to Pt(70f, 34f)),
+    "shoulder-out" to press(ARM_OUT, -1.5f, 0f, ARM_OUT_BONES, Pt(37f, 40f) to Pt(37f, 56f), Pt(70f, 34f) to Pt(46f, 34f)),
+    "shoulder-up" to press(ARM_OUT, 0f, -1.5f, ARM_OUT_BONES, Pt(33f, 44f) to Pt(49f, 44f), Pt(41f, 72f) to Pt(41f, 54f), hip = false),
+    "shoulder-down" to press(ARM_OUT, 0f, 1.5f, ARM_OUT_BONES, Pt(33f, 52f) to Pt(49f, 52f), Pt(41f, 22f) to Pt(41f, 42f), hip = false),
+    "shoulder-forward" to press(ARM_DOWN, 1.5f, 0f, ARM_DOWN_BONES, Pt(84f, 76f) to Pt(84f, 96f), Pt(90f, 70f) to Pt(110f, 70f)),
+    "shoulder-back" to press(ARM_DOWN, -1.5f, 0f, ARM_DOWN_BONES, Pt(74f, 76f) to Pt(74f, 96f), Pt(68f, 70f) to Pt(48f, 70f)),
     "tib-raise" to toeRaise(WALL_STAND),
     "tib-raise-lean" to toeRaise(LEAN_FORWARD),
     "calf-raise" to Demo(

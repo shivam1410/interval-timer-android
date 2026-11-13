@@ -162,12 +162,13 @@ class HabitTest {
     }
 
     @Test fun repsHeldForSecondsCountRepsWithAHoldThenRelax() {
+        assertEquals(1_000, RELAX_MS) // a second between presses
         val s = Stage(7, sets = 1, reps = 20, holdSec = 5)
         assertEquals("1 × 20 · 5 s hold", label(s))
         val start = countAt(0, s, repMs = 1800, restMs = 30_000)
         assertEquals(Count(set = 1, done = 0, of = 20, sets = 1, holdLeftSec = 5), start)
         assertEquals(3, countAt(2_400, s, 1800, 30_000).holdLeftSec) // 2.4 s in: 3 s left to hold
-        val relax = countAt(5_500, s, 1800, 30_000)
+        val relax = countAt(5_400, s, 1800, 30_000)
         assertEquals(0, relax.holdLeftSec) // relaxing between reps
         assertEquals(0, relax.done)
         assertEquals(1, countAt(5_000 + RELAX_MS.toLong(), s, 1800, 30_000).done) // rep 1 counts after its relax

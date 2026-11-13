@@ -40,6 +40,13 @@ fun MovementDemo(id: String, height: Dp = 200.dp, clockMs: Long? = null) {
         val w = 3f * s
         if (demo.wall) drawLine(line, o(Pt(WALL_X, 4f)), o(Pt(WALL_X, FLOOR_Y)), w, StrokeCap.Round)
         drawLine(line, o(Pt(12f, FLOOR_Y)), o(Pt(150f, FLOOR_Y)), w, StrokeCap.Round)
+        demo.pads.forEach { (a, b) -> drawLine(line, o(a), o(b), w * 2, StrokeCap.Round) }
+        demo.arrow?.let { (a, b) ->
+            drawLine(accent, o(a), o(b), w, StrokeCap.Round)
+            // Arrow head: two short strokes back from the tip at ±30°.
+            val ang = kotlin.math.atan2(b.y - a.y, b.x - a.x)
+            listOf(ang + 2.6f, ang - 2.6f).forEach { t -> drawLine(accent, o(b), o(Pt(b.x + 6f * kotlin.math.cos(t), b.y + 6f * kotlin.math.sin(t))), w, StrokeCap.Round) }
+        }
         val pose = poseAt(demo, clockMs ?: ms)
         demo.bones.forEachIndexed { i, (a, b) ->
             val moving = i == demo.bones.lastIndex

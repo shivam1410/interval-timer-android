@@ -133,4 +133,23 @@ class PoseTest {
         assertNull(demoFor("Wall push right shoulder"))
         assertTrue(DEMOS.containsKey("tib-raise-lean"))
     }
+
+    @Test fun shoulderQuickTimerIsSixIsometricPressesWithAFigureEach() {
+        val a = activity("shoulder")
+        assertEquals("shoulder", a.id)
+        assertEquals(5, a.quickMin)
+        assertTrue("on Home", "shoulder" in QUICK)
+        assertEquals(6, a.steps.size)
+        assertEquals(5 * 60, a.steps.sumOf { it.sec }) // one round fills the timer
+        a.steps.forEach { st ->
+            val d = DEMOS.getValue(requireNotNull(st.demo) { st.name })
+            assertTrue("${st.name}: something to press against", d.pads.isNotEmpty())
+            assertTrue("${st.name}: which way to press", d.arrow != null)
+            val rest = poseAt(d, 0)
+            val press = poseAt(d, 3_500)
+            assertEquals("${st.name}: the hand doesn't move", rest.getValue(Joint.HAND), press.getValue(Joint.HAND))
+            assertTrue("${st.name}: the body leans into it", rest.getValue(Joint.NECK) != press.getValue(Joint.NECK))
+        }
+        assertEquals(6, a.steps.map { it.demo }.toSet().size)
+    }
 }

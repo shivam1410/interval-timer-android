@@ -181,7 +181,7 @@ data class Count(
 )
 
 /** Reps held for seconds: the pause after each hold before the next rep. */
-const val RELAX_MS = 2_000
+const val RELAX_MS = 1_000
 
 /** The count [ms] after starting [s]: a rep every [repMs] (one loop of its movement), a second per held second, [restMs] between sets. */
 fun countAt(ms: Long, s: Stage, repMs: Int, restMs: Int): Count {
