@@ -42,6 +42,9 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - **MP3 / MP4 files**: share one from Files, Downloads or any app -> Interval Timer. It's kept in the app
     (up to 500 MB) and backed up to your Drive's hidden app folder, so your other phone gets it too.
     It opens in the app you pick ("Play with…")
+- **App icon** (Settings): pick one of seven launcher icons (the classic gong, three more gongs, the interval
+  ring, a stretch figure, a focus dot). Some launchers take a few seconds, or drop the home-screen icon, when
+  it changes: add it again from the app drawer
 - **Toggl Track** (Settings): paste your API token (stored encrypted on the phone, never synced). Work
   blocks and break activities start and stop Toggl timers as the phases change; prepare, pauses and
   ambient sounds don't. Pick a Toggl tag, or "Don't send", per activity; library items send their own
