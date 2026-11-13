@@ -214,4 +214,12 @@ class HabitTest {
         val h = habit(done = setOf(day(1), day(2), day(40), start.minusDays(1)))
         assertEquals(2, h.doneCount)
     }
+
+    @Test fun deckPutsTodaysUndoneHabitsOnTopAndDoneOnesUnder() {
+        val a = habit().copy(id = "a", done = setOf(day(3)))
+        val b = habit().copy(id = "b")
+        val c = habit().copy(id = "c")
+        assertEquals(listOf("b", "c", "a"), habitDeck(listOf(a, b, c), day(3)).map { it.id })
+        assertEquals(listOf("a", "b", "c"), habitDeck(listOf(a, b, c), day(4)).map { it.id }) // new day: all back on
+    }
 }

@@ -77,6 +77,9 @@ fun reminderText(h: Habit, today: LocalDate): String? {
 }
 
 /** What to call [h]: its own name, else the linked exercise's, else "Habit". */
+/** Home's deck: habits not done [today] first (in order), then today's done ones; only the top card shows. */
+fun habitDeck(habits: List<Habit>, today: LocalDate): List<Habit> = habits.sortedBy { today in it.done }
+
 fun habitTitle(h: Habit, items: List<LibraryItem>): String =
     h.title.ifBlank { items.firstOrNull { it.id == h.itemId && !it.deleted }?.title ?: "Habit" }
 

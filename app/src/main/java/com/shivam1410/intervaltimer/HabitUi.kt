@@ -42,20 +42,49 @@ import androidx.compose.material3.Icon
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
 import java.time.LocalDate
 
 /** Rest between sets while counting. */
 private const val REST_MS = 30_000
 
-/** Home's Habit section: a card per running habit, then a row to add one (opens Settings › Habits). */
+/** Home's Habit section: a deck of running habits (only the top card shows, done ones go under), then a row to add one (opens Settings › Habits). */
 @Composable
 fun HabitsSection(onCalendar: (String) -> Unit, onAdd: () -> Unit) {
     val habits by Habits.all.collectAsState()
     val items by Library.items.collectAsState()
     val running = habits.filter { !it.ended }
     Text("Habits", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+    val today = LocalDate.now()
+    val deck = habitDeck(running, today)
+    val left = deck.count { today !in it.done }
+    // Next › turns through the habits still to do (or all of them once everything is done).
+    var turn by remember { mutableIntStateOf(0) }
+    val pool = if (left > 0) deck.take(left) else deck
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        running.forEach { h -> key(h.id) { HabitCard(h, items) { onCalendar(h.id) } } }
+        if (pool.isNotEmpty()) {
+            val top = pool[turn % pool.size]
+            val under = (deck.size - 1).coerceAtMost(2)
+            // A stacked deck: the top card, with the edges of up to two more peeking out below it.
+            Box(Modifier.padding(bottom = (under * 8).dp)) {
+                (under downTo 1).forEach { i ->
+                    Box(
+                        Modifier.matchParentSize().offset(y = (i * 8).dp).padding(horizontal = (i * 12).dp)
+                            .clip(RoundedCornerShape(12.dp)).background(if (i == 1) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerHighest),
+                    )
+                }
+                key(top.id) { HabitCard(top, items) { onCalendar(top.id) } }
+            }
+            if (deck.size > 1) Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (left == 0) "✓ All ${deck.size} done today" else "$left to do · ${deck.size - left} done today",
+                    Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (pool.size > 1) TextButton({ turn = (turn + 1) % pool.size }) { Text("Next ›") }
+            }
+        }
         AddHabitRow(if (running.isEmpty()) "Start a 30-day habit" else "Add a habit", onAdd)
     }
 }
