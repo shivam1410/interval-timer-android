@@ -51,6 +51,10 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   tag. Routines get a tag too (off until you pick one): opening a routine starts a Toggl entry named after
   it with that tag, finishing or leaving it stops it. Offline changes are queued and sent later with their real times; Discard deletes that session's
   entries from Toggl too
+- **Strava**: the Walk quick timer starts a GPS recording in the Strava app as a Walk, so it comes with a
+  map, distance and pace. The 5-4-3-2-1 countdown runs first, then Strava opens already recording — no
+  setup, no account linking (Strava's API can't start a recording; this uses the app's own NFC recording
+  intent). Pause and Finish the walk in Strava yourself: nothing can stop a recording from outside
 - **Instagram & YouTube nudges** (Settings): after 5–30 min (your pick, per app) of Instagram or YouTube
   within a rolling window twice that long (e.g. 5 min in the last 10, gaps and all),
   a notification suggests sketching or relaxing instead; its buttons start the Sketch or Breathing
@@ -80,6 +84,7 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - **Sketch**: opens [Sketch Seed](https://github.com/shivam1410/sketchseed) (the button shows its app icon)
   - **Refresh**: rain, thunderstorm, ocean, stream, fireplace, whales, white / pink / brown / grey noise (real recordings, see Credits)
   - **Nothing**: no phone, no task — just be
+  - **Walk**: records in Strava (see above) while this timer runs
   - Breathing animation, walk
 - **Focus music** is picked on the work screen (brown noise, rain, ocean, singing bowls) and
   keeps playing with the screen off

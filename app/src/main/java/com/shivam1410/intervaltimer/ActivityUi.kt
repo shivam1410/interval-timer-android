@@ -292,6 +292,7 @@ fun NapScreen(s: Session) {
 @Composable
 fun Countdown(id: String, onDone: () -> Unit) {
     val a = activity(id)
+    val ctx = LocalContext.current
     val cs = MaterialTheme.colorScheme
     var n by remember(id) { mutableIntStateOf(5) }
     LaunchedEffect(id) {
@@ -301,6 +302,8 @@ fun Countdown(id: String, onDone: () -> Unit) {
         }
         kotlinx.coroutines.delay(700) // let "Start" show
         Timer.startQuick(id)
+        // A walk also records in Strava, which comes to the front; this timer keeps running behind it.
+        Strava.record(ctx, id)
         onDone()
     }
     Column(
