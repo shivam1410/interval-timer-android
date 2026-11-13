@@ -1,6 +1,7 @@
 package com.shivam1410.intervaltimer
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -194,4 +195,52 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
             }
         },
     )
+}
+
+/**
+ * A routine's record: the last 5 weeks, Mon–Sun, a ✓ and the time on each day you finished it, today outlined;
+ * with the streak and how many of the last 30 days.
+ */
+@Composable
+fun RoutineCalendarScreen(id: String, onBack: () -> Unit) {
+    val all by Routines.all.collectAsState()
+    val r = all.firstOrNull { it.id == id && !it.deleted } ?: return onBack()
+    val cs = MaterialTheme.colorScheme
+    val today = LocalDate.now()
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
+            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
+            Text("${r.emoji} ${r.name}", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
+        }
+        val streak = routineStreak(r, today)
+        Text(
+            "${doneInLast(r, today, 30)} of the last 30 days" + if (streak > 1) " · $streak days in a row" else "",
+            color = cs.onSurfaceVariant, modifier = Modifier.padding(bottom = 12.dp),
+        )
+        Row(Modifier.fillMaxWidth()) {
+            listOf("M", "T", "W", "T", "F", "S", "S").forEach {
+                Text(it, Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+            }
+        }
+        val firstMonday = today.minusDays(today.dayOfWeek.value - 1L).minusWeeks(4)
+        (0 until 5).forEach { w ->
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                (0 until 7).forEach { d ->
+                    val date = firstMonday.plusDays(w * 7L + d)
+                    val at = r.done[date]
+                    val shape = RoundedCornerShape(8.dp)
+                    var m = Modifier.weight(1f).height(48.dp).clip(shape).background(if (at != null) cs.primaryContainer else cs.surfaceContainer)
+                    if (date == today) m = m.border(2.dp, cs.onSurface, shape)
+                    Box(m, contentAlignment = Alignment.Center) {
+                        val fg = when { at != null -> cs.onPrimaryContainer; date.isAfter(today) -> cs.onSurface.copy(alpha = 0.3f); else -> cs.onSurfaceVariant }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("${date.dayOfMonth}", style = MaterialTheme.typography.labelSmall, color = fg)
+                            if (at != null) Text(fmtMinute(at), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = fg)
+                        }
+                    }
+                }
+            }
+        }
+        Text("A day fills in when you finish the routine.", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
+    }
 }

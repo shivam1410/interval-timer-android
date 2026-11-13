@@ -54,7 +54,7 @@ fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
     var sub by rememberSaveable { mutableStateOf(start) } // "", "profile", "notifications", "toggl", "habits", "stretches", "plan:<id>", "habit:<id>"
     fun back() = when {
         sub.startsWith("plan:") -> sub = "stretches"
-        sub.startsWith("habit:") -> sub = "habits"
+        sub.startsWith("habit:") || sub.startsWith("routine-cal:") -> sub = "habits"
         sub.isEmpty() || sub == start -> onBack()
         else -> sub = ""
     }
@@ -62,6 +62,7 @@ fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
     // A catalog plan and a habit's calendar are full screens with their own back arrow.
     if (sub.startsWith("plan:")) return PlanScreen(sub.removePrefix("plan:"), onBack = { back() }) { if (start == "stretches") onBack() else sub = "habits" }
     if (sub.startsWith("habit:")) return HabitCalendarScreen(sub.removePrefix("habit:")) { back() }
+    if (sub.startsWith("routine-cal:")) return RoutineCalendarScreen(sub.removePrefix("routine-cal:")) { back() }
     val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Notifications"; "toggl" -> "Toggl Track"; "habits" -> "Habits & routines"; "stretches" -> "Stretches"; else -> "Settings" }
     val cs = MaterialTheme.colorScheme
 

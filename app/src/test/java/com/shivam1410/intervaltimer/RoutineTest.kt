@@ -97,4 +97,12 @@ class RoutineTest {
         assertEquals(listOf("tib"), slots[1].habits.map { it.id })
         assertEquals(listOf("loose") to listOf("free"), slots[3].routines.map { it.id } to slots[3].habits.map { it.id })
     }
+
+    @Test fun routineRecordCountsTheStreakAndTheLastThirtyDays() {
+        val days = listOf(0, 1, 2, 4, 40).associate { today.minusDays(it.toLong()) to 600 }
+        assertEquals(3, routineStreak(r(done = days), today)) // today, yesterday, the day before; then a gap
+        assertEquals(2, routineStreak(r(done = days - today), today)) // not done yet today: the run up to yesterday still counts
+        assertEquals(0, routineStreak(r(), today))
+        assertEquals(4, doneInLast(r(done = days), today, 30)) // day 40 is outside
+    }
 }

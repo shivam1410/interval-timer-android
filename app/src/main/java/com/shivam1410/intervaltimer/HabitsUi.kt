@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -54,7 +55,9 @@ fun HabitsPage(open: (String) -> Unit) {
     var editing by remember { mutableStateOf<Routine?>(null) }
 
     Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        daySlots(habits, routines).forEach { slot -> SlotCard(slot, habits, items, onEdit = { editing = it }, onHabit = { open("habit:$it") }) }
+        daySlots(habits, routines).forEach { slot ->
+            SlotCard(slot, habits, items, onEdit = { editing = it }, onCalendar = { open("routine-cal:$it") }, onHabit = { open("habit:$it") })
+        }
         AddRow("➕", "New routine", "Steps and habits you do together, at a time") {
             editing = Routine(java.util.UUID.randomUUID().toString().take(8), "⭐", "", listOf(""), null, emptyMap(), 0)
         }
@@ -64,11 +67,11 @@ fun HabitsPage(open: (String) -> Unit) {
 
 /** A habit's name and "Day 3/30 · Today: 1 × 10" (or "Completed today ✓"). */
 @Composable
-private fun HabitLine(h: Habit, items: List<LibraryItem>, small: Boolean = false) {
+private fun HabitLine(h: Habit, items: List<LibraryItem>) {
     val today = LocalDate.now()
     val day = h.dayOf(today)
     val todayLine = if (today in h.done) "Completed today ✓" else h.stageOn(day)?.let { "Today: ${label(it)}" } ?: "Finished"
-    Text(habitTitle(h, items), style = if (small) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    Text(habitTitle(h, items), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
     Text("Day ${day.coerceAtMost(h.totalDays)}/${h.totalDays} · $todayLine", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
@@ -77,7 +80,7 @@ private fun HabitLine(h: Habit, items: List<LibraryItem>, small: Boolean = false
  * name (tap to edit) with its habits and steps under it; a habit of its own is a line (tap for its calendar).
  */
 @Composable
-private fun SlotCard(slot: Slot, habits: List<Habit>, items: List<LibraryItem>, onEdit: (Routine) -> Unit, onHabit: (String) -> Unit) {
+private fun SlotCard(slot: Slot, habits: List<Habit>, items: List<LibraryItem>, onEdit: (Routine) -> Unit, onCalendar: (String) -> Unit, onHabit: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val today = LocalDate.now()
     val total = slot.routines.size + slot.habits.size
@@ -89,16 +92,40 @@ private fun SlotCard(slot: Slot, habits: List<Habit>, items: List<LibraryItem>, 
         }
         slot.routines.forEach { r ->
             val at = doneToday(r, today)
-            Row(Modifier.fillMaxWidth().clickable(onClickLabel = "Edit ${r.name}") { onEdit(r) }.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("${r.emoji}  ${r.name}" + (at?.let { "  ✓ ${fmtMinute(it)}" } ?: ""), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("Edit", color = cs.primary)
+            val inside = routineSteps(r).filterIsInstance<HabitStep>().mapNotNull { s -> habits.firstOrNull { it.id == s.habitId && !it.ended } }
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("${r.emoji}  ${r.name}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    // One status for the whole routine instead of a line per habit.
+                    val doneHabits = inside.count { today in it.done }
+                    Text(
+                        when {
+                            at != null -> "✓ done ${fmtMinute(at)}"
+                            inside.isEmpty() -> "Pending · ${r.steps.size} steps"
+                            else -> "Pending · $doneHabits of ${inside.size} done"
+                        },
+                        style = MaterialTheme.typography.bodySmall, color = if (at != null) cs.primary else cs.onSurfaceVariant,
+                    )
+                }
+                IconButton({ onCalendar(r.id) }) { Icon(painterResource(R.drawable.ic_calendar), "${r.name} calendar", Modifier.size(20.dp), tint = cs.primary) }
+                IconButton({ onEdit(r) }) { Icon(painterResource(R.drawable.ic_edit), "Edit ${r.name}", Modifier.size(20.dp), tint = cs.primary) }
             }
             routineSteps(r).forEach { st ->
                 when (st) {
-                    is HabitStep -> habits.firstOrNull { it.id == st.habitId && !it.ended }?.let { h ->
-                        Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Open calendar") { onHabit(h.id) }.padding(start = 48.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)) { HabitLine(h, items, small = true) }
+                    // ✓ or ○, the name and today's dose; the day count lives in the habit's calendar (tap).
+                    is HabitStep -> inside.firstOrNull { it.id == st.habitId }?.let { h ->
+                        val done = today in h.done
+                        val dose = h.stageOn(h.dayOf(today))?.let(::label)
+                        Row(Modifier.fillMaxWidth().clickable(onClickLabel = "Open calendar") { onHabit(h.id) }.padding(start = 20.dp, end = 16.dp, top = 6.dp, bottom = 6.dp)) {
+                            Text(if (done) "✓" else "○", Modifier.width(28.dp), color = if (done) cs.primary else cs.onSurfaceVariant)
+                            Text(habitTitle(h, items).substringBefore(" · "), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                            if (!done && dose != null) Text(dose, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                        }
                     }
-                    is TextStep -> Text("• ${st.text}", Modifier.padding(start = 48.dp, end = 16.dp, top = 3.dp, bottom = 3.dp), style = MaterialTheme.typography.bodyMedium)
+                    is TextStep -> Row(Modifier.padding(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)) {
+                        Text("•", Modifier.width(28.dp), color = cs.onSurfaceVariant)
+                        Text(st.text, style = MaterialTheme.typography.bodyLarge)
+                    }
                 }
             }
         }

@@ -118,3 +118,14 @@ fun daySlots(habits: List<Habit>, routines: List<Routine>): List<Slot> {
     val times = (live.map { it.remindMin } + loose.map { it.remindMin }).distinct().sortedBy { it ?: Int.MAX_VALUE }
     return times.map { m -> Slot(m, live.filter { it.remindMin == m }, loose.filter { it.remindMin == m }) }
 }
+
+/** Days in a row [r] was finished, up to [today] (or up to yesterday while today isn't done yet). */
+fun routineStreak(r: Routine, today: LocalDate): Int {
+    var d = if (today in r.done) today else today.minusDays(1)
+    var n = 0
+    while (d in r.done) { n++; d = d.minusDays(1) }
+    return n
+}
+
+/** How many of the last [days] days (today included) [r] was finished. */
+fun doneInLast(r: Routine, today: LocalDate, days: Int): Int = r.done.keys.count { !it.isAfter(today) && it.isAfter(today.minusDays(days.toLong())) }
