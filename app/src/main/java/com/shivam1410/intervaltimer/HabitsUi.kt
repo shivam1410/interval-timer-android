@@ -55,11 +55,7 @@ fun HabitsPage(open: (String) -> Unit) {
     var editing by remember { mutableStateOf<Routine?>(null) }
 
     Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        daySlots(habits, routines).forEach { slot ->
-            Text(slot.min?.let(::fmtMinute) ?: "Anytime", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 12.dp))
-            slot.routines.forEach { r -> RoutineRow(r, habits, items, onEdit = { editing = r }, onHabit = { open("habit:$it") }) }
-            slot.habits.forEach { h -> Column(card().clickable(onClickLabel = "Open calendar") { open("habit:${h.id}") }.padding(16.dp)) { HabitLine(h, items) } }
-        }
+        daySlots(habits, routines).forEach { slot -> SlotCard(slot, habits, items, onEdit = { editing = it }, onHabit = { open("habit:$it") }) }
         Text("Add", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 20.dp))
         AddRow("🤸", "Browse stretches", "${CATALOG.size} ready-made 30-day plans") { open("stretches") }
         AddRow("✏️", "Make your own habit", "Any exercise, your own numbers") { custom = true }
@@ -81,29 +77,39 @@ private fun HabitLine(h: Habit, items: List<LibraryItem>, small: Boolean = false
     Text("Day ${day.coerceAtMost(h.totalDays)}/${h.totalDays} · $todayLine", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
-/** A routine (tap to edit) with what's in it: its habits (tap for the calendar) and its other steps. */
+/**
+ * One time of your day as a card ("8:00 · 3 to do"): everything set for then, as a list. A routine shows its
+ * name (tap to edit) with its habits and steps under it; a habit of its own is a line (tap for its calendar).
+ */
 @Composable
-private fun RoutineRow(r: Routine, habits: List<Habit>, items: List<LibraryItem>, onEdit: () -> Unit, onHabit: (String) -> Unit) {
+private fun SlotCard(slot: Slot, habits: List<Habit>, items: List<LibraryItem>, onEdit: (Routine) -> Unit, onHabit: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
-    val done = doneToday(r, LocalDate.now())
-    Column(card()) {
-        Row(Modifier.fillMaxWidth().clickable(onClickLabel = "Edit ${r.name}", onClick = onEdit).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(r.emoji, fontSize = 22.sp)
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text(r.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("${r.steps.size} steps" + (done?.let { " · ✓ done ${fmtMinute(it)}" } ?: ""), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
-            }
-            Text("Edit", color = cs.primary)
+    val today = LocalDate.now()
+    val total = slot.routines.size + slot.habits.size
+    val done = slot.routines.count { doneToday(it, today) != null } + slot.habits.count { today in it.done }
+    Column(card().padding(vertical = 12.dp)) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(slot.min?.let(::fmtMinute) ?: "Anytime", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text(if (done == total) "✓ all done" else "${total - done} to do", style = MaterialTheme.typography.labelLarge, color = if (done == total) cs.primary else cs.onSurfaceVariant)
         }
-        routineSteps(r).forEach { st ->
-            when (st) {
-                is HabitStep -> habits.firstOrNull { it.id == st.habitId && !it.ended }?.let { h ->
-                    Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Open calendar") { onHabit(h.id) }.padding(start = 50.dp, end = 16.dp, top = 6.dp, bottom = 6.dp)) { HabitLine(h, items, small = true) }
+        slot.routines.forEach { r ->
+            val at = doneToday(r, today)
+            Row(Modifier.fillMaxWidth().clickable(onClickLabel = "Edit ${r.name}") { onEdit(r) }.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("${r.emoji}  ${r.name}" + (at?.let { "  ✓ ${fmtMinute(it)}" } ?: ""), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("Edit", color = cs.primary)
+            }
+            routineSteps(r).forEach { st ->
+                when (st) {
+                    is HabitStep -> habits.firstOrNull { it.id == st.habitId && !it.ended }?.let { h ->
+                        Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Open calendar") { onHabit(h.id) }.padding(start = 48.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)) { HabitLine(h, items, small = true) }
+                    }
+                    is TextStep -> Text("• ${st.text}", Modifier.padding(start = 48.dp, end = 16.dp, top = 3.dp, bottom = 3.dp), style = MaterialTheme.typography.bodyMedium)
                 }
-                is TextStep -> Text("• ${st.text}", Modifier.padding(start = 50.dp, end = 16.dp, top = 4.dp, bottom = 4.dp), style = MaterialTheme.typography.bodyMedium)
             }
         }
-        Box(Modifier.height(10.dp))
+        slot.habits.forEach { h ->
+            Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Open calendar") { onHabit(h.id) }.padding(horizontal = 16.dp, vertical = 8.dp)) { HabitLine(h, items) }
+        }
     }
 }
 
