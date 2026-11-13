@@ -54,7 +54,8 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Strava**: the Walk quick timer starts a GPS recording in the Strava app as a Walk, so it comes with a
   map, distance and pace. The 5-4-3-2-1 countdown runs first, then Strava opens already recording — no
   setup, no account linking (Strava's API can't start a recording; this uses the app's own NFC recording
-  intent). Pause and Finish the walk in Strava yourself: nothing can stop a recording from outside
+  intent). Ending the walk brings Strava's record screen back to the front, so Pause and Finish are one
+  tap away — the recording itself has to be finished there, since nothing can stop one from outside
 - **Instagram & YouTube nudges** (Settings): after 5–30 min (your pick, per app) of Instagram or YouTube
   within a rolling window twice that long (e.g. 5 min in the last 10, gaps and all),
   a notification suggests sketching or relaxing instead; its buttons start the Sketch or Breathing

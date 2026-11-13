@@ -223,6 +223,8 @@ object Timer {
         val s = session.value
         if (s.running(plan)) History.record(s.startedAt, credit(plan, close(plan, s, now()), now()))
         commit(Session(), null)
+        // A walk Strava is recording: its record screen comes up so Pause and Finish are one tap away.
+        Strava.openRecording(app, s.quick)
         // Ending a workday early still gets its end-of-day cue ("Write tomorrow's first task · Close the laptop").
         if (s.running(plan) && s.quick == null) endCue(Cues.lists.value)?.let { line ->
             app.getSystemService(NotificationManager::class.java).notify(
