@@ -57,10 +57,11 @@ fun HabitsSection(onCalendar: (String) -> Unit, onAdd: () -> Unit) {
     val habits by Habits.all.collectAsState()
     val items by Library.items.collectAsState()
     val running = habits.filter { !it.ended }
-    Text("Habits", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     val today = LocalDate.now()
     val routines by Routines.all.collectAsState()
     val deck = habitDeck(running, today, hidden = habitsInRoutines(routines))
+    if (deck.isEmpty()) return // no habits of their own (none, or all in routines): no section; start one from Settings › Stretches
+    Text("Habits", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     val left = deck.count { today !in it.done }
     // Next › turns through the habits still to do (or all of them once everything is done).
     var turn by remember { mutableIntStateOf(0) }
@@ -87,7 +88,7 @@ fun HabitsSection(onCalendar: (String) -> Unit, onAdd: () -> Unit) {
                 if (pool.size > 1) TextButton({ turn = (turn + 1) % pool.size }) { Text("Next ›") }
             }
         }
-        AddHabitRow(if (deck.isEmpty()) "Start a 30-day habit" else "Add a habit", onAdd)
+        AddHabitRow("Add a habit", onAdd)
     }
 }
 
