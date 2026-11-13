@@ -49,18 +49,18 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.mutableStateOf
 import java.time.LocalDate
 
-/** Home, under Habits: one chip per routine, by time ("10:00  ⭐ 10 am ✓ 10:24" once it's done today). Tap to run it. */
+/** Home, under Habits: one chip per routine still to do today, by time ("10:00  ⭐ 10 am"). Tap to run it. */
 @Composable
 fun RoutinesRow(onOpen: (String) -> Unit) {
     val all by Routines.all.collectAsState()
-    val routines = all.filterNot { it.deleted }.sortedBy { it.remindMin ?: Int.MAX_VALUE }
-    if (routines.isEmpty()) return
     val today = LocalDate.now()
+    // Done today: off Home until tomorrow (its time stays in Settings › Habits & routines and its calendar).
+    val routines = all.filter { !it.deleted && doneToday(it, today) == null }.sortedBy { it.remindMin ?: Int.MAX_VALUE }
+    if (routines.isEmpty()) return
     Text("Routines", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         routines.forEach { r ->
-            val done = doneToday(r, today)
-            FilterChip(done != null, { onOpen(r.id) }, { Text((r.remindMin?.let { "${fmtMinute(it)}  " } ?: "") + "${r.emoji} ${r.name}" + (done?.let { " ✓ ${fmtMinute(it)}" } ?: "")) })
+            FilterChip(false, { onOpen(r.id) }, { Text((r.remindMin?.let { "${fmtMinute(it)}  " } ?: "") + "${r.emoji} ${r.name}") })
         }
     }
 }

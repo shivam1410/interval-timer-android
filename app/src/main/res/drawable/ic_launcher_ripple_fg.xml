@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- App icon option "ripple" (Settings > App icon). -->
+    <group android:scaleX="0.8" android:scaleY="0.8" android:pivotX="54" android:pivotY="54">
+        <path android:pathData="M12,54a42,42 0 1,0 84,0a42,42 0 1,0 -84,0z" android:strokeColor="#D9A54E" android:strokeWidth="3" android:strokeLineCap="round" android:strokeAlpha="0.25" android:fillColor="#00000000" />
+        <path android:pathData="M21,54a33,33 0 1,0 66,0a33,33 0 1,0 -66,0z" android:strokeColor="#D9A54E" android:strokeWidth="3" android:strokeLineCap="round" android:strokeAlpha="0.5" android:fillColor="#00000000" />
+        <path android:pathData="M32,54a22,22 0 1,0 44,0a22,22 0 1,0 -44,0z" android:fillColor="#D9A54E" />
+        <path android:pathData="M39.0,54a15.0,15.0 0 1,0 30.0,0a15.0,15.0 0 1,0 -30.0,0z" android:strokeColor="#8C5A1E" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" />
+        <path android:pathData="M47.8,54a6.2,6.2 0 1,0 12.4,0a6.2,6.2 0 1,0 -12.4,0z" android:fillColor="#FFE4A3" />
+    </group>
+</vector>

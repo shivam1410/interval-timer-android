@@ -63,7 +63,7 @@ fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
     if (sub.startsWith("plan:")) return PlanScreen(sub.removePrefix("plan:"), onBack = { back() }) { if (start == "stretches") onBack() else sub = "habits" }
     if (sub.startsWith("habit:")) return HabitCalendarScreen(sub.removePrefix("habit:")) { back() }
     if (sub.startsWith("routine-cal:")) return RoutineCalendarScreen(sub.removePrefix("routine-cal:")) { back() }
-    val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Notifications"; "toggl" -> "Toggl Track"; "habits" -> "Habits & routines"; "stretches" -> "Stretches"; else -> "Settings" }
+    val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Notifications"; "toggl" -> "Toggl Track"; "habits" -> "Habits & routines"; "stretches" -> "Stretches"; "icon" -> "App icon"; else -> "Settings" }
     val cs = MaterialTheme.colorScheme
 
     val signedIn = Drive.profile.collectAsState().value != null
@@ -79,6 +79,7 @@ fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
                 "toggl" -> TogglSection()
                 "habits" -> HabitsPage { sub = it }
                 "stretches" -> StretchesPage { sub = it }
+                "icon" -> AppIconPage()
                 else -> SettingsList { sub = it }
             }
             Box(Modifier.height(24.dp))
@@ -132,6 +133,14 @@ private fun SettingsList(open: (String) -> Unit) {
                 Text("Habits & routines", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 val n = habits.count { !it.ended }
                 Text("Your day by time" + if (n > 0) " · $n habits" else "", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+            }
+        }
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        Entry(open = { open("icon") }) {
+            AppIconPreview(AppIcons.current(ctx), 32)
+            Column(Modifier.weight(1f).padding(start = 16.dp)) {
+                Text("App icon", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(APP_ICONS.firstOrNull { it.id == AppIcons.current(ctx) }?.label.orEmpty(), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
         }
         Entry(open = { open("stretches") }) {

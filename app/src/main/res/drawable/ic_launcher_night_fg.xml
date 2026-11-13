@@ -1,0 +1,12 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- App icon option "night" (Settings > App icon). -->
+    <group android:scaleX="0.8" android:scaleY="0.8" android:pivotX="54" android:pivotY="54">
+        <path android:pathData="M54,20A34,34 0 1,1 24.6,37" android:strokeColor="#F3E3C3" android:strokeWidth="5" android:strokeLineCap="round" android:fillColor="#00000000" />
+        <path android:pathData="M20.1,37a4.5,4.5 0 1,0 9.0,0a4.5,4.5 0 1,0 -9.0,0z" android:fillColor="#F3E3C3" />
+        <path android:pathData="M54,20V35" android:strokeColor="#F3E3C3" android:strokeWidth="2.5" android:strokeLineCap="round" android:fillColor="#00000000" />
+        <path android:pathData="M35,56a19,19 0 1,0 38,0a19,19 0 1,0 -38,0z" android:fillColor="#D9A54E" />
+        <path android:pathData="M41.1,56a12.9,12.9 0 1,0 25.8,0a12.9,12.9 0 1,0 -25.8,0z" android:strokeColor="#8C5A1E" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" />
+        <path android:pathData="M48.7,56a5.3,5.3 0 1,0 10.6,0a5.3,5.3 0 1,0 -10.6,0z" android:fillColor="#FFE4A3" />
+    </group>
+</vector>
