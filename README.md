@@ -16,12 +16,13 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - **Plain exercises**: leave the link empty for your own exercise (tib raises, stairs, a shoulder
     isometric), with a "How to do it" note and, optionally, a short clip of the movement (video or GIF
     from the photo picker) that loops muted on the timer. Tib raises get a built-in animated figure
-- **Habits** (several at once): Settings › **Habits** (or Home › **Add a habit**) has a **catalog** of fixed
-  30-day plans with built-in animated figures: **Tib raises**, **Calf raises**, **Shoulder wall push** (a hold,
-  in seconds) and **Squats**. Tap one to see the whole plan as day tiles, pick **Beginner** (10 × 1),
+- **Habits** (several at once): Settings › Habits & routines › **Browse stretches** (its own page) is a
+  **catalog** of fixed 30-day plans with built-in animated figures: **Tib raises**, **Calf raises**, **Shoulder
+  wall push** (a hold, in seconds), **Shoulder side press** (20 presses of 5 s), **Wall sit**, **Glute bridge**
+  and **Squats**. Tap one to see the whole plan as day tiles, pick **Beginner** (10 × 1),
   **Intermediate** (15 × 2) or **Advanced** (20 × 3), one more set each week (holds: 20 s / 30 s / 45 s), tap
   any day to tweak it, set a reminder and **Start**. **Make your own** is there too (name chips, templates).
-  Home shows a card per habit: the animation, today's sets × reps, the note, **Completed** and **Start**
+  Home shows the habits as a stacked deck (only the top card; done ones go under, **Next ›** for the rest): the animation, today's sets × reps, the note, **Completed** and **Start**
   (counts the reps with the figure, 30 s rest between sets, then marks the day done); **📅 Day x/30** opens its
   calendar (tap a day to change it, a past day to mark it done). Each habit has its own reminder with a
   Completed button. Done days get a dot in History. Synced to Drive (`habits.json`, clips too)
@@ -31,7 +32,10 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   the end (also when you End and Save early). Edit or turn off the lists there
 - **Routines**: Morning, Leaving the house and Evening as chips on Home; tap one for a single step at a time in
   big text with a big **✓ Done**. Finishing records the time ("☀️ Morning ✓ 8:14"). Optional daily reminder
-  with **Start**; edit, add or delete routines in Settings › Habits & routines. Synced to Drive (`routines.json`)
+  with **Start**, and a *Still to do* nudge 30 min later if it isn't done; edit, add or delete routines in
+  Settings › Habits & routines. A routine can hold your **habits** too (**+ Add habit**, or **Do it in** when
+  starting a plan), so a "10 am" routine runs your stretches with their figure and count, then your other
+  steps; habits in a routine leave the Home deck. Synced to Drive (`routines.json`)
   - **Share into it**: in YouTube or YouTube Music tap Share -> Interval Timer; the link and its title
     are filled in, you pick a tag and length
   - **MP3 / MP4 files**: share one from Files, Downloads or any app -> Interval Timer. It's kept in the app
