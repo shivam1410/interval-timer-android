@@ -137,7 +137,27 @@ object TogglSync {
         // A mapped tag deleted in Toggl since is left off; sending it would quietly re-create it.
         val known = tags.value
         val map = mapping.value.mapValues { (_, v) -> if (v == TOGGL_SKIP || v in known) v else "" }
-        update(reconcile(entries, desiredTrack(plan, s, chosen, map), now, UUID.randomUUID().toString()))
+        val desired = desiredTrack(plan, s, chosen, map)
+        // An idle timer leaves a running routine's entry alone; only the routine screen stops it.
+        if (desired == null && entries.lastOrNull { it.stop == null }?.key?.startsWith(TOGGL_ROUTINE) == true) return
+        update(reconcile(entries, desired, now, UUID.randomUUID().toString()))
+    }
+
+    /**
+     * The routine screen opened ([r], from [startedAt]) or closed / finished (null). Sent only while no work
+     * session runs (that one owns the Toggl timer) and once the routine has a tag picked in Settings › Toggl.
+     */
+    fun onRoutine(r: Routine?, startedAt: Long) {
+        if (!connected.value || !enabled.value) return
+        val open = entries.lastOrNull { it.stop == null }
+        if (r == null) {
+            if (open?.key?.startsWith(TOGGL_ROUTINE) == true) update(reconcile(entries, null, System.currentTimeMillis(), ""))
+            return
+        }
+        if (!Timer.session.value.idle) return
+        val known = tags.value
+        val map = mapping.value.mapValues { (_, v) -> if (v == TOGGL_SKIP || v in known) v else "" }
+        update(reconcile(entries, routineTrack(r, startedAt, map), System.currentTimeMillis(), UUID.randomUUID().toString()))
     }
 
     /** End -> Discard: that session's entries are removed from Toggl too. */

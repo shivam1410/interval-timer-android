@@ -75,4 +75,13 @@ class TogglTest {
     @Test fun timesAreWholeSecondsUtc() {
         assertEquals("2026-10-18T15:30:00Z", togglTime(1792337400031))
     }
+
+    @Test fun aRoutineIsSentWithItsTagOnlyOnceYouPickOne() {
+        val r = Routine("ten", "⭐", "10 am", listOf("Water"), 600, emptyMap(), 1)
+        assertNull(routineTrack(r, 1_000, emptyMap())) // not picked yet: not sent
+        assertNull(routineTrack(r, 1_000, mapOf("routine:ten" to TOGGL_SKIP)))
+        val t = routineTrack(r, 1_000, mapOf("routine:ten" to "Health"))
+        assertEquals(Track("routine:ten:1000", "10 am", listOf("Health"), 1_000), t)
+        assertEquals(emptyList<String>(), routineTrack(r, 1_000, mapOf("routine:ten" to ""))?.tags) // sent, no tag
+    }
 }

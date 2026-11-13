@@ -29,6 +29,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,7 +76,12 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
     val habits by Habits.all.collectAsState()
     val items by Library.items.collectAsState()
     val today = LocalDate.now()
-    fun next() { step++; if (step >= r.steps.size) Routines.finish(r.id) }
+    fun next() { step++; if (step >= r.steps.size) { Routines.finish(r.id); TogglSync.onRoutine(null, 0) } }
+    // Toggl: a timer from opening the routine until it's finished or you leave it.
+    DisposableEffect(id) {
+        TogglSync.onRoutine(r, System.currentTimeMillis())
+        onDispose { TogglSync.onRoutine(null, 0) }
+    }
     // A habit step's habit, when it can be done today (null: a text step, or a habit that's gone or finished).
     val current = routineSteps(r).getOrNull(step)
     val habit = (current as? HabitStep)?.let { s -> habits.firstOrNull { it.id == s.habitId && !it.ended } }

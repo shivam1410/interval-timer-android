@@ -13,6 +13,16 @@ const val TOGGL_SKIP = "-"
 /** What should be running in Toggl right now. [key] identifies it, so an unchanged phase isn't restarted. */
 data class Track(val key: String, val description: String, val tags: List<String>, val start: Long)
 
+/** Tag-mapping key prefix for routines ("routine:<id>"); also starts their entries' keys. */
+const val TOGGL_ROUTINE = "routine:"
+
+/** A running routine's entry, once you've picked a tag (or "No tag") for it; not sent until then, or when skipped. */
+fun routineTrack(r: Routine, startedAt: Long, mapping: Map<String, String>): Track? {
+    val m = mapping[TOGGL_ROUTINE + r.id] ?: return null
+    if (m == TOGGL_SKIP) return null
+    return Track("$TOGGL_ROUTINE${r.id}:$startedAt", r.name, listOfNotNull(m.takeIf { it.isNotBlank() }), startedAt)
+}
+
 /** Ambient sounds (Refresh) are background, not an activity: never sent. */
 fun togglable(a: Activity) = a.group != "Refresh"
 

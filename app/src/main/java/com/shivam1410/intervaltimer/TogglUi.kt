@@ -74,6 +74,19 @@ private fun TagMapping() {
         }
     }
     Text("Library items send the tag you gave them.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    // Routines: timed from opening the routine to finishing it (or leaving it); not sent until you pick.
+    val routines by Routines.all.collectAsState()
+    val live = routines.filterNot { it.deleted }
+    if (live.isNotEmpty()) {
+        Text("Tag per routine", style = MaterialTheme.typography.titleSmall)
+        live.forEach { r ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${r.emoji} ${r.name}", Modifier.weight(1f))
+                TagPicker(mapping[TOGGL_ROUTINE + r.id] ?: TOGGL_SKIP, tags) { TogglSync.setMapping(TOGGL_ROUTINE + r.id, it) }
+            }
+        }
+        Text("A routine runs a Toggl timer from opening it until it's done.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }
 
 @Composable
