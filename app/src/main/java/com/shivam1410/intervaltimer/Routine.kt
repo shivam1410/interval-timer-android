@@ -106,3 +106,15 @@ fun routineDue(rs: List<Routine>, at: Long, zone: java.util.TimeZone = java.util
     val day = java.time.Instant.ofEpochMilli(at).atZone(zone.toZoneId()).toLocalDate()
     return rs.filter { r -> !r.deleted && day !in r.done && r.remindMin?.let { nextDaily(at - 1, it, zone) == at } == true }
 }
+
+/** One time on Settings › Habits & routines: the routines and the habits of their own set for [min] (null = Anytime). */
+data class Slot(val min: Int?, val routines: List<Routine>, val habits: List<Habit>)
+
+/** Routines and running habits grouped by their reminder time, earliest first, Anytime last; habits in a routine show inside it. */
+fun daySlots(habits: List<Habit>, routines: List<Routine>): List<Slot> {
+    val live = routines.filterNot { it.deleted }
+    val inside = habitsInRoutines(live)
+    val loose = habits.filter { !it.ended && it.id !in inside }
+    val times = (live.map { it.remindMin } + loose.map { it.remindMin }).distinct().sortedBy { it ?: Int.MAX_VALUE }
+    return times.map { m -> Slot(m, live.filter { it.remindMin == m }, loose.filter { it.remindMin == m }) }
+}

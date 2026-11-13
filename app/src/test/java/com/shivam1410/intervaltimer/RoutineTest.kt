@@ -83,4 +83,18 @@ class RoutineTest {
         assertEquals(emptyList<Routine>(), routineNudgeDue(listOf(done), at1030, utc)) // finished: no nudge
         assertEquals(java.time.Instant.parse("2026-11-13T10:00:00Z").toEpochMilli(), nextRoutineAt(listOf(done), at10, utc))
     }
+
+    @Test fun settingsGroupsRoutinesAndHabitsByTime() {
+        fun h(id: String, remind: Int?, ended: Boolean = false) = Habit(id, "", today, TIB_RAISES, remind, emptySet(), 1, ended = ended, title = id)
+        val ten = r("ten").copy(remindMin = 600, steps = listOf(habitStep("calf"), "Water"))
+        val eve = r("eve").copy(remindMin = 1080)
+        val loose = r("loose").copy(remindMin = null)
+        val habits = listOf(h("calf", 600), h("tib", 780), h("free", null), h("old", 600, ended = true))
+        val slots = daySlots(habits, listOf(eve, ten, loose, r("gone").copy(deleted = true)))
+        assertEquals(listOf(600, 780, 1080, null), slots.map { it.min }) // by time, Anytime last
+        assertEquals(listOf("ten"), slots[0].routines.map { it.id })
+        assertEquals(emptyList<String>(), slots[0].habits.map { it.id }) // calf lives inside the 10:00 routine
+        assertEquals(listOf("tib"), slots[1].habits.map { it.id })
+        assertEquals(listOf("loose") to listOf("free"), slots[3].routines.map { it.id } to slots[3].habits.map { it.id })
+    }
 }

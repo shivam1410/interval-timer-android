@@ -124,44 +124,9 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
     }
 }
 
-/** Settings › Habits & routines: each routine (tap to edit) and New routine. */
-@Composable
-fun RoutinesSettings() {
-    val all by Routines.all.collectAsState()
-    val cs = MaterialTheme.colorScheme
-    var editing by remember { mutableStateOf<Routine?>(null) }
-    Text("Routines", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 20.dp, bottom = 8.dp))
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        all.filterNot { it.deleted }.forEach { r ->
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainer)
-                    .clickable(onClickLabel = "Edit ${r.name}") { editing = r }.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(r.emoji, fontSize = 22.sp)
-                Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                    Text(r.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("${r.steps.size} steps" + (r.remindMin?.let { " · reminder ${fmtMinute(it)}" } ?: ""), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
-                }
-                Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
-            }
-        }
-        Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainerHigh)
-                .clickable(onClickLabel = "New routine") { editing = Routine(java.util.UUID.randomUUID().toString().take(8), "⭐", "", listOf(""), null, emptyMap(), 0) }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("➕", fontSize = 20.sp)
-            Text("New routine", Modifier.padding(start = 12.dp))
-        }
-    }
-    editing?.let { r -> RoutineEditor(r, isNew = all.none { it.id == r.id }) { editing = null } }
-}
-
 /** Name, emoji, steps (edit, add, remove, move up) and a daily reminder; Save, Delete or Cancel. */
 @Composable
-private fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
+internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf(r.name) }
     var emoji by remember { mutableStateOf(r.emoji) }
     var steps by remember { mutableStateOf(r.steps) }

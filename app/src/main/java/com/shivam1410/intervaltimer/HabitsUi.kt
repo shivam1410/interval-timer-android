@@ -41,54 +41,84 @@ import androidx.compose.ui.draw.clip
 import java.time.LocalDate
 
 /**
- * Settings › Habits & routines: your running habits (tap for its calendar), Browse stretches (the catalog,
- * its own page), "Make your own", then your routines. [open] takes "habit:<id>" or "stretches".
+ * Settings › Habits & routines: your day by time. Each time ("10:00", then Anytime) lists its routines (tap to
+ * edit; their habits and steps inside) and the habits with their own reminder (tap for the calendar). Below:
+ * Browse stretches, Make your own and New routine. [open] takes "habit:<id>" or "stretches".
  */
 @Composable
 fun HabitsPage(open: (String) -> Unit) {
     val habits by Habits.all.collectAsState()
     val items by Library.items.collectAsState()
-    val running = habits.filter { !it.ended }
+    val routines by Routines.all.collectAsState()
     val cs = MaterialTheme.colorScheme
-    val today = LocalDate.now()
     var custom by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<Routine?>(null) }
 
-    Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (running.isNotEmpty()) {
-            Text("Your habits", style = MaterialTheme.typography.titleSmall, color = cs.primary)
-            running.forEach { h ->
-                val day = h.dayOf(today)
-                val todayLine = when {
-                    today in h.done -> "Completed today ✓"
-                    else -> h.stageOn(day)?.let { "Today: ${label(it)}" } ?: "Finished"
-                }
-                Row(card().clickable(onClickLabel = "Open calendar") { open("habit:${h.id}") }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(habitTitle(h, items), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Day ${day.coerceAtMost(h.totalDays)}/${h.totalDays} · $todayLine", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
-                    }
-                    Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
-                }
-            }
+    Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        daySlots(habits, routines).forEach { slot ->
+            Text(slot.min?.let(::fmtMinute) ?: "Anytime", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 12.dp))
+            slot.routines.forEach { r -> RoutineRow(r, habits, items, onEdit = { editing = r }, onHabit = { open("habit:$it") }) }
+            slot.habits.forEach { h -> Column(card().clickable(onClickLabel = "Open calendar") { open("habit:${h.id}") }.padding(16.dp)) { HabitLine(h, items) } }
         }
-        Row(card().clickable(onClickLabel = "Browse stretches") { open("stretches") }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("🤸", fontSize = 20.sp)
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("Browse stretches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("${CATALOG.size} ready-made 30-day plans", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
-            }
-            Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
-        }
-        Row(card().clickable(onClickLabel = "Make your own habit") { custom = true }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("✏️", fontSize = 20.sp)
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("Make your own", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("Any exercise, your own numbers", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
-            }
+        Text("Add", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 20.dp))
+        AddRow("🤸", "Browse stretches", "${CATALOG.size} ready-made 30-day plans") { open("stretches") }
+        AddRow("✏️", "Make your own habit", "Any exercise, your own numbers") { custom = true }
+        AddRow("➕", "New routine", "Steps and habits you do together, at a time") {
+            editing = Routine(java.util.UUID.randomUUID().toString().take(8), "⭐", "", listOf(""), null, emptyMap(), 0)
         }
     }
-    RoutinesSettings()
+    editing?.let { r -> RoutineEditor(r, isNew = routines.none { it.id == r.id }) { editing = null } }
     if (custom) HabitStartSheet(null) { custom = false }
+}
+
+/** A habit's name and "Day 3/30 · Today: 1 × 10" (or "Completed today ✓"). */
+@Composable
+private fun HabitLine(h: Habit, items: List<LibraryItem>, small: Boolean = false) {
+    val today = LocalDate.now()
+    val day = h.dayOf(today)
+    val todayLine = if (today in h.done) "Completed today ✓" else h.stageOn(day)?.let { "Today: ${label(it)}" } ?: "Finished"
+    Text(habitTitle(h, items), style = if (small) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    Text("Day ${day.coerceAtMost(h.totalDays)}/${h.totalDays} · $todayLine", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** A routine (tap to edit) with what's in it: its habits (tap for the calendar) and its other steps. */
+@Composable
+private fun RoutineRow(r: Routine, habits: List<Habit>, items: List<LibraryItem>, onEdit: () -> Unit, onHabit: (String) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val done = doneToday(r, LocalDate.now())
+    Column(card()) {
+        Row(Modifier.fillMaxWidth().clickable(onClickLabel = "Edit ${r.name}", onClick = onEdit).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(r.emoji, fontSize = 22.sp)
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(r.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("${r.steps.size} steps" + (done?.let { " · ✓ done ${fmtMinute(it)}" } ?: ""), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+            }
+            Text("Edit", color = cs.primary)
+        }
+        routineSteps(r).forEach { st ->
+            when (st) {
+                is HabitStep -> habits.firstOrNull { it.id == st.habitId && !it.ended }?.let { h ->
+                    Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Open calendar") { onHabit(h.id) }.padding(start = 50.dp, end = 16.dp, top = 6.dp, bottom = 6.dp)) { HabitLine(h, items, small = true) }
+                }
+                is TextStep -> Text("• ${st.text}", Modifier.padding(start = 50.dp, end = 16.dp, top = 4.dp, bottom = 4.dp), style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        Box(Modifier.height(10.dp))
+    }
+}
+
+/** A row at the bottom of the page: an icon, a title and a line under it. */
+@Composable
+private fun AddRow(icon: String, title: String, sub: String, onClick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Row(card().clickable(onClickLabel = title, onClick = onClick).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(icon, fontSize = 20.sp)
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(sub, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+        }
+        Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
+    }
 }
 
 /** Settings › Habits & routines › Stretches: the catalog of fixed 30-day plans; tap one to see and tweak it ("plan:<id>"). */
