@@ -47,8 +47,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import java.time.LocalDate
 
-/** Rest between sets while counting. */
+/** Rest between sets while counting; between the moves of a circuit it's shorter. */
 private const val REST_MS = 30_000
+private const val MOVE_REST_MS = 10_000
 
 /** Home's Habit section: a deck of running habits (only the top card shows, done ones go under), then a row to add one (opens Settings › Habits). */
 @Composable
@@ -140,10 +141,14 @@ fun HabitDoer(h: Habit, items: List<LibraryItem>, stage: Stage, day: Int, onDone
         while (true) withInfiniteAnimationFrameMillis { elapsed = System.currentTimeMillis() - start }
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        val demo = h.demoOn(day, title)
+        val baseDemo = h.demoOn(day, title)
+        val moves = baseDemo?.let { CIRCUITS[it] }
         val clip = h.clipOn(day, item?.clip.orEmpty())
         val counting = countStart != null
-        val c = countAt(elapsed, stage, repMs = demo?.let { DEMOS[it]?.loopMs } ?: 2000, restMs = REST_MS)
+        val c = countAt(elapsed, stage, repMs = baseDemo?.let { DEMOS[it]?.loopMs } ?: 2000, restMs = if (moves != null) MOVE_REST_MS else REST_MS)
+        // While counting a circuit, the figure is this set's move (the next one during the rest).
+        val demo = baseDemo?.let { if (countStart != null) moveDemo(it, if (c.resting) c.set + 1 else c.set) else it }
+        fun moveName(set: Int) = moves?.getOrNull(set - 1)?.name
         LaunchedEffect(counting && c.finished) {
             if (counting && c.finished) { Habits.markDone(h.id, today, true); countStart = null; onDone?.invoke() }
         }
@@ -159,14 +164,19 @@ fun HabitDoer(h: Habit, items: List<LibraryItem>, stage: Stage, day: Int, onDone
                 style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
             )
             if (repHold && !c.resting) Text(if (c.holdLeftSec > 0) "Hold ${c.holdLeftSec}" else "Relax", style = MaterialTheme.typography.headlineSmall, color = cs.primary)
-            Text(if (c.resting) "Set ${c.set + 1} of ${c.sets} next" else "Set ${c.set} of ${c.sets}", color = cs.onSurfaceVariant)
+            if (moves != null) Text(
+                if (c.resting) "Next, move ${c.set + 1} of ${c.sets}: ${moveName(c.set + 1)}" else "Move ${c.set} of ${c.sets}: ${moveName(c.set)}",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            else Text(if (c.resting) "Set ${c.set + 1} of ${c.sets} next" else "Set ${c.set} of ${c.sets}", color = cs.onSurfaceVariant)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button({ Habits.markDone(h.id, today, true); countStart = null; onDone?.invoke() }, Modifier.weight(1f)) { Text("Completed") }
                 TextButton({ countStart = null }, Modifier.padding(start = 4.dp)) { Text("Cancel") } // started by mistake
             }
             return@Column
         }
-        Text(label(stage), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+        Text(if (moves != null) "${moves.size} moves × ${stage.reps} · ${stage.holdSec} s hold" else label(stage), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+        moves?.forEachIndexed { i, m -> Text("${i + 1}. ${m.name}", style = MaterialTheme.typography.bodyMedium) }
         // A new stage's note is bold on its first day, so the change doesn't go unnoticed.
         if (stage.note.isNotBlank()) Text(stage.note, fontWeight = if (h.isStageStart(day)) FontWeight.Bold else FontWeight.Normal)
         LinearProgressIndicator({ day.toFloat() / h.totalDays }, Modifier.fillMaxWidth().padding(vertical = 4.dp))

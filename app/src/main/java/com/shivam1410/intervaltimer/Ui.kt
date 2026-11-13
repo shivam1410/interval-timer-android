@@ -122,7 +122,7 @@ fun Root(now: Long) {
     val updateError by Updater.error.collectAsState()
     val plan = remember(settings, session.quick) { session.quick?.let(::quickPlan) ?: plan(settings) }
     val ctx = LocalContext.current
-    var page by rememberSaveable { mutableStateOf("") } // "", "history", "settings", "habits", "habit:<id>", "routine:<id>"
+    var page by rememberSaveable { mutableStateOf("") } // "", "history", "settings", "habits", "stretches", "habit:<id>", "routine:<id>"
     var countdown by rememberSaveable { mutableStateOf<String?>(null) } // quick timer about to start
     BackHandler(page.isNotEmpty()) { page = "" }
     BackHandler(countdown != null) { countdown = null }
@@ -165,10 +165,11 @@ fun Root(now: Long) {
             page == "history" -> HistoryScreen { page = "" }
             page == "settings" -> SettingsScreen(settings) { page = "" }
             page == "habits" -> SettingsScreen(settings, start = "habits") { page = "" }
+            page == "stretches" -> SettingsScreen(settings, start = "stretches") { page = "" }
             page.startsWith("habit:") -> HabitCalendarScreen(page.removePrefix("habit:")) { page = "" }
             page.startsWith("routine:") -> RoutineScreen(page.removePrefix("routine:")) { page = "" }
             countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null } }
-            session.idle -> Setup(settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit:$it" }, onAddHabit = { page = "habits" }, onRoutine = { page = "routine:$it" }, onQuick = { countdown = it })
+            session.idle -> Setup(settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit:$it" }, onAddHabit = { page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = { countdown = it })
             session.done(plan) -> Done(session, settings) { page = "history" }
             else -> Running(plan, session, settings, now)
         }

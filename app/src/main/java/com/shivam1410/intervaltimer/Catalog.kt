@@ -19,6 +19,7 @@ data class CatalogEntry(
     val reps: Int? = null, // a fixed rep count instead of the level's
     val holdEach: Int = 0, // each rep held this many seconds
     val grow: Boolean = true, // one more set each week; off for a physio dose
+    val sets: Int? = null, // a fixed set count instead of the level's (a circuit: one set per move)
 )
 
 val CATALOG = listOf(
@@ -36,9 +37,9 @@ val CATALOG = listOf(
         demos = listOf("wall-push"), notes = listOf("Face the wall, arm straight at shoulder height, palm flat. Press steadily, keep the shoulder down, breathe."),
     ),
     CatalogEntry(
-        "supraspinatus", "Shoulder side press (supraspinatus)", "Side-on to the wall, press the back of your hand out into it: 20 presses of 5 s.", hold = false,
-        demos = listOf("supraspinatus"), reps = 20, holdEach = 5, grow = false,
-        notes = listOf("Stand side-on, the sore shoulder next to the wall, arm down by your side. Press the back of the hand out into the wall as if lifting the arm sideways. Gentle, no pain, shoulder down, breathe."),
+        "supraspinatus", "Supraspinatus · 6 presses", "Six isometric presses in one: arm at 90° in and out, by the wall forward and back, arm at 90° up and down. 5 presses of 5 s each.", hold = false,
+        demos = listOf("supraspinatus-6"), reps = 5, holdEach = 5, grow = false, sets = 6,
+        notes = listOf("Press against a wall or door frame; the hand doesn't move. Gentle, no pain, shoulder down, breathe. 10 s between moves."),
     ),
     CatalogEntry(
         "wall-sit", "Wall sit", "Back on the wall, slide down until your thighs are level, and hold.", hold = true,
@@ -58,7 +59,7 @@ val CATALOG = listOf(
 fun planFor(e: CatalogEntry, level: Level): List<Stage> =
     listOf(7, 7, 7, 9).mapIndexed { week, days ->
         Stage(
-            days, level.sets + if (e.grow) week else 0, if (e.hold) 0 else e.reps ?: level.reps, if (e.hold) level.holdSec else e.holdEach,
+            days, e.sets ?: (level.sets + if (e.grow) week else 0), if (e.hold) 0 else e.reps ?: level.reps, if (e.hold) level.holdSec else e.holdEach,
             note = e.notes.getOrNull(week).orEmpty(), demo = e.demos.getOrElse(week) { e.demos.last() },
         )
     }

@@ -54,13 +54,13 @@ fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
     var sub by rememberSaveable { mutableStateOf(start) } // "", "profile", "notifications", "toggl", "habits", "stretches", "plan:<id>", "habit:<id>"
     fun back() = when {
         sub.startsWith("plan:") -> sub = "stretches"
-        sub.startsWith("habit:") || sub == "stretches" -> sub = "habits"
+        sub.startsWith("habit:") -> sub = "habits"
         sub.isEmpty() || sub == start -> onBack()
         else -> sub = ""
     }
     BackHandler { back() }
     // A catalog plan and a habit's calendar are full screens with their own back arrow.
-    if (sub.startsWith("plan:")) return PlanScreen(sub.removePrefix("plan:"), onBack = { back() }) { sub = "habits" }
+    if (sub.startsWith("plan:")) return PlanScreen(sub.removePrefix("plan:"), onBack = { back() }) { if (start == "stretches") onBack() else sub = "habits" }
     if (sub.startsWith("habit:")) return HabitCalendarScreen(sub.removePrefix("habit:")) { back() }
     val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Notifications"; "toggl" -> "Toggl Track"; "habits" -> "Habits & routines"; "stretches" -> "Stretches"; else -> "Settings" }
     val cs = MaterialTheme.colorScheme
@@ -130,7 +130,14 @@ private fun SettingsList(open: (String) -> Unit) {
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text("Habits & routines", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 val n = habits.count { !it.ended }
-                Text(if (n == 0) "Pick a 30-day plan from the catalog" else "$n running · catalog", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                Text("Your day by time" + if (n > 0) " · $n habits" else "", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+            }
+        }
+        Entry(open = { open("stretches") }) {
+            Text("🤸", fontSize = 26.sp)
+            Column(Modifier.weight(1f).padding(start = 16.dp)) {
+                Text("Stretches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("${CATALOG.size} 30-day plans · make your own", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
         }
     }

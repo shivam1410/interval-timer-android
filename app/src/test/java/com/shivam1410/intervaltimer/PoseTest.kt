@@ -134,22 +134,19 @@ class PoseTest {
         assertTrue(DEMOS.containsKey("tib-raise-lean"))
     }
 
-    @Test fun shoulderQuickTimerIsSixIsometricPressesWithAFigureEach() {
-        val a = activity("shoulder")
-        assertEquals("shoulder", a.id)
-        assertEquals(5, a.quickMin)
-        assertTrue("on Home", "shoulder" in QUICK)
-        assertEquals(6, a.steps.size)
-        assertEquals(5 * 60, a.steps.sumOf { it.sec }) // one round fills the timer
-        a.steps.forEach { st ->
-            val d = DEMOS.getValue(requireNotNull(st.demo) { st.name })
-            assertTrue("${st.name}: something to press against", d.pads.isNotEmpty())
-            assertTrue("${st.name}: which way to press", d.arrow != null)
-            val rest = poseAt(d, 0)
-            val press = poseAt(d, 3_500)
-            assertEquals("${st.name}: the hand doesn't move", rest.getValue(Joint.HAND), press.getValue(Joint.HAND))
-            assertTrue("${st.name}: the body leans into it", rest.getValue(Joint.NECK) != press.getValue(Joint.NECK))
+    @Test fun supraspinatusCircuitIsSixIsometricPressesWithAFigureEach() {
+        val moves = CIRCUITS.getValue("supraspinatus-6")
+        assertEquals(6, moves.size)
+        assertEquals(6, moves.map { it.demo }.toSet().size)
+        moves.forEach { m ->
+            val d = DEMOS.getValue(m.demo)
+            assertTrue("${m.name}: something to press against", d.pads.isNotEmpty())
+            assertTrue("${m.name}: which way to press", d.arrow != null)
+            assertEquals("${m.name}: the hand doesn't move", poseAt(d, 0).getValue(Joint.HAND), poseAt(d, 3_500).getValue(Joint.HAND))
+            assertTrue("${m.name}: the body leans into it", poseAt(d, 0).getValue(Joint.NECK) != poseAt(d, 3_500).getValue(Joint.NECK))
         }
-        assertEquals(6, a.steps.map { it.demo }.toSet().size)
+        assertEquals("shoulder-out", moveDemo("supraspinatus-6", set = 2)) // set n is move n
+        assertEquals("tib-raise", moveDemo("tib-raise", set = 2)) // a plain demo stays itself
+        assertTrue("not a quick timer any more", "shoulder" !in QUICK)
     }
 }

@@ -20,10 +20,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** A built-in movement demo ([DEMOS]) looping on a Canvas in theme colours; nothing if [id] is unknown. */
+/** A built-in movement demo ([DEMOS]) looping on a Canvas in theme colours; a circuit ([CIRCUITS]) plays its moves in turn; nothing if [id] is unknown. */
 @Composable
 fun MovementDemo(id: String, height: Dp = 200.dp, clockMs: Long? = null) {
-    val demo = DEMOS[id] ?: return
+    val circuit = CIRCUITS[id]
+    if (circuit == null && DEMOS[id] == null) return
     val cs = MaterialTheme.colorScheme
     val (ink, line, accent) = Triple(cs.onSurface, cs.outline, cs.primary)
     var ms by remember { mutableLongStateOf(0L) }
@@ -33,6 +34,8 @@ fun MovementDemo(id: String, height: Dp = 200.dp, clockMs: Long? = null) {
         while (true) withInfiniteAnimationFrameMillis { ms = it - start } // stops with the composable
     }
     Canvas(Modifier.fillMaxWidth().height(height).semantics { contentDescription = "Animation of the movement" }) {
+        // A circuit shows each move for one of its loops, then the next.
+        val demo = circuit?.let { DEMOS.getValue(it[((clockMs ?: ms) / DEMOS.getValue(it.first().demo).loopMs % it.size).toInt()].demo) } ?: DEMOS.getValue(id)
         val s = minOf(size.width / DEMO_W, size.height / DEMO_H)
         val ox = (size.width - DEMO_W * s) / 2
         val oy = (size.height - DEMO_H * s) / 2
@@ -47,7 +50,8 @@ fun MovementDemo(id: String, height: Dp = 200.dp, clockMs: Long? = null) {
             val ang = kotlin.math.atan2(b.y - a.y, b.x - a.x)
             listOf(ang + 2.6f, ang - 2.6f).forEach { t -> drawLine(accent, o(b), o(Pt(b.x + 6f * kotlin.math.cos(t), b.y + 6f * kotlin.math.sin(t))), w, StrokeCap.Round) }
         }
-        val pose = poseAt(demo, clockMs ?: ms)
+        val t = clockMs ?: ms
+        val pose = poseAt(demo, t)
         demo.bones.forEachIndexed { i, (a, b) ->
             val moving = i == demo.bones.lastIndex
             drawLine(if (moving) accent else ink, o(pose.getValue(a)), o(pose.getValue(b)), if (moving) w * 1.2f else w, StrokeCap.Round)

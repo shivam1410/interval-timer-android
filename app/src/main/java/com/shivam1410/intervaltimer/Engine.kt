@@ -153,7 +153,7 @@ enum class Kind { WORK, PREP, ACTIVITY }
 data class Phase(val kind: Kind, val cycle: Int, val ms: Long)
 
 /** Home quick timers, in the order shown. */
-val QUICK = listOf("nsdr", "sketch", "stretch", "exercise", "walk", "nap", "breathing", "shoulder")
+val QUICK = listOf("nsdr", "sketch", "stretch", "exercise", "walk", "nap", "breathing")
 
 /** A one-off quick timer is a single activity phase. */
 fun quickPlan(id: String): List<Phase> = listOf(Phase(Kind.ACTIVITY, 1, (activity(id).quickMin ?: 10) * MIN))

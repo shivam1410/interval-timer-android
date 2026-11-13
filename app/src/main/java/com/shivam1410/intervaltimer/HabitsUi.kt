@@ -42,8 +42,8 @@ import java.time.LocalDate
 
 /**
  * Settings › Habits & routines: your day by time. Each time ("10:00", then Anytime) lists its routines (tap to
- * edit; their habits and steps inside) and the habits with their own reminder (tap for the calendar). Below:
- * Browse stretches, Make your own and New routine. [open] takes "habit:<id>" or "stretches".
+ * edit; their habits and steps inside) and the habits with their own reminder (tap for the calendar), then
+ * New routine. New habits come from Settings › Stretches. [open] takes "habit:<id>".
  */
 @Composable
 fun HabitsPage(open: (String) -> Unit) {
@@ -51,20 +51,15 @@ fun HabitsPage(open: (String) -> Unit) {
     val items by Library.items.collectAsState()
     val routines by Routines.all.collectAsState()
     val cs = MaterialTheme.colorScheme
-    var custom by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Routine?>(null) }
 
     Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         daySlots(habits, routines).forEach { slot -> SlotCard(slot, habits, items, onEdit = { editing = it }, onHabit = { open("habit:$it") }) }
-        Text("Add", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 20.dp))
-        AddRow("🤸", "Browse stretches", "${CATALOG.size} ready-made 30-day plans") { open("stretches") }
-        AddRow("✏️", "Make your own habit", "Any exercise, your own numbers") { custom = true }
         AddRow("➕", "New routine", "Steps and habits you do together, at a time") {
             editing = Routine(java.util.UUID.randomUUID().toString().take(8), "⭐", "", listOf(""), null, emptyMap(), 0)
         }
     }
     editing?.let { r -> RoutineEditor(r, isNew = routines.none { it.id == r.id }) { editing = null } }
-    if (custom) HabitStartSheet(null) { custom = false }
 }
 
 /** A habit's name and "Day 3/30 · Today: 1 × 10" (or "Completed today ✓"). */
@@ -127,11 +122,15 @@ private fun AddRow(icon: String, title: String, sub: String, onClick: () -> Unit
     }
 }
 
-/** Settings › Habits & routines › Stretches: the catalog of fixed 30-day plans; tap one to see and tweak it ("plan:<id>"). */
+/** Settings › Stretches: Make your own habit, then the catalog of fixed 30-day plans; tap one to see and tweak it ("plan:<id>"). */
 @Composable
 fun StretchesPage(open: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
+    var custom by remember { mutableStateOf(false) }
+    if (custom) HabitStartSheet(null) { custom = false }
     Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        AddRow("✏️", "Make your own habit", "Any exercise, your own numbers") { custom = true }
+        Text("30-day plans", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 8.dp))
         CATALOG.forEach { e ->
             Row(card().clickable(onClickLabel = "See the plan") { open("plan:${e.id}") }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.width(72.dp)) { MovementDemo(e.demos.first(), 72.dp) }

@@ -187,6 +187,21 @@ val DEMOS: Map<String, Demo> = mapOf(
     ),
 )
 
+/** One move of a circuit: its built-in figure and what to do. */
+data class Move(val demo: String, val name: String)
+
+/** Several moves done as one habit, one set per move (set 1 = the first move); a stage's demo can name one. */
+val CIRCUITS: Map<String, List<Move>> = mapOf(
+    "supraspinatus-6" to listOf(
+        Move("shoulder-in", "Arm out at 90°, press in"), Move("shoulder-out", "Arm out at 90°, press out"),
+        Move("shoulder-forward", "By the wall, arm down, press forward"), Move("shoulder-back", "By the wall, arm down, press back"),
+        Move("shoulder-up", "Arm out at 90°, press up"), Move("shoulder-down", "Arm out at 90°, press down"),
+    ),
+)
+
+/** The figure for [set] (1-based): that move of a circuit, else [demo] itself. */
+fun moveDemo(demo: String, set: Int): String = CIRCUITS[demo]?.let { it[(set - 1).coerceIn(0, it.lastIndex)].demo } ?: demo
+
 /** The built-in demo an exercise's title asks for, or null (then nothing is drawn, never a placeholder). */
 fun demoFor(title: String): String? = if (title.contains("tib", ignoreCase = true)) "tib-raise" else null
 
