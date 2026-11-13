@@ -45,7 +45,8 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Toggl Track** (Settings): paste your API token (stored encrypted on the phone, never synced). Work
   blocks and break activities start and stop Toggl timers as the phases change; prepare, pauses and
   ambient sounds don't. Pick a Toggl tag, or "Don't send", per activity; library items send their own
-  tag. Offline changes are queued and sent later with their real times; Discard deletes that session's
+  tag. Routines get a tag too (off until you pick one): opening a routine starts a Toggl entry named after
+  it with that tag, finishing or leaving it stops it. Offline changes are queued and sent later with their real times; Discard deletes that session's
   entries from Toggl too
 - **Instagram & YouTube nudges** (Settings): after 5–30 min (your pick, per app) of Instagram or YouTube
   within a rolling window twice that long (e.g. 5 min in the last 10, gaps and all),
