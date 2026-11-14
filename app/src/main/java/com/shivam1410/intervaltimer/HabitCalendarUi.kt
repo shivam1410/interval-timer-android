@@ -49,7 +49,11 @@ import java.time.LocalDate
 fun HabitCalendarScreen(habitId: String, onBack: () -> Unit) {
     val habits by Habits.all.collectAsState()
     val items by Library.items.collectAsState()
+    val routines by Routines.all.collectAsState()
     val h = habits.firstOrNull { it.id == habitId && !it.ended }
+    // A stretch that lives in a routine isn't a habit of its own: the routine's time is its reminder,
+    // and the way to stop doing it is to take it out of the routine.
+    val owner = routines.firstOrNull { r -> !r.deleted && routineSteps(r).any { it is HabitStep && it.habitId == habitId } }
     val cs = MaterialTheme.colorScheme
     var editing by remember { mutableStateOf<Int?>(null) }
     var ending by remember { mutableStateOf(false) }
@@ -75,17 +79,36 @@ fun HabitCalendarScreen(habitId: String, onBack: () -> Unit) {
         }
         Text("Tap today or a later day to change it. Tap a past day to mark it done.", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(16.dp))
-        ReminderRow(h.remindMin) { Habits.edit(h.id, h.stages, it) }
-        TextButton({ ending = true }, colors = ButtonDefaults.textButtonColors(contentColor = cs.error), modifier = Modifier.padding(vertical = 8.dp)) { Text("End habit") }
+        if (owner == null) ReminderRow(h.remindMin) { Habits.edit(h.id, h.stages, it) }
+        else Text(
+            "Part of ${owner.emoji} ${owner.name}" + (owner.remindMin?.let { " \u00b7 ${fmtMinute(it)}" } ?: "") +
+                ", so it has no reminder of its own.",
+            color = cs.onSurfaceVariant,
+        )
+        TextButton({ ending = true }, colors = ButtonDefaults.textButtonColors(contentColor = cs.error), modifier = Modifier.padding(vertical = 8.dp)) {
+            Text(owner?.let { "Remove from ${it.name}" } ?: "End habit")
+        }
     }
 
     h ?: return
     editing?.let { d -> DayEditDialog(h, d, onDismiss = { editing = null }) { Habits.edit(h.id, it, h.remindMin) } }
     if (ending) AlertDialog(
         onDismissRequest = { ending = false },
-        title = { Text("End $title?") },
-        text = { Text("Your done days stay in this habit's record; Home stops showing it.") },
-        confirmButton = { TextButton({ Habits.end(h.id); ending = false; onBack() }) { Text("End habit") } },
+        title = { Text(owner?.let { "Remove $title from ${it.name}?" } ?: "End $title?") },
+        text = {
+            Text(
+                owner?.let { "It stops being one of its steps. Your done days stay in this stretch's record." }
+                    ?: "Your done days stay in this habit's record; Home stops showing it.",
+            )
+        },
+        confirmButton = {
+            TextButton({
+                owner?.let { Routines.removeHabit(it.id, h.id) }
+                Habits.end(h.id)
+                ending = false
+                onBack()
+            }) { Text(owner?.let { "Remove" } ?: "End habit") }
+        },
         dismissButton = { TextButton({ ending = false }) { Text("Keep going") } },
     )
 }

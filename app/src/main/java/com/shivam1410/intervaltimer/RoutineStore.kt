@@ -94,6 +94,9 @@ object Routines {
     /** Puts habit [habitId] at the end of routine [id]; the routine's time is now when you do it. */
     fun addHabit(id: String, habitId: String) = update(id) { it.copy(steps = it.steps + habitStep(habitId)) }
 
+    /** Takes habit [habitId] out of routine [id] (the habit is ended separately). */
+    fun removeHabit(id: String, habitId: String) = update(id) { r -> r.copy(steps = r.steps.filterNot { it == habitStep(habitId) }) }
+
     fun delete(id: String) = update(id) { it.copy(deleted = true) }
 
     private fun update(id: String, change: (Routine) -> Routine) =

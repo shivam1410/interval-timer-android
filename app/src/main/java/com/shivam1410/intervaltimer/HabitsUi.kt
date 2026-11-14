@@ -84,14 +84,14 @@ private fun SlotCard(slot: Slot, habits: List<Habit>, items: List<LibraryItem>, 
     val cs = MaterialTheme.colorScheme
     val today = LocalDate.now()
     val total = slot.routines.size + slot.habits.size
-    val done = slot.routines.count { doneToday(it, today) != null } + slot.habits.count { today in it.done }
+    val done = slot.routines.count { routineDoneToday(it, habits, today) != null } + slot.habits.count { today in it.done }
     Column(card().padding(vertical = 12.dp)) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(slot.min?.let(::fmtMinute) ?: "Anytime", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             Text(if (done == total) "✓ all done" else "${total - done} to do", style = MaterialTheme.typography.labelLarge, color = if (done == total) cs.primary else cs.onSurfaceVariant)
         }
         slot.routines.forEach { r ->
-            val at = doneToday(r, today)
+            val at = routineDoneToday(r, habits, today)
             val inside = routineSteps(r).filterIsInstance<HabitStep>().mapNotNull { s -> habits.firstOrNull { it.id == s.habitId && !it.ended } }
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

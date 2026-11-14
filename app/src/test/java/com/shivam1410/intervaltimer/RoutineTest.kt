@@ -41,6 +41,23 @@ class RoutineTest {
         assertEquals(2, firstUndoneStep(r().copy(steps = listOf(habitStep("a"), habitStep("b"))), listOf(h("a", setOf(today)), h("b", setOf(today))), today))
     }
 
+    @Test fun addingAStretchAfterTheRoutineIsFinishedMakesItToDoAgain() {
+        val stages = sameEveryDay(30, 1, 10)
+        fun h(id: String, done: Set<LocalDate> = emptySet(), ended: Boolean = false) =
+            Habit(id, "", today.minusDays(2), stages, null, done, 1, ended, title = id)
+        val finished = r(done = mapOf(today to 540)).copy(steps = listOf(habitStep("a"), "Water"))
+        val allDone = listOf(h("a", done = setOf(today)))
+        assertEquals(540, routineDoneToday(finished, allDone, today)) // every stretch done: the routine is done
+        // A stretch added at 11:00 to a routine finished at 9:00 is still to do, so the routine is too.
+        val withNew = finished.copy(steps = finished.steps + habitStep("b"))
+        assertNull(routineDoneToday(withNew, allDone + h("b"), today))
+        assertEquals(540, routineDoneToday(withNew, allDone + h("b", done = setOf(today)), today)) // then done
+        // A habit that ended or was deleted can't be done, so it never holds the routine open.
+        assertEquals(540, routineDoneToday(withNew, allDone + h("b", ended = true), today))
+        assertEquals(540, routineDoneToday(withNew, allDone, today))
+        assertNull(routineDoneToday(finished.copy(done = emptyMap()), allDone, today)) // never finished today
+    }
+
     @Test fun encodeRoundTripKeepsAwkwardText() {
         val odd = Routine("x", "🚪", "Out | door; now", listOf("Keys, wallet", "Phone|charger", "Water; bottle"), null, mapOf(today to 600), 7, deleted = true)
         val all = listOf(odd, r())

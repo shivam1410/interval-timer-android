@@ -64,7 +64,7 @@ fun firstUndoneStep(r: Routine, habits: List<Habit>, today: LocalDate): Int {
     val i = steps.indexOfFirst { st ->
         when (st) {
             is TextStep -> true
-            is HabitStep -> habits.firstOrNull { it.id == st.habitId && !it.ended }?.let { today !in it.done } ?: false
+            is HabitStep -> habits.firstOrNull { it.id == st.habitId && !it.ended }?.let { today !in it.done && it.stageOn(it.dayOf(today)) != null } ?: false
         }
     }
     return if (i < 0) steps.size else i
@@ -79,6 +79,21 @@ const val NUDGE_MIN = 30
 
 /** The minute [r] was finished on [today], or null. */
 fun doneToday(r: Routine, today: LocalDate): Int? = r.done[today]
+
+/**
+ * The minute [r] was finished on [today], but only while nothing in it is still to do: a stretch added
+ * after you finished (today's new one, say) puts the routine back on your list. The habit steps are what
+ * count, because a text step keeps no record; a habit that ended or was deleted can't be done, so it is
+ * never what holds the routine open.
+ */
+fun routineDoneToday(r: Routine, habits: List<Habit>, today: LocalDate): Int? =
+    doneToday(r, today)?.takeIf { stepsLeftToday(r, habits, today) == 0 }
+
+/** Habit steps of [r] you could still do [today]. */
+fun stepsLeftToday(r: Routine, habits: List<Habit>, today: LocalDate): Int =
+    routineSteps(r).filterIsInstance<HabitStep>().count { st ->
+        habits.firstOrNull { it.id == st.habitId && !it.ended }?.let { today !in it.done && it.stageOn(it.dayOf(today)) != null } == true
+    }
 
 /** 494 -> "8:14". */
 fun fmtMinute(m: Int) = "%d:%02d".format(m / 60, m % 60)

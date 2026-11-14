@@ -41,7 +41,10 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   bell marks each step done. Before it starts, pick a **Timer** (Off, 10, 15, 20 or 30 min): the length sticks
   to that routine, the countdown runs on the quick-timer engine (notification, Pause, +10 min, long gong at
   the end), the time lands in History as "🚪 Leaving the house", and **Back to the steps** returns from
-  Home. Synced to Drive (`routines.json`)
+  Home. A routine counts as done for the day only while nothing in it is left: add a stretch to it after you
+  finished and it is to do again, with just that stretch to go. A stretch that lives in a routine has no
+  reminder of its own (its calendar says which routine it's part of) and leaves by **Remove from <routine>**.
+  Synced to Drive (`routines.json`)
   - **Share into it**: in YouTube or YouTube Music tap Share -> Interval Timer; the link and its title
     are filled in, you pick a tag and length
   - **MP3 / MP4 files**: share one from Files, Downloads or any app -> Interval Timer. It's kept in the app

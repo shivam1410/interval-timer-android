@@ -54,9 +54,11 @@ import java.time.LocalDate
 @Composable
 fun RoutinesRow(onOpen: (String) -> Unit) {
     val all by Routines.all.collectAsState()
+    val habits by Habits.all.collectAsState()
     val today = LocalDate.now()
     // Done today: off Home until tomorrow (its time stays in Settings › Habits & routines and its calendar).
-    val routines = all.filter { !it.deleted && doneToday(it, today) == null }.sortedBy { it.remindMin ?: Int.MAX_VALUE }
+    // A stretch added after you finished brings it back, because there is something in it to do again.
+    val routines = all.filter { !it.deleted && routineDoneToday(it, habits, today) == null }.sortedBy { it.remindMin ?: Int.MAX_VALUE }
     if (routines.isEmpty()) return
     Text("Routines", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
