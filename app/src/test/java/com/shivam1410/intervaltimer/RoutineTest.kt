@@ -26,6 +26,21 @@ class RoutineTest {
         assertEquals("22:05", fmtMinute(22 * 60 + 5))
     }
 
+    @Test fun aRoutineOpensAtTheFirstStepStillToDo() {
+        val stages = sameEveryDay(30, 1, 10)
+        fun h(id: String, done: Set<LocalDate> = emptySet(), ended: Boolean = false) =
+            Habit(id, "", today.minusDays(2), stages, null, done, 1, ended, title = id)
+        val steps = listOf(habitStep("a"), habitStep("b"), "Water", habitStep("c"))
+        val routine = r().copy(steps = steps)
+        val habits = listOf(h("a", done = setOf(today)), h("b"), h("c"))
+        assertEquals(1, firstUndoneStep(routine, habits, today)) // a is done today, b isn't
+        assertEquals(2, firstUndoneStep(routine, listOf(h("a", setOf(today)), h("b", setOf(today)), h("c")), today))
+        assertEquals(0, firstUndoneStep(routine, habits, today.plusDays(1))) // a new day starts at the top again
+        // A habit that's gone or ended is behind you too; a text step is never tracked, so it's always to do.
+        assertEquals(2, firstUndoneStep(routine, listOf(h("a", setOf(today)), h("b", ended = true)), today))
+        assertEquals(2, firstUndoneStep(r().copy(steps = listOf(habitStep("a"), habitStep("b"))), listOf(h("a", setOf(today)), h("b", setOf(today))), today))
+    }
+
     @Test fun encodeRoundTripKeepsAwkwardText() {
         val odd = Routine("x", "🚪", "Out | door; now", listOf("Keys, wallet", "Phone|charger", "Water; bottle"), null, mapOf(today to 600), 7, deleted = true)
         val all = listOf(odd, r())

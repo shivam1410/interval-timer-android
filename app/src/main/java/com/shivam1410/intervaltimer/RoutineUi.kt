@@ -71,11 +71,12 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
     val all by Routines.all.collectAsState()
     val r = all.firstOrNull { it.id == id && !it.deleted } ?: return onBack()
     val cs = MaterialTheme.colorScheme
-    var step by remember(id) { mutableIntStateOf(0) }
-    val finished = step >= r.steps.size
     val habits by Habits.all.collectAsState()
     val items by Library.items.collectAsState()
     val today = LocalDate.now()
+    // Opens where you left off: the habits you already did today are behind you, not steps to click through.
+    var step by remember(id) { mutableIntStateOf(firstUndoneStep(r, habits, today)) }
+    val finished = step >= r.steps.size
     fun next() { step++; if (step >= r.steps.size) { Routines.finish(r.id); TogglSync.onRoutine(null, 0) } }
     // Toggl: a timer from opening the routine until it's finished or you leave it.
     DisposableEffect(id) {
@@ -139,6 +140,7 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
     var steps by remember { mutableStateOf(r.steps) }
     var remind by remember { mutableStateOf(r.remindMin) }
     var picking by remember { mutableStateOf(false) }
+    var level by remember { mutableStateOf(Level.BEGINNER) }
     val clean = steps.map { it.trim() }.filter { it.isNotEmpty() }
     val habits by Habits.all.collectAsState()
     val items by Library.items.collectAsState()
@@ -146,13 +148,42 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
     // Habits you can add: running and not already in a routine (this one included).
     val taken = habitsInRoutines(all.filter { it.id != r.id }) + steps.mapNotNull { (stepOf(it) as? HabitStep)?.habitId }
     val free = habits.filter { !it.ended && it.id !in taken }
+    // Stretches you can start here: the catalog, minus the ones already running.
+    // ponytail: matched by the name a catalog habit is started with ("Supraspinatus · 6 presses · Beginner").
+    val catalog = CATALOG.filterNot { e -> habits.any { !it.ended && it.title.startsWith(e.name) } }
     if (picking) AlertDialog(
         onDismissRequest = { picking = false },
-        title = { Text("Add a habit") },
+        title = { Text("Add a stretch") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                free.forEach { h ->
-                    Text(habitTitle(h, items), Modifier.fillMaxWidth().clickable { steps = steps.filter { it.isNotBlank() } + habitStep(h.id); picking = false }.padding(vertical = 14.dp), style = MaterialTheme.typography.bodyLarge)
+                if (free.isNotEmpty()) {
+                    Text("Already running", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    free.forEach { h ->
+                        Text(habitTitle(h, items), Modifier.fillMaxWidth().clickable { steps = steps.filter { it.isNotBlank() } + habitStep(h.id); picking = false }.padding(vertical = 14.dp), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+                if (catalog.isNotEmpty()) {
+                    Text("Stretch catalog", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Level.entries.forEach { lv -> FilterChip(level == lv, { level = lv }, { Text(lv.label) }) }
+                    }
+                    catalog.forEach { e ->
+                        Row(
+                            Modifier.fillMaxWidth().clickable {
+                                // Starts it with no reminder of its own: the routine's time is when you do it.
+                                val id = Habits.start("", planFor(e, level), null, "${e.name} · ${level.label}")
+                                steps = steps.filter { it.isNotBlank() } + habitStep(id)
+                                picking = false
+                            }.padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(Modifier.width(56.dp)) { MovementDemo(e.demos.first(), 56.dp) }
+                            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                                Text(e.name, style = MaterialTheme.typography.bodyLarge)
+                                Text(e.blurb, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -185,7 +216,7 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
                 }
                 Row {
                     TextButton({ steps = steps + "" }) { Text("+ Add step") }
-                    if (free.isNotEmpty()) TextButton({ picking = true }) { Text("+ Add habit") }
+                    TextButton({ picking = true }) { Text("+ Add a stretch") }
                 }
                 ReminderRow(remind) { remind = it }
             }

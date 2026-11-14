@@ -40,6 +40,22 @@ fun stepOf(s: String): RoutineStep = if (s.startsWith(HABIT_PREFIX)) HabitStep(s
 
 fun routineSteps(r: Routine): List<RoutineStep> = r.steps.map(::stepOf)
 
+/**
+ * Where to open [r] today: the first step you still have to do. Habit steps already done today (and ones
+ * whose habit is gone or ended) are behind you; a text step is never tracked, so it always counts as to do.
+ * Everything done gives [Routine.steps].size: the finished screen.
+ */
+fun firstUndoneStep(r: Routine, habits: List<Habit>, today: LocalDate): Int {
+    val steps = routineSteps(r)
+    val i = steps.indexOfFirst { st ->
+        when (st) {
+            is TextStep -> true
+            is HabitStep -> habits.firstOrNull { it.id == st.habitId && !it.ended }?.let { today !in it.done } ?: false
+        }
+    }
+    return if (i < 0) steps.size else i
+}
+
 /** Habits that live in a routine (not deleted): Home's deck leaves them out. */
 fun habitsInRoutines(rs: List<Routine>): Set<String> =
     rs.filterNot { it.deleted }.flatMap(::routineSteps).filterIsInstance<HabitStep>().map { it.habitId }.toSet()
