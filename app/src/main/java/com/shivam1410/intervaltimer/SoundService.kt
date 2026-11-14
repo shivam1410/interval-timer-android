@@ -57,7 +57,9 @@ class SoundService : Service() {
             music = CrossfadeLoop({ player(AudioAttributes.USAGE_MEDIA, vol, loop = true, id) }, vol).takeIf { it.start() }
         }
         if (music == null && cue?.isPlaying != true) {
-            stopForeground(STOP_FOREGROUND_DETACH)
+            // Detaching leaves the session's status notification up; with no session (a routine's step
+            // bell, say) there is nothing to leave behind, so take it away instead.
+            stopForeground(if (Timer.session.value.idle) STOP_FOREGROUND_REMOVE else STOP_FOREGROUND_DETACH)
             stopSelf()
         }
     }

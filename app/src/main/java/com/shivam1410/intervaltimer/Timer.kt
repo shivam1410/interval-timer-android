@@ -206,6 +206,18 @@ object Timer {
         if (activity(settings.value.activity).minutes != null) saveSettings(settings.value.copy(activity = "breathing"))
     }
 
+    /**
+     * One gong on its own, with no session and no music: a routine's step bell, and its last-step gong.
+     * [SoundService] honours the gong and vibration settings and stops itself again.
+     */
+    fun ping(cue: Cue) {
+        try {
+            app.startForegroundService(Intent(app, SoundService::class.java).putExtra("cue", cue.sound))
+        } catch (e: IllegalStateException) {
+            Log.w(TAG, "Sound service not started", e)
+        }
+    }
+
     /** One-off activity timer from home (NSDR, stretch, walk…): soft bell now, long gong at the end. */
     fun startQuick(id: String) {
         setAmbient(null)

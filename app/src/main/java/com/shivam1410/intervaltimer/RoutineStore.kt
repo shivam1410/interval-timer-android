@@ -32,6 +32,7 @@ object Routines {
         app = ctx.applicationContext
         val stored = prefs.getString("items", null)
         all.value = if (stored == null) DEFAULT_ROUTINES else decodeRoutines(stored)
+        routineActivities = all.value.filterNot { it.deleted }.map { it.toActivity() }
         app.getSystemService(NotificationManager::class.java)
             .createNotificationChannel(NotificationChannel(CH, "Routine reminder", NotificationManager.IMPORTANCE_HIGH))
         arm() // boot and updates start the process, which lands here
@@ -102,6 +103,8 @@ object Routines {
     fun replaceAll(list: List<Routine>, sync: Boolean = true) {
         prefs.edit().putString("items", encodeRoutines(list)).apply()
         all.value = list
+        // Each routine is also an activity, so its timer runs on the quick-timer engine and History labels it.
+        routineActivities = list.filterNot { it.deleted }.map { it.toActivity() }
         arm()
         if (sync) Drive.sync()
     }

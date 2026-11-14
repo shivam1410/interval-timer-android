@@ -34,9 +34,14 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   big text with a big **✓ Done**. Finishing records the time ("☀️ Morning ✓ 8:14"). Optional daily reminder
   with **Start**, and a *Still to do* nudge 30 min later if it isn't done; edit, add or delete routines in
   Settings › Habits & routines, which shows your day by time: one card per time with its routines (✏️ edit,
-  📅 the routine's calendar with its streak) and habits. A routine can hold your **habits** too (**+ Add habit**, or **Do it in** when
+  📅 the routine's calendar with its streak) and habits. A routine can hold your **habits** too (**+ Add a stretch**, or **Do it in** when
   starting a plan), so a "10 am" routine runs your stretches with their figure and count, then your other
-  steps; habits in a routine leave the Home deck. Synced to Drive (`routines.json`)
+  steps; habits in a routine leave the Home deck. **+ Add a stretch** also offers the whole stretch catalog,
+  at the level you pick, and starts it for you. Opening a routine lands on the first step still to do, and a
+  bell marks each step done. Before it starts, pick a **Timer** (Off, 10, 15, 20 or 30 min): the length sticks
+  to that routine, the countdown runs on the quick-timer engine (notification, Pause, +10 min, long gong at
+  the end), the time lands in History as "🚪 Leaving the house", and **Back to the steps** returns from
+  Home. Synced to Drive (`routines.json`)
   - **Share into it**: in YouTube or YouTube Music tap Share -> Interval Timer; the link and its title
     are filled in, you pick a tag and length
   - **MP3 / MP4 files**: share one from Files, Downloads or any app -> Interval Timer. It's kept in the app

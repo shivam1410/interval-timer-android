@@ -47,6 +47,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import java.time.LocalDate
 
 /** Home, under Habits: one chip per routine still to do today, by time ("10:00  ⭐ 10 am"). Tap to run it. */
@@ -77,7 +78,22 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
     // Opens where you left off: the habits you already did today are behind you, not steps to click through.
     var step by remember(id) { mutableIntStateOf(firstUndoneStep(r, habits, today)) }
     val finished = step >= r.steps.size
-    fun next() { step++; if (step >= r.steps.size) { Routines.finish(r.id); TogglSync.onRoutine(null, 0) } }
+    val session by Timer.session.collectAsState()
+    val timed = session.quick == "routine:$id" // this routine's own timer, running or just finished
+    var started by remember(id) { mutableStateOf(false) }
+    fun next() {
+        step++
+        if (step >= r.steps.size) {
+            Routines.finish(r.id)
+            TogglSync.onRoutine(null, 0)
+            if (timed) Timer.stop() // banks the time in History; the routine is over, however long it took
+            Timer.ping(Cue.DONE)
+        } else Timer.ping(Cue.SOFT)
+    }
+    // The start card, until you start: not while its timer runs, and not when you already did a step today.
+    if (!started && !timed && step == 0 && doneToday(r, today) == null) {
+        return RoutineStartCard(r, onBack) { started = true }
+    }
     // Toggl: a timer from opening the routine until it's finished or you leave it.
     DisposableEffect(id) {
         TogglSync.onRoutine(r, System.currentTimeMillis())
@@ -98,6 +114,7 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
             Text("${r.emoji} ${r.name}", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp).weight(1f))
             if (!finished) Text("Step ${step + 1} of ${r.steps.size}", color = cs.onSurfaceVariant)
         }
+        if (timed) RoutineClock(session)
         // Progress dots: done steps filled.
         Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             r.steps.indices.forEach { i -> Box(Modifier.size(10.dp).clip(CircleShape).background(if (i < step) cs.primary else cs.surfaceContainerHighest)) }
@@ -128,6 +145,68 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
                 TextButton({ step-- }, enabled = step > 0) { Text("Back") }
                 TextButton(::next) { Text("Skip") }
             }
+        }
+    }
+}
+
+/**
+ * Before a routine starts: what's in it, how long it should take, and one big Start. Picking a length
+ * saves it to the routine, so tomorrow it's already right; Off means no timer, just the steps.
+ */
+@Composable
+private fun RoutineStartCard(r: Routine, onBack: () -> Unit, onStart: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    var min by remember(r.id) { mutableStateOf(r.minutes) }
+    val stretches = routineSteps(r).count { it is HabitStep }
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
+            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
+            Text("${r.emoji} ${r.name}", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+            Text("${r.steps.size} steps" + if (stretches > 0) " \u00b7 $stretches stretches" else "", style = MaterialTheme.typography.headlineSmall)
+            min?.let { Text("about $it min", color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) }
+            Text("Timer", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 24.dp, bottom = 4.dp))
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(min == null, { min = null }, { Text("Off") })
+                listOf(10, 15, 20, 30).forEach { m -> FilterChip(min == m, { min = m }, { Text("$m min") }) }
+            }
+        }
+        Button(
+            {
+                // Saved first, so the engine reads this length when it builds the timer's single phase.
+                if (min != r.minutes) Routines.save(r.copy(minutes = min))
+                if (min != null) {
+                    TogglSync.onRoutine(null, 0) // the session's own entry takes over from here
+                    Timer.startQuick("routine:${r.id}")
+                }
+                onStart()
+            },
+            Modifier.fillMaxWidth().padding(bottom = 24.dp).height(64.dp),
+        ) { Text(min?.let { "\u25b6  Start \u00b7 $it min" } ?: "Start", fontSize = 20.sp) }
+    }
+}
+
+/** The routine's own timer while it runs: the time left, Pause and End; "Time's up" once it's over. */
+@Composable
+private fun RoutineClock(session: Session) {
+    val cs = MaterialTheme.colorScheme
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(1000)
+            now = System.currentTimeMillis()
+        }
+    }
+    val over = session.idle || session.finishedAt > 0 || session.left(now) == 0L
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            if (over) "Time's up" else "\u23f1 ${fmt(session.left(now))}",
+            style = MaterialTheme.typography.titleMedium, color = if (over) cs.error else cs.primary, modifier = Modifier.weight(1f),
+        )
+        if (!over) {
+            TextButton({ if (session.paused) Timer.resume() else Timer.pause() }) { Text(if (session.paused) "Resume" else "Pause") }
+            TextButton(Timer::stop) { Text("End timer") }
         }
     }
 }

@@ -48,6 +48,24 @@ class RoutineTest {
         assertEquals(emptyList<Routine>(), decodeRoutines(null))
     }
 
+    @Test fun aRoutineCanCarryHowLongItShouldTake() {
+        val timed = r().copy(minutes = 15)
+        assertEquals(listOf(timed), decodeRoutines(encodeRoutines(listOf(timed)))) // the length survives a round trip
+        assertNull(r().minutes) // no timer unless you ask for one
+        // Routines stored before lengths existed have 8 fields and read back with no timer.
+        val old = encodeRoutines(listOf(r())).substringBeforeLast("|")
+        assertEquals(8, old.split("|").size)
+        assertEquals(listOf(r()), decodeRoutines(old))
+    }
+
+    @Test fun aTimedRoutineIsAnActivityOfItsOwnLength() {
+        val a = r().copy(minutes = 20).toActivity()
+        assertEquals("routine:m", a.id)
+        assertEquals("Morning", a.name)
+        assertEquals(20, a.quickMin)
+        assertEquals(15, r().toActivity().quickMin) // no length set: a quick timer of 15 min
+    }
+
     @Test fun remindersAtTheirTimeUnlessDoneOrDeleted() {
         val utc = java.util.TimeZone.getTimeZone("UTC")
         val morning = r("m").copy(remindMin = 7 * 60 + 30)

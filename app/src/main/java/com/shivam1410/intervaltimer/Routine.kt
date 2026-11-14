@@ -17,7 +17,21 @@ data class Routine(
     val done: Map<LocalDate, Int>,
     val updatedAt: Long,
     val deleted: Boolean = false,
-)
+    val minutes: Int? = null, // how long it should take; null = no timer, just the steps
+) {
+    /**
+     * A timed routine runs on the quick-timer engine, so it is an activity like NSDR or a library item
+     * ("routine:<id>", registered by [Routines]). An untimed one still has a length here, for when you
+     * pick a timer on the start card without saving it to the routine.
+     */
+    fun toActivity() = Activity(
+        id = "routine:$id", emoji = emoji, name = name, group = "Routine",
+        hint = "${steps.size} steps", quickMin = minutes ?: DEFAULT_ROUTINE_MIN,
+    )
+}
+
+/** The length a routine's timer offers when none was picked. */
+const val DEFAULT_ROUTINE_MIN = 15
 
 /** Shipped with the app; fixed ids so both phones' copies merge, updatedAt 0 so any edit of yours wins. */
 val DEFAULT_ROUTINES = listOf(
@@ -77,18 +91,19 @@ fun encodeRoutines(all: List<Routine>): String = all.joinToString("\n") { r ->
     listOf(
         r.id, enc(r.emoji), enc(r.name), r.steps.joinToString(";", transform = ::enc), r.remindMin ?: -1,
         r.done.entries.sortedBy { it.key }.joinToString(",") { "${it.key}=${it.value}" }, r.updatedAt, if (r.deleted) 1 else 0,
+        r.minutes ?: -1,
     ).joinToString("|")
 }
 
 fun decodeRoutines(text: String?): List<Routine> =
     text.orEmpty().lines().mapNotNull { line ->
         val p = line.split("|")
-        if (p.size != 8) return@mapNotNull null
+        if (p.size != 8 && p.size != 9) return@mapNotNull null // 8 = written before routines could be timed
         runCatching {
             Routine(
                 p[0], dec(p[1]), dec(p[2]), p[3].split(";").filter { it.isNotEmpty() }.map(::dec), p[4].toInt().takeIf { it >= 0 },
                 p[5].split(",").filter { it.isNotEmpty() }.associate { e -> e.split("=").let { LocalDate.parse(it[0]) to it[1].toInt() } },
-                p[6].toLong(), p[7] == "1",
+                p[6].toLong(), p[7] == "1", p.getOrNull(8)?.toInt()?.takeIf { it > 0 },
             )
         }.getOrNull()
     }

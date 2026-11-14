@@ -171,7 +171,7 @@ fun Root(now: Long) {
             countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null } }
             session.idle -> Setup(settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit:$it" }, onAddHabit = { page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = { countdown = it })
             session.done(plan) -> Done(session, settings) { page = "history" }
-            else -> Running(plan, session, settings, now)
+            else -> Running(plan, session, settings, now) { page = "routine:$it" }
         }
     }
 }
@@ -491,10 +491,12 @@ private fun ActivityPicker(selected: String, breakMin: Int, onPick: (String) -> 
 // ---------- Running ----------
 
 @Composable
-private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long) {
+private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long, onRoutine: (String) -> Unit = {}) {
     val p = plan[s.index]
     val left = s.left(now)
     val quick = s.quick != null
+    // A routine's own timer: its steps are a page of their own, so offer the way back into them.
+    val routine = s.quick?.takeIf { it.startsWith("routine:") }?.removePrefix("routine:")
     val chosen = activity(s.quick ?: settings.activity)
     val over = overtimeMs(plan, s, now) // past 0 on work / a break activity: counting up
     if (p.kind == Kind.ACTIVITY && chosen.id == "nap" && !s.paused && over == null) return NapScreen(s)
@@ -516,6 +518,7 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(label, style = MaterialTheme.typography.titleMedium, color = accent, letterSpacing = 3.sp, modifier = Modifier.padding(top = 16.dp))
+        routine?.let { id -> TextButton({ onRoutine(id) }) { Text("\u2039  Back to the steps") } }
         Box(Modifier.padding(vertical = 24.dp).size(300.dp), contentAlignment = Alignment.Center) {
             val track = MaterialTheme.colorScheme.surfaceContainerHighest
             Canvas(Modifier.fillMaxSize()) {
@@ -531,6 +534,7 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
                 Text(
                     when {
                         over != null -> "Time's up · counting up"
+                        routine != null -> "Routine"
                         quick -> "Quick timer"
                         else -> "Cycle ${p.cycle} / ${settings.cycles}"
                     },

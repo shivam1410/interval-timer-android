@@ -142,11 +142,16 @@ private val RENAMED = mapOf("silence" to "meditation", "ambient" to "rain")
 /** Your library items as activities ("lib:<id>"), set by Library; looked up like the built-in ones. */
 @Volatile var extraActivities: List<Activity> = emptyList()
 
-fun activity(id: String) = (ACTIVITIES + extraActivities).firstOrNull { it.id == (RENAMED[id] ?: id) } ?: ACTIVITIES[0]
+/** Your timed routines as activities ("routine:<id>"), set by [Routines]; a list of its own, because both stores assign theirs whole. */
+@Volatile var routineActivities: List<Activity> = emptyList()
+
+private val known get() = ACTIVITIES + extraActivities + routineActivities
+
+fun activity(id: String) = known.firstOrNull { it.id == (RENAMED[id] ?: id) } ?: ACTIVITIES[0]
 
 /** "😌 NSDR" for an activity id in History; a deleted library item can't fall back to Breathing. */
 fun activityLabel(id: String): String =
-    (ACTIVITIES + extraActivities).firstOrNull { it.id == (RENAMED[id] ?: id) }?.let { "${it.emoji} ${it.name}" } ?: "▶️ Removed library item"
+    known.firstOrNull { it.id == (RENAMED[id] ?: id) }?.let { "${it.emoji} ${it.name}" } ?: "▶️ Removed library item"
 
 enum class Kind { WORK, PREP, ACTIVITY }
 
