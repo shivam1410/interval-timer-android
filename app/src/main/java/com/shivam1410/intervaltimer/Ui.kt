@@ -124,8 +124,15 @@ fun Root(now: Long) {
     val ctx = LocalContext.current
     var page by rememberSaveable { mutableStateOf("") } // "", "history", "settings", "habits", "stretches", "habit:<id>", "routine:<id>"
     var countdown by rememberSaveable { mutableStateOf<String?>(null) } // quick timer about to start
+    // Minimised: whatever is running keeps running, and you get Home back (like a video in its corner).
+    var minimised by rememberSaveable { mutableStateOf(false) }
+    val running = session.running(plan)
     BackHandler(page.isNotEmpty()) { page = "" }
     BackHandler(countdown != null) { countdown = null }
+    // Back on the running screen puts it away instead of closing the app; back on Home still leaves.
+    BackHandler(running && !minimised && page.isEmpty() && countdown == null) { minimised = true }
+    LaunchedEffect(running) { if (!running) minimised = false }
+    val startQuick = rememberStartGuard { id -> minimised = false; page = ""; countdown = id }
     // A nudge's Sketch / Relax button: same 5-4-3-2-1 as tapping the quick timer on home.
     val nudged by Nudges.requestedQuick.collectAsState()
     LaunchedEffect(nudged) {
@@ -169,7 +176,11 @@ fun Root(now: Long) {
             page.startsWith("habit:") -> HabitCalendarScreen(page.removePrefix("habit:")) { page = "" }
             page.startsWith("routine:") -> RoutineScreen(page.removePrefix("routine:")) { page = "" }
             countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null } }
-            session.idle -> Setup(settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit:$it" }, onAddHabit = { page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = { countdown = it })
+            session.idle || minimised -> Setup(
+                settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit:$it" },
+                onAddHabit = { page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = startQuick,
+                mini = session.takeIf { minimised }, onRestore = { minimised = false },
+            )
             session.done(plan) -> Done(session, settings) { page = "history" }
             else -> Running(plan, session, settings, now) { page = "routine:$it" }
         }
@@ -209,7 +220,10 @@ private fun Banner(text: String, action: String, onClick: () -> Unit) {
 // ---------- Setup ----------
 
 @Composable
-private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () -> Unit, onHabit: (String) -> Unit, onAddHabit: () -> Unit, onRoutine: (String) -> Unit, onQuick: (String) -> Unit) {
+private fun Setup(
+    s: Settings, now: Long, onHistory: () -> Unit, onSettings: () -> Unit, onHabit: (String) -> Unit, onAddHabit: () -> Unit,
+    onRoutine: (String) -> Unit, onQuick: (String) -> Unit, mini: Session? = null, onRestore: () -> Unit = {},
+) {
     val total = plan(s).sumOf { it.ms }
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val first = Drive.profile.collectAsState().value?.displayName?.substringBefore(' ').orEmpty()
@@ -273,8 +287,10 @@ private fun Setup(s: Settings, now: Long, onHistory: () -> Unit, onSettings: () 
         }
         // Set from the Custom schedule; shown (with Cancel) whenever a start is armed, preset picked after or not.
         scheduled?.let { ScheduledLine(it) }
+        // Something already running: its bar takes the place of Start now, because only one timer runs at a time.
+        if (mini != null) MiniTimer(mini, now, onRestore)
         // Says exactly what a tap does: start now (dropping any armed start), or arm the picked hour.
-        Button(
+        else Button(
             onClick = {
                 if (pick == null) Timer.start()
                 else {
@@ -317,6 +333,52 @@ private fun ScheduledLine(at: Long) {
 }
 
 /** Header shortcut to History: how many days this month the app was used, next to the profile photo. */
+/** What is running, where Start now would be: tap to go back to its screen. */
+@Composable
+private fun MiniTimer(s: Session, now: Long, onRestore: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val a = s.quick?.let(::activity)
+    val left = s.left(now)
+    Row(
+        Modifier.fillMaxWidth().padding(20.dp).clip(RoundedCornerShape(32.dp)).background(cs.primaryContainer)
+            .clickable(onClickLabel = "Back to the timer", onClick = onRestore).padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(a?.emoji ?: "⏱", style = MaterialTheme.typography.titleLarge)
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(a?.name ?: "Workday", style = MaterialTheme.typography.titleMedium, color = cs.onPrimaryContainer)
+            Text(
+                if (s.paused) "Paused" else if (left == 0L) "Time's up" else "${fmt(left)} left",
+                style = MaterialTheme.typography.bodySmall, color = cs.onPrimaryContainer,
+            )
+        }
+        Text("Open", style = MaterialTheme.typography.labelLarge, color = cs.onPrimaryContainer)
+    }
+}
+
+/**
+ * Only one timer runs at a time. Returns the way to start [start]: straight away when nothing is going,
+ * otherwise after asking whether to end what is running. Renders the question itself.
+ */
+@Composable
+fun rememberStartGuard(start: (String) -> Unit): (String) -> Unit {
+    val session by Timer.session.collectAsState()
+    val settings by Timer.settings.collectAsState()
+    val plan = session.quick?.let(::quickPlan) ?: plan(settings)
+    var pending by remember { mutableStateOf<String?>(null) }
+    pending?.let { id ->
+        val from = session.quick?.let { activity(it).name } ?: "your workday"
+        AlertDialog(
+            onDismissRequest = { pending = null },
+            title = { Text("One timer at a time") },
+            text = { Text("End $from and start ${activity(id).name}?") },
+            confirmButton = { TextButton({ pending = null; Timer.stop(); start(id) }) { Text("End and start") } },
+            dismissButton = { TextButton({ pending = null }) { Text("Keep going") } },
+        )
+    }
+    return { id -> if (session.running(plan)) pending = id else start(id) }
+}
+
 @Composable
 private fun HistoryPill(onClick: () -> Unit) {
     val days by History.days.collectAsState()

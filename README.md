@@ -7,6 +7,10 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Home is quick**: Workday 50:10 · Deep 90:15 · Pomodoro 25:5 · Custom (only Custom shows the
   schedule controls), plus **quick timers** for one-off sessions — NSDR, Sketch, Stretch, Exercise,
   Walk, Power nap, Breathing — tapping one counts down 5-4-3-2-1-Start first
+- **One timer at a time, and it keeps running**: **Back** on a running workday, quick timer or routine puts
+  it away and gives you Home back instead of leaving the app — a bar at the bottom shows what is running and
+  how long is left, and **Open** returns to it. While something runs, **Start now** is gone, and tapping
+  another timer asks first ("End Breathing and start Walk?"), so nothing is ended by a stray tap
 - **My library**: your own quick exercises on home, one card each with a thumbnail (YouTube's, a video
   frame or the track's cover art), title, tag label and length. Add a YouTube / YouTube Music link or
   pick an audio / video file; title and length fill themselves in and stay editable; the tag is a

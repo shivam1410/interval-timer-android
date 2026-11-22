@@ -89,14 +89,13 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
     val current = routineSteps(r).getOrNull(step)
     val act = (current as? ActivityStep)?.let { stepActivity(it.activityId) }
     val actRunning = act != null && session.quick == act.id && !session.idle
-    fun startTimer(a: Activity) {
-        // One timer at a time: a step's timer takes over, and the routine's own time so far is banked.
-        if (timed) Timer.stop()
-        val lib = items.firstOrNull { "lib:${it.id}" == a.id && !it.deleted }
+    // One timer at a time, the routine's own included: the guard asks before a step's timer takes over.
+    val startTimer = rememberStartGuard { actId ->
+        val lib = items.firstOrNull { "lib:${it.id}" == actId && !it.deleted }
         if (lib != null) startLibraryItem(ctx, lib) // opens its video or file too, as on home
         else {
-            Timer.startQuick(a.id)
-            Strava.record(ctx, a.id) // a walk also records in Strava, as it does from home
+            Timer.startQuick(actId)
+            Strava.record(ctx, actId) // a walk also records in Strava, as it does from home
         }
     }
     fun next() {
@@ -159,7 +158,7 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
                     Text(act.hint, color = cs.onSurfaceVariant, textAlign = TextAlign.Center)
                     // Once it runs, the clock replaces Start; the gong ends it and ✓ Done moves the routine on.
                     if (actRunning) RoutineClock(session)
-                    else Button({ startTimer(act) }, Modifier.padding(top = 8.dp).height(56.dp)) {
+                    else Button({ startTimer(act.id) }, Modifier.padding(top = 8.dp).height(56.dp)) {
                         Text("▶  Start · ${act.quickMin ?: DEFAULT_ROUTINE_MIN} min", fontSize = 18.sp)
                     }
                 }
@@ -188,6 +187,8 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
 private fun RoutineStartCard(r: Routine, onBack: () -> Unit, onStart: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     var min by remember(r.id) { mutableStateOf(r.minutes) }
+    // Asks first when a workday or another timer runs; the steps open only once the routine's timer is away.
+    val start = rememberStartGuard { id -> Timer.startQuick(id); onStart() }
     val stretches = routineSteps(r).count { it is HabitStep }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
@@ -207,11 +208,9 @@ private fun RoutineStartCard(r: Routine, onBack: () -> Unit, onStart: () -> Unit
             {
                 // Saved first, so the engine reads this length when it builds the timer's single phase.
                 if (min != r.minutes) Routines.save(r.copy(minutes = min))
-                if (min != null) {
-                    TogglSync.onRoutine(null, 0) // the session's own entry takes over from here
-                    Timer.startQuick("routine:${r.id}")
-                }
-                onStart()
+                if (min == null) return@Button onStart()
+                TogglSync.onRoutine(null, 0) // the session's own entry takes over from here
+                start("routine:${r.id}")
             },
             Modifier.fillMaxWidth().padding(bottom = 24.dp).height(64.dp),
         ) { Text(min?.let { "\u25b6  Start \u00b7 $it min" } ?: "Start", fontSize = 20.sp) }

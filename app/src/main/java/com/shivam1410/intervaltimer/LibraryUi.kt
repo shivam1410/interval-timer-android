@@ -80,7 +80,9 @@ fun MyLibrary() {
 
     Text("My library", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items.forEach { item -> LibraryCard(item, onOpen = { startLibraryItem(ctx, item) }, onEdit = { editing = item }) }
+        // Guarded: one timer at a time, so a workday or another quick timer is ended only after you say so.
+        val start = rememberStartGuard { id -> items.firstOrNull { "lib:${it.id}" == id }?.let { startLibraryItem(ctx, it) } }
+        items.forEach { item -> LibraryCard(item, onOpen = { start("lib:${item.id}") }, onEdit = { editing = item }) }
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainerHigh).clickable(onClickLabel = "Add to library") { adding = true }.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
