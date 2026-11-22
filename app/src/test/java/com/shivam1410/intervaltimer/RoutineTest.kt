@@ -155,4 +155,18 @@ class RoutineTest {
         assertEquals(0, routineStreak(r(), today))
         assertEquals(4, doneInLast(r(done = days), today, 30)) // day 40 is outside
     }
+
+    @Test fun aTimerStepIsAnActivityAndIsAlwaysStillToDo() {
+        assertEquals(ActivityStep("walk"), stepOf(actStep("walk")))
+        assertEquals(ActivityStep("lib:abc"), stepOf(actStep("lib:abc"))) // a library item keeps its own "lib:" id
+        assertEquals(TextStep("Water"), stepOf("Water"))
+        assertEquals(HabitStep("calf"), stepOf(habitStep("calf")))
+        // A timer step records nothing of its own, so the routine opens on it however often it was run.
+        val routine = r().copy(steps = listOf(habitStep("a"), actStep("walk"), "Water"))
+        val stages = sameEveryDay(30, 1, 10)
+        val habits = listOf(Habit("a", "", today.minusDays(2), stages, null, setOf(today), 1, false, title = "a"))
+        assertEquals(1, firstUndoneStep(routine, habits, today))
+        // It is not a stretch, so it never holds a finished routine open either.
+        assertEquals(540, routineDoneToday(routine.copy(done = mapOf(today to 540)), habits, today))
+    }
 }

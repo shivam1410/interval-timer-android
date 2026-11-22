@@ -34,6 +34,7 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -83,7 +84,23 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
     val session by Timer.session.collectAsState()
     val timed = session.quick == "routine:$id" // this routine's own timer, running or just finished
     var started by remember(id) { mutableStateOf(false) }
+    val ctx = LocalContext.current
+    // The step you're on. A timer step runs a quick timer or a library item where the step is.
+    val current = routineSteps(r).getOrNull(step)
+    val act = (current as? ActivityStep)?.let { stepActivity(it.activityId) }
+    val actRunning = act != null && session.quick == act.id && !session.idle
+    fun startTimer(a: Activity) {
+        // One timer at a time: a step's timer takes over, and the routine's own time so far is banked.
+        if (timed) Timer.stop()
+        val lib = items.firstOrNull { "lib:${it.id}" == a.id && !it.deleted }
+        if (lib != null) startLibraryItem(ctx, lib) // opens its video or file too, as on home
+        else {
+            Timer.startQuick(a.id)
+            Strava.record(ctx, a.id) // a walk also records in Strava, as it does from home
+        }
+    }
     fun next() {
+        if (actRunning) Timer.stop() // leaving a step whose timer still runs banks that time in History
         step++
         if (step >= r.steps.size) {
             Routines.finish(r.id)
@@ -101,8 +118,7 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
         TogglSync.onRoutine(r, System.currentTimeMillis())
         onDispose { TogglSync.onRoutine(null, 0) }
     }
-    // A habit step's habit, when it can be done today (null: a text step, or a habit that's gone or finished).
-    val current = routineSteps(r).getOrNull(step)
+    // A habit step's habit, when it can be done today (null: another kind of step, or a habit that's gone or finished).
     val habit = (current as? HabitStep)?.let { s -> habits.firstOrNull { it.id == s.habitId && !it.ended } }
     val stage = habit?.let { it.stageOn(it.dayOf(today)) }
     LaunchedEffect(step, current, stage == null) {
@@ -136,6 +152,19 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
                 }
             } else if (current is TextStep) {
                 Text(current.text, fontSize = 36.sp, lineHeight = 44.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+            } else if (act != null) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(act.emoji, fontSize = 56.sp)
+                    Text(act.name, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                    Text(act.hint, color = cs.onSurfaceVariant, textAlign = TextAlign.Center)
+                    // Once it runs, the clock replaces Start; the gong ends it and ✓ Done moves the routine on.
+                    if (actRunning) RoutineClock(session)
+                    else Button({ startTimer(act) }, Modifier.padding(top = 8.dp).height(56.dp)) {
+                        Text("▶  Start · ${act.quickMin ?: DEFAULT_ROUTINE_MIN} min", fontSize = 18.sp)
+                    }
+                }
+            } else if (current is ActivityStep) {
+                Text("Timer removed", fontSize = 28.sp, color = cs.onSurfaceVariant, textAlign = TextAlign.Center)
             }
         }
         if (finished) {
@@ -221,6 +250,7 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
     var steps by remember { mutableStateOf(r.steps) }
     var remind by remember { mutableStateOf(r.remindMin) }
     var picking by remember { mutableStateOf(false) }
+    var pickingTimer by remember { mutableStateOf(false) }
     var level by remember { mutableStateOf(Level.BEGINNER) }
     val clean = steps.map { it.trim() }.filter { it.isNotEmpty() }
     val habits by Habits.all.collectAsState()
@@ -232,6 +262,30 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
     // Stretches you can start here: the catalog, minus the ones already running.
     // ponytail: matched by the name a catalog habit is started with ("Supraspinatus · 6 presses · Beginner").
     val catalog = CATALOG.filterNot { e -> habits.any { !it.ended && it.title.startsWith(e.name) } }
+    // Timers you can add: the built-in quick timers and your own library items, both run by the same engine.
+    if (pickingTimer) AlertDialog(
+        onDismissRequest = { pickingTimer = false },
+        title = { Text("Add a timer") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                val timers = ACTIVITIES.filter { it.quickMin != null } + items.filterNot { it.deleted }.map { it.toActivity() }
+                timers.forEach { a ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable {
+                            steps = steps.filter { it.isNotBlank() } + actStep(a.id)
+                            pickingTimer = false
+                        }.padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(a.emoji, Modifier.width(40.dp), style = MaterialTheme.typography.titleLarge)
+                        Text(a.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                        Text("${a.quickMin ?: DEFAULT_ROUTINE_MIN} min", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton({ pickingTimer = false }) { Text("Cancel") } },
+    )
     if (picking) AlertDialog(
         onDismissRequest = { picking = false },
         title = { Text("Add a stretch") },
@@ -282,8 +336,17 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
                 Text("Steps, in order", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 4.dp))
                 steps.forEachIndexed { i, s ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        val hs = stepOf(s) as? HabitStep
-                        if (hs != null) {
+                        val parsed = stepOf(s)
+                        val hs = parsed as? HabitStep
+                        val asStep = parsed as? ActivityStep
+                        if (asStep != null) {
+                            // A timer: started where the step is, with its own clock; not editable as text.
+                            val a = stepActivity(asStep.activityId)
+                            Text(
+                                "⏱ " + (a?.let { "${it.name} · ${it.quickMin ?: DEFAULT_ROUTINE_MIN} min" } ?: "Removed timer"),
+                                Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 16.dp), style = MaterialTheme.typography.bodyLarge,
+                            )
+                        } else if (hs != null) {
                             // A habit: done with its figure and count when the routine runs; not editable as text.
                             val h = habits.firstOrNull { it.id == hs.habitId }
                             Text("🏋 " + (h?.let { habitTitle(it, items) } ?: "Removed habit"), Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 16.dp), style = MaterialTheme.typography.bodyLarge)
@@ -295,9 +358,11 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
                         IconButton({ steps = steps.filterIndexed { j, _ -> j != i } }) { Text("×", style = MaterialTheme.typography.titleLarge) }
                     }
                 }
+                // Short labels: three "+ Add a …" buttons wrapped onto three lines in the dialog.
                 Row {
-                    TextButton({ steps = steps + "" }) { Text("+ Add step") }
-                    TextButton({ picking = true }) { Text("+ Add a stretch") }
+                    TextButton({ steps = steps + "" }) { Text("+ Step") }
+                    TextButton({ picking = true }) { Text("+ Stretch") }
+                    TextButton({ pickingTimer = true }) { Text("+ Timer") }
                 }
                 ReminderRow(remind) { remind = it }
             }

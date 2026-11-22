@@ -40,30 +40,46 @@ val DEFAULT_ROUTINES = listOf(
     Routine("evening", "🌙", "Evening", listOf("Charge phone", "Clothes out for tomorrow", "Lights off", "Phone away from bed"), null, emptyMap(), 0),
 )
 
-/** A routine step: plain text you tick, or one of your habits ([habitStep] strings), done with its count-along. */
+/**
+ * A routine step: plain text you tick, one of your habits ([habitStep] strings) done with its count-along,
+ * or a timer ([actStep]) — a quick timer or one of your library items, run where the step is.
+ */
 sealed interface RoutineStep
 data class TextStep(val text: String) : RoutineStep
 data class HabitStep(val habitId: String) : RoutineStep
+data class ActivityStep(val activityId: String) : RoutineStep
 
 private const val HABIT_PREFIX = "habit:"
+private const val ACT_PREFIX = "act:"
 
 /** The stored step string for habit [id]; steps stay plain strings so storage and Drive sync don't change. */
 fun habitStep(id: String) = HABIT_PREFIX + id
 
-fun stepOf(s: String): RoutineStep = if (s.startsWith(HABIT_PREFIX)) HabitStep(s.removePrefix(HABIT_PREFIX)) else TextStep(s)
+/** The stored step string for activity [id] ("walk", "lib:<id>"): the same plain-string trick as [habitStep]. */
+fun actStep(id: String) = ACT_PREFIX + id
+
+/** The activity a timer step runs ("walk", "lib:<id>"), or null when it is gone (a library item you deleted). */
+fun stepActivity(id: String): Activity? = activity(id).takeIf { it.id == id }
+
+fun stepOf(s: String): RoutineStep = when {
+    s.startsWith(HABIT_PREFIX) -> HabitStep(s.removePrefix(HABIT_PREFIX))
+    s.startsWith(ACT_PREFIX) -> ActivityStep(s.removePrefix(ACT_PREFIX))
+    else -> TextStep(s)
+}
 
 fun routineSteps(r: Routine): List<RoutineStep> = r.steps.map(::stepOf)
 
 /**
  * Where to open [r] today: the first step you still have to do. Habit steps already done today (and ones
- * whose habit is gone or ended) are behind you; a text step is never tracked, so it always counts as to do.
+ * whose habit is gone or ended) are behind you; a text or timer step is never tracked, so it always counts as to do.
  * Everything done gives [Routine.steps].size: the finished screen.
  */
 fun firstUndoneStep(r: Routine, habits: List<Habit>, today: LocalDate): Int {
     val steps = routineSteps(r)
     val i = steps.indexOfFirst { st ->
         when (st) {
-            is TextStep -> true
+            // A text or timer step keeps no record of its own, so it is always still to do.
+            is TextStep, is ActivityStep -> true
             is HabitStep -> habits.firstOrNull { it.id == st.habitId && !it.ended }?.let { today !in it.done && it.stageOn(it.dayOf(today)) != null } ?: false
         }
     }

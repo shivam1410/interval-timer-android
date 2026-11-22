@@ -59,6 +59,7 @@ object Routines {
             val first = when (val f = routineSteps(r).firstOrNull()) {
                 is HabitStep -> Habits.all.value.firstOrNull { it.id == f.habitId }?.title?.ifBlank { null } ?: "a habit"
                 is TextStep -> f.text
+                is ActivityStep -> activity(f.activityId).name
                 null -> ""
             }
             val text = "${r.steps.size} steps · first: $first"

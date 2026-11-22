@@ -126,6 +126,13 @@ private fun SlotCard(slot: Slot, habits: List<Habit>, items: List<LibraryItem>, 
                         Text("•", Modifier.width(28.dp), color = cs.onSurfaceVariant)
                         Text(st.text, style = MaterialTheme.typography.bodyLarge)
                     }
+                    // A timer step: the activity or library item it runs, and how long for.
+                    is ActivityStep -> stepActivity(st.activityId).let { a ->
+                        Row(Modifier.padding(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)) {
+                            Text("⏱", Modifier.width(28.dp), color = cs.onSurfaceVariant)
+                            Text(a?.let { "${it.name} · ${it.quickMin ?: DEFAULT_ROUTINE_MIN} min" } ?: "Removed timer", style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
                 }
             }
         }

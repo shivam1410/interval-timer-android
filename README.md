@@ -34,10 +34,14 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   big text with a big **✓ Done**. Finishing records the time ("☀️ Morning ✓ 8:14"). Optional daily reminder
   with **Start**, and a *Still to do* nudge 30 min later if it isn't done; edit, add or delete routines in
   Settings › Habits & routines, which shows your day by time: one card per time with its routines (✏️ edit,
-  📅 the routine's calendar with its streak) and habits. A routine can hold your **habits** too (**+ Add a stretch**, or **Do it in** when
+  📅 the routine's calendar with its streak) and habits. A routine can hold your **habits** too (**+ Stretch**, or **Do it in** when
   starting a plan), so a "10 am" routine runs your stretches with their figure and count, then your other
-  steps; habits in a routine leave the Home deck. **+ Add a stretch** also offers the whole stretch catalog,
-  at the level you pick, and starts it for you. Opening a routine lands on the first step still to do, and a
+  steps; habits in a routine leave the Home deck. **+ Stretch** also offers the whole stretch catalog,
+  at the level you pick, and starts it for you. **+ Timer** puts a quick timer or one of your library items in
+  the routine (a 15-min walk in the evening, say): that step shows the activity with **▶ Start · N min**, runs
+  it on the quick-timer engine with its clock, Pause and End right there, opens the video or file for a library
+  item and records a walk in Strava, and the time lands in History. Only one timer runs at a time, so starting a
+  step's timer ends the routine's own and banks its time. Opening a routine lands on the first step still to do, and a
   bell marks each step done. Before it starts, pick a **Timer** (Off, 10, 15, 20 or 30 min): the length sticks
   to that routine, the countdown runs on the quick-timer engine (notification, Pause, +10 min, long gong at
   the end), the time lands in History as "🚪 Leaving the house", and **Back to the steps** returns from
