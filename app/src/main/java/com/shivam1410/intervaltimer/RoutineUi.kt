@@ -69,9 +69,12 @@ fun RoutinesRow(onOpen: (String) -> Unit) {
     }
 }
 
-/** One step at a time, big: ✓ Done moves on, Back / Skip are small. The end records the time and says so. */
+/**
+ * One step at a time, big: ✓ Done moves on, Back / Skip are small. The end records the time and says so.
+ * [autoStart] (a reminder's Start) presses the start card's own button for you, timer and all.
+ */
 @Composable
-fun RoutineScreen(id: String, onBack: () -> Unit) {
+fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
     val all by Routines.all.collectAsState()
     val r = all.firstOrNull { it.id == id && !it.deleted } ?: return onBack()
     val cs = MaterialTheme.colorScheme
@@ -110,7 +113,7 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
     }
     // The start card, until you start: not while its timer runs, and not when you already did a step today.
     if (!started && !timed && step == 0 && doneToday(r, today) == null) {
-        return RoutineStartCard(r, onBack) { started = true }
+        return RoutineStartCard(r, autoStart, onBack) { started = true }
     }
     // Toggl: a timer from opening the routine until it's finished or you leave it.
     DisposableEffect(id) {
@@ -184,11 +187,20 @@ fun RoutineScreen(id: String, onBack: () -> Unit) {
  * saves it to the routine, so tomorrow it's already right; Off means no timer, just the steps.
  */
 @Composable
-private fun RoutineStartCard(r: Routine, onBack: () -> Unit, onStart: () -> Unit) {
+private fun RoutineStartCard(r: Routine, autoStart: Boolean, onBack: () -> Unit, onStart: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     var min by remember(r.id) { mutableStateOf(r.minutes) }
     // Asks first when a workday or another timer runs; the steps open only once the routine's timer is away.
     val start = rememberStartGuard { id -> Timer.startQuick(id); onStart() }
+    fun go() {
+        // Saved first, so the engine reads this length when it builds the timer's single phase.
+        if (min != r.minutes) Routines.save(r.copy(minutes = min))
+        if (min == null) return onStart()
+        TogglSync.onRoutine(null, 0) // the session's own entry takes over from here
+        start("routine:${r.id}")
+    }
+    // A reminder's Start: the same press, so a workday already running still gets asked about first.
+    LaunchedEffect(Unit) { if (autoStart) go() }
     val stretches = routineSteps(r).count { it is HabitStep }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
@@ -205,13 +217,7 @@ private fun RoutineStartCard(r: Routine, onBack: () -> Unit, onStart: () -> Unit
             }
         }
         Button(
-            {
-                // Saved first, so the engine reads this length when it builds the timer's single phase.
-                if (min != r.minutes) Routines.save(r.copy(minutes = min))
-                if (min == null) return@Button onStart()
-                TogglSync.onRoutine(null, 0) // the session's own entry takes over from here
-                start("routine:${r.id}")
-            },
+            { go() },
             Modifier.fillMaxWidth().padding(bottom = 24.dp).height(64.dp),
         ) { Text(min?.let { "\u25b6  Start \u00b7 $it min" } ?: "Start", fontSize = 20.sp) }
     }

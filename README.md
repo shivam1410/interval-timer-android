@@ -36,7 +36,8 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   the end (also when you End and Save early). Edit or turn off the lists there
 - **Routines**: Morning, Leaving the house and Evening as chips on Home; tap one for a single step at a time in
   big text with a big **✓ Done**. Finishing records the time ("☀️ Morning ✓ 8:14"). Optional daily reminder
-  with **Start**, and a *Still to do* nudge 30 min later if it isn't done; edit, add or delete routines in
+  with **Start** (runs the routine's timer and opens its first undone step; a timer already going asks first)
+  and **Open** (just takes you there), and a *Still to do* nudge 30 min later if it isn't done; edit, add or delete routines in
   Settings › Habits & routines, which shows your day by time: one card per time with its routines (✏️ edit,
   📅 the routine's calendar with its streak) and habits. A routine can hold your **habits** too (**+ Stretch**, or **Do it in** when
   starting a plan), so a "10 am" routine runs your stretches with their figure and count, then your other

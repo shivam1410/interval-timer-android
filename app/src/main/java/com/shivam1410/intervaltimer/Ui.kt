@@ -138,10 +138,11 @@ fun Root(now: Long) {
     LaunchedEffect(nudged) {
         nudged?.let { page = ""; countdown = it; Nudges.requestedQuick.value = null }
     }
-    // A routine reminder's Start: open that routine.
+    // A routine reminder: Open takes you to the routine, Start also runs its timer there and then.
     val routine by Routines.requested.collectAsState()
+    var autoStart by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(routine) {
-        routine?.let { page = "routine:$it"; Routines.requested.value = null }
+        routine?.let { autoStart = Routines.startRequested; page = "routine:$it"; Routines.requested.value = null }
     }
 
     // Power nap goes fully black, status bar included, with light status icons.
@@ -174,7 +175,7 @@ fun Root(now: Long) {
             page == "habits" -> SettingsScreen(settings, start = "habits") { page = "" }
             page == "stretches" -> SettingsScreen(settings, start = "stretches") { page = "" }
             page.startsWith("habit:") -> HabitCalendarScreen(page.removePrefix("habit:")) { page = "" }
-            page.startsWith("routine:") -> RoutineScreen(page.removePrefix("routine:")) { page = "" }
+            page.startsWith("routine:") -> RoutineScreen(page.removePrefix("routine:"), autoStart) { page = ""; autoStart = false }
             countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null } }
             session.idle || minimised -> Setup(
                 settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit:$it" },
