@@ -172,6 +172,20 @@ fun decodeHabits(text: String?): List<Habit> =
         }.getOrNull()
     }
 
+/**
+ * When each habit was finished on one day, as "<id>=<minute of day>", comma-separated. Kept in a store of
+ * its own rather than as a tenth field on the habit line: [decodeHabits] drops any line whose field count
+ * it does not recognise, so a build older than this one would lose the whole habit, history and all, to
+ * gain a time it cannot show. Losing the times is survivable; losing the habits is not.
+ */
+fun encodeTimes(byId: Map<String, Int>): String = byId.entries.sortedBy { it.key }.joinToString(",") { "${it.key}=${it.value}" }
+
+fun decodeTimes(text: String?): Map<String, Int> =
+    text.orEmpty().split(",").mapNotNull { part ->
+        val i = part.indexOf('=')
+        if (i <= 0) null else part.substring(i + 1).toIntOrNull()?.let { part.substring(0, i) to it }
+    }.toMap()
+
 /** Newest edit of each habit wins, but a Done from either phone is kept. */
 fun mergeHabits(a: List<Habit>, b: List<Habit>): List<Habit> =
     (a + b).groupBy { it.id }.values.map { same -> same.maxBy { it.updatedAt }.copy(done = same.flatMap { it.done }.toSet()) }

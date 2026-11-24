@@ -119,15 +119,17 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
         // A day is not only its work blocks. Without these, a day of nothing but routines and habits
         // reported "Nothing recorded on this day" while Home was listing what you had done.
         val items by Library.items.collectAsState()
+        val habitTimes by Habits.times.collectAsState()
         val routinesDone = Routines.all.collectAsState().value
-            .filterNot { it.deleted }.mapNotNull { r -> r.done[date]?.let { min -> min to r } }.sortedBy { it.first }
-        val habitsDone = Habits.all.collectAsState().value.filter { date in it.done }.map { habitTitle(it, items) }
-        if (routinesDone.isNotEmpty() || habitsDone.isNotEmpty()) {
-            Panel("Routines and habits") {
-                routinesDone.forEach { (min, r) -> Line("${r.emoji} ${r.name}", clockOfDay(min)) }
-                // Habits record the day they were done, not the minute, so there is no time to show.
-                habitsDone.forEach { Line(it, "done") }
-            }
+            .filterNot { it.deleted }.mapNotNull { r -> r.done[date]?.let { min -> min to "${r.emoji} ${r.name}" } }
+        val habitsDone = Habits.all.collectAsState().value.filter { date in it.done }
+            .map { habitTimes[date]?.get(it.id) to habitTitle(it, items) }
+        // One list in the order it happened. Routines always carried their minute and habits never did,
+        // so the two sat in separate heaps and the day read as two days. A habit ticked off in the
+        // calendar long afterwards still has no minute, and sits at the end saying so.
+        val events = (routinesDone + habitsDone).sortedWith(compareBy(nullsLast()) { it.first })
+        if (events.isNotEmpty()) Panel("Routines and habits") {
+            events.forEach { (min, label) -> Line(label, min?.let(::clockOfDay) ?: "done") }
         }
         Box(Modifier.height(24.dp))
     }

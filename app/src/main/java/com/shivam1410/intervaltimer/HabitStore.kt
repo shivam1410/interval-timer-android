@@ -26,10 +26,17 @@ object Habits {
     val running get() = all.value.filter { !it.ended }
     private lateinit var app: Context
     private val prefs get() = app.getSharedPreferences("habits", Context.MODE_PRIVATE)
+    // When each habit was finished, by day: a store of its own, local to this phone and never synced,
+    // so the habits themselves keep the exact shape older builds and Drive already agree on.
+    private val timePrefs get() = app.getSharedPreferences("habitTimes", Context.MODE_PRIVATE)
+    val times = MutableStateFlow<Map<LocalDate, Map<String, Int>>>(emptyMap())
 
     fun init(ctx: Context) {
         app = ctx.applicationContext
         all.value = decodeHabits(prefs.getString("items", null))
+        times.value = timePrefs.all.mapNotNull { (k, v) ->
+            runCatching { LocalDate.parse(k) }.getOrNull()?.let { it to decodeTimes(v as? String) }
+        }.toMap()
         app.getSystemService(NotificationManager::class.java)
             .createNotificationChannel(NotificationChannel(CH_HABIT, "Habit reminder", NotificationManager.IMPORTANCE_HIGH))
         arm() // alarms don't survive a reboot; boot starts the process, which lands here
@@ -54,6 +61,13 @@ object Habits {
 
     fun markDone(id: String, date: LocalDate, on: Boolean) {
         update(id) { it.copy(done = if (on) it.done + date else it.done - date) }
+        // Ticked today, note the minute — a day marked off in the calendar weeks later has no minute to
+        // note, and the day's record says "done" for those rather than inventing one.
+        val day = (times.value[date].orEmpty() - id).let { rest ->
+            if (on && date == LocalDate.now()) rest + (id to java.time.LocalTime.now().let { it.hour * 60 + it.minute }) else rest
+        }
+        times.value = if (day.isEmpty()) times.value - date else times.value + (date to day)
+        timePrefs.edit().putString(date.toString(), encodeTimes(day)).apply()
         if (on) app.getSystemService(NotificationManager::class.java).cancel(notifId(id))
     }
 

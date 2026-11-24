@@ -258,4 +258,15 @@ class HabitTest {
         assertEquals(listOf("a", "b", "c"), habitDeck(listOf(a, b, c), day(4)).map { it.id }) // new day: all back on
         assertEquals(listOf("a", "c"), habitDeck(listOf(a, b, c), day(4), hidden = setOf("b")).map { it.id }) // b lives in a routine
     }
+
+    // Finish times live beside the habits, not inside them: an older build must never choke on them.
+    @Test fun finishTimesSurviveARoundTripAndShrugOffRubbish() {
+        val t = mapOf("h1" to 494, "h2" to 930)
+        assertEquals(t, decodeTimes(encodeTimes(t)))
+        assertEquals("h1=494,h2=930", encodeTimes(t))
+        assertEquals(emptyMap<String, Int>(), decodeTimes(null))
+        assertEquals(emptyMap<String, Int>(), decodeTimes(""))
+        // A half-written or foreign entry is dropped, never thrown over.
+        assertEquals(mapOf("h2" to 930), decodeTimes("h1=,=5,bare,h2=930"))
+    }
 }
