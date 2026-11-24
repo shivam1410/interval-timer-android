@@ -105,6 +105,19 @@ const val NUDGE_MIN = 30
 fun doneToday(r: Routine, today: LocalDate): Int? = r.done[today]
 
 /**
+ * How often [r] has been done lately, on the same forgiving terms as a habit's: the window is the routine's
+ * own age — from the first time it was ever done — capped at [window] days. A routine you have never done
+ * measures nothing, and [Density.worthShowing] keeps anything under three finishes off the screen entirely.
+ */
+fun routineDensity(r: Routine, today: LocalDate, window: Int = 14): Density {
+    val first = r.done.keys.minOrNull() ?: return Density(0, 0)
+    val of = (java.time.temporal.ChronoUnit.DAYS.between(first, today).toInt() + 1).coerceIn(0, window)
+    if (of <= 0) return Density(0, 0)
+    val from = today.minusDays((of - 1).toLong())
+    return Density(r.done.keys.count { !it.isBefore(from) && !it.isAfter(today) }, of)
+}
+
+/**
  * The minute [r] was finished on [today], but only while nothing in it is still to do: a stretch added
  * after you finished (today's new one, say) puts the routine back on your list. The habit steps are what
  * count, because a text step keeps no record; a habit that ended or was deleted can't be done, so it is

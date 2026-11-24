@@ -79,6 +79,9 @@ fun RoutinesRow(onOpen: (String) -> Unit) {
                 Column(Modifier.weight(1f)) {
                     Text(r.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(routineSummary(r, r.minutes), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                    // The steps are structure and always show; how often you keep it waits until there is
+                    // something worth saying, so a routine you started yesterday is never shown a near-zero.
+                    DensityDots(routineDensity(r, today), r.done.keys)
                 }
                 r.remindMin?.let {
                     Text(fmtMinute(it), style = MaterialTheme.typography.labelLarge, color = cs.onSurfaceVariant)
@@ -164,6 +167,8 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("✓", fontSize = 64.sp, color = cs.primary)
                     Text("${r.name} done" + (at?.let { " · ${fmtMinute(it)}" } ?: ""), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                    // The record line is a fact and always appears; the count under it is a score, and waits.
+                    DensityDots(routineDensity(r, today), r.done.keys, long = true)
                 }
             } else if (habit != null && stage != null) {
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -509,5 +514,32 @@ fun RoutineCalendarScreen(id: String, onBack: () -> Unit) {
             }
         }
         Text("A day fills in when you finish the routine.", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
+    }
+}
+
+
+/**
+ * "3 of the last 4 days" with a cell per day, oldest first — or nothing at all, which is the point: under
+ * three finishes there is no honest number to print, only a near-zero that reads as a telling-off.
+ */
+@Composable
+private fun DensityDots(d: Density, done: Set<LocalDate>, long: Boolean = false) {
+    if (!d.worthShowing) return
+    val today = LocalDate.now()
+    val cs = MaterialTheme.colorScheme
+    Row(
+        Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        (d.of - 1 downTo 0).forEach { i ->
+            Box(
+                Modifier.size(6.dp).clip(RoundedCornerShape(2.dp))
+                    .background(if (today.minusDays(i.toLong()) in done) cs.primary else cs.surfaceContainerHighest),
+            )
+        }
+        Text(
+            if (long) "${d.done} of the last ${d.of} days" else "${d.done} of ${d.of}",
+            Modifier.padding(start = 5.dp), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant,
+        )
     }
 }

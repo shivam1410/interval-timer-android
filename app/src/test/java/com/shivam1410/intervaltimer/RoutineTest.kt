@@ -1,6 +1,7 @@
 package com.shivam1410.intervaltimer
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -16,6 +17,21 @@ class RoutineTest {
         assertEquals(listOf("Take meds", "Drink a glass of water", "Brush teeth", "Eat breakfast"), DEFAULT_ROUTINES[0].steps)
         assertEquals(listOf("Keys", "Wallet", "Phone", "Earbuds", "Water bottle"), DEFAULT_ROUTINES[1].steps)
         assertTrue(DEFAULT_ROUTINES.all { it.updatedAt == 0L }) // any edit of yours wins over the shipped defaults
+    }
+
+    // A routine is judged against its own age, like a habit — and says nothing until it has three finishes.
+    @Test fun aRoutineIsJudgedAgainstItsOwnAgeAndStaysQuietUntilThree() {
+        fun on(vararg n: Int) = n.associate { today.minusDays(it.toLong()) to 480 }
+        // Never done: nothing to measure, and nothing printed.
+        assertEquals(Density(0, 0), routineDensity(r(), today))
+        assertFalse(routineDensity(r(), today).worthShowing)
+        // Three days old, done on three of them.
+        assertEquals(Density(3, 3), routineDensity(r(done = on(0, 1, 2)), today))
+        assertTrue(routineDensity(r(done = on(0, 1, 2)).let { it }, today).worthShowing)
+        // A gap counts against it, but only inside its own age.
+        assertEquals(Density(3, 4), routineDensity(r(done = on(0, 2, 3)), today))
+        // Older than the window: a fortnight, not its whole life.
+        assertEquals(Density(2, 14), routineDensity(r(done = on(0, 1, 40)), today))
     }
 
     @Test fun doneTodayIsTheMinuteItWasFinished() {
