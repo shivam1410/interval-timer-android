@@ -83,6 +83,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.DateFormat
@@ -322,7 +323,7 @@ private fun Setup(
             HoursCard(s, now, onShape)
             scheduled?.let { ScheduledLine(it) }
             if (scheduled == null) StartCard(s, now, cyclesLeftToday(s, minuteOfDay(now))) { cycles -> Timer.start(cycles ?: s.cycles) }
-            AlsoToday(onRoutine, onHabit)
+            TodayThread(now, onRoutine, onHabit)
             Spacer(Modifier.height(16.dp))
         }
         // The board ends the page with one way to start anything else, not a summary of what is in there.
@@ -1217,64 +1218,118 @@ internal fun Int.spelled() = listOf(
     "no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
 ).getOrNull(this) ?: toString()
 
-/** Everything else the day holds — routines and the stretches due — as one list, in the order it happens. */
+/** One thing in the day's thread: what it is, when, and whether it is behind you. */
+private data class DayRow(
+    val at: Int?,            // minute of day; no hour of its own sorts to the end
+    val glyph: String,
+    val name: String,
+    val meta: String,
+    val right: String,
+    val done: Boolean,
+    val route: String = "",  // empty: a record, not something to open
+)
+
+/**
+ * The whole day as one thread: what you have done, ticked and struck through, and what is still to
+ * come, in the order the clock puts them. It used to be two lists on two screens — what happened was
+ * a page away, and what was left sat on Home with no sight of the rest.
+ */
 @Composable
-private fun AlsoToday(onRoutine: (String) -> Unit, onHabit: (String) -> Unit) {
+private fun TodayThread(now: Long, onRoutine: (String) -> Unit, onHabit: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val today = History.today()
     val routines by Routines.all.collectAsState()
-    val habits by Habits.all.collectAsState()
+    val allHabits by Habits.all.collectAsState()
     val items by Library.items.collectAsState()
-    val left = routines.filter { !it.deleted && routineDoneToday(it, habits, today) == null }
-        .map { Triple(it.remindMin, "${it.emoji}|${it.name}|${routineSummary(it, it.minutes)}", "routine:${it.id}") }
-    val deck = habitDeck(habits.filter { !it.ended }, today, hidden = habitsInRoutines(routines))
-        .filter { today !in it.done }
-        .map { h ->
-            val day = h.dayOf(today)
-            Triple(
-                h.remindMin,
-                "${habitGlyph(h, items)}|${habitTitle(h, items)}|Day $day of ${h.totalDays}" + (h.stageOn(day)?.let { " · ${label(it)}" } ?: ""),
-                "habit:${h.id}",
+    val habitTimes by Habits.times.collectAsState()
+    val stored by History.timelines.collectAsState()
+    val session by Timer.session.collectAsState()
+    val dayRec = History.days.collectAsState().value.firstOrNull { it.date == today }
+    val segs = remember(stored, session, now) {
+        dropBlips(joined(History.timeline(today, session, Timer.plan, now)), keepLast = false)
+    }
+    val live = routines.filterNot { it.deleted }
+    val rows = buildList {
+        // The workday as one entry: the wave above already draws every block of it.
+        val plain = segs.filter { it.label.isEmpty() }
+        if (plain.isNotEmpty()) {
+            val n = dayRec?.cycles ?: 0
+            add(
+                DayRow(
+                    minuteOfDay(plain.first().start), "🎯",
+                    if (n > 1) "Cycles 1–$n" else if (n == 1) "One cycle" else "Work",
+                    workdayLine(plain).orEmpty(), fmtDur(plain.last().end - plain.first().start), true,
+                )
             )
         }
-    val rows = (left + deck).sortedWith(compareBy(nullsLast()) { it.first })
-    // Nothing left today is a finished day, not an empty list: the section goes rather than standing as
-    // a heading over nothing. The Earlier line above already says what the day came to.
+        // Each stretch you chose an activity for, on its own. A routine's own timer is left to the
+        // routine's row, which says the same thing with its name on it.
+        segs.filter { it.label.isNotEmpty() && !it.label.startsWith("routine:") }.forEach { seg ->
+            val a = activity(seg.label)
+            add(DayRow(minuteOfDay(seg.start), a.emoji, a.name, "", fmtDur(seg.ms), true))
+        }
+        live.forEach { r ->
+            val at = doneToday(r, today)
+            add(
+                if (at != null) DayRow(at, r.emoji, r.name, "${r.steps.size} steps", "", true, "routine:${r.id}")
+                else DayRow(r.remindMin, r.emoji, r.name, routineSummary(r, r.minutes), "", false, "routine:${r.id}")
+            )
+        }
+        val inRoutines = habitsInRoutines(live)
+        allHabits.filterNot { it.ended || it.id in inRoutines }.forEach { h ->
+            val day = h.dayOf(today)
+            val dose = h.stageOn(day)?.let(::label).orEmpty()
+            add(
+                if (today in h.done) DayRow(
+                    habitTimes[today]?.get(h.id), habitGlyph(h, items), habitTitle(h, items),
+                    "Day $day of ${h.totalDays}", dose, true, "habit:${h.id}",
+                ) else DayRow(
+                    h.remindMin, habitGlyph(h, items), habitTitle(h, items),
+                    "Day $day of ${h.totalDays}", dose, false, "habit:${h.id}",
+                )
+            )
+        }
+    }.sortedWith(compareBy(nullsLast()) { it.at })
     if (rows.isEmpty()) return
+
     Text(
-        "ALSO TODAY", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+        "THE DAY", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
         letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
     )
-    // A thread, as the day screen draws what already happened: the time on the left, a dot on the line,
-    // and the thing itself in a card. The ones with no hour of their own gather at the end under "Any",
-    // which is where they actually sit — after everything the clock has a claim on.
     Column(Modifier.fillMaxWidth()) {
-        rows.forEachIndexed { i, (at, text, route) ->
-            val (glyph, name, meta) = text.split("|")
+        rows.forEachIndexed { i, r ->
             val last = i == rows.lastIndex
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                 Text(
-                    at?.let(::fmtMinute) ?: "Any", Modifier.width(52.dp).padding(top = 12.dp),
+                    r.at?.let(::fmtMinute) ?: "Any", Modifier.width(52.dp).padding(top = 12.dp),
                     style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
                     color = cs.onSurfaceVariant, textAlign = TextAlign.End, maxLines = 1,
                 )
                 Column(
-                    Modifier.width(11.dp).fillMaxHeight().padding(start = 1.dp),
+                    Modifier.width(13.dp).fillMaxHeight().padding(start = 1.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    // Done is a filled dot, still to come an outline. A tick drawn this small is a
+                    // smudge; the line through the name is what says it is behind you.
                     Box(
-                        Modifier.padding(top = 15.dp).size(9.dp).clip(CircleShape)
-                            .background(if (at == null) cs.outlineVariant else cs.secondary),
+                        Modifier.padding(top = 14.dp).size(if (r.done) 11.dp else 9.dp).clip(CircleShape)
+                            .background(if (r.done) cs.primary else cs.surface)
+                            .then(if (r.done) Modifier else Modifier.border(2.dp, cs.outlineVariant, CircleShape)),
                     )
                     if (!last) Box(Modifier.width(2.dp).weight(1f).background(cs.outlineVariant))
                 }
                 Row(
                     Modifier.weight(1f).padding(start = 11.dp, top = 4.dp, bottom = 8.dp)
-                        .clip(RoundedCornerShape(16.dp)).background(cs.surface)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (r.done) cs.surfaceContainerHigh else cs.surface)
                         .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
-                        .clickable(onClickLabel = "Open $name") {
-                            if (route.startsWith("routine:")) onRoutine(route.removePrefix("routine:")) else onHabit(route.removePrefix("habit:"))
-                        }
+                        .then(
+                            if (r.route.isEmpty()) Modifier
+                            else Modifier.clickable(onClickLabel = "Open ${r.name}") {
+                                if (r.route.startsWith("routine:")) onRoutine(r.route.removePrefix("routine:"))
+                                else onHabit(r.route.removePrefix("habit:"))
+                            }
+                        )
                         .padding(horizontal = 13.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(11.dp),
@@ -1282,11 +1337,23 @@ private fun AlsoToday(onRoutine: (String) -> Unit, onHabit: (String) -> Unit) {
                     Box(
                         Modifier.size(32.dp).clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerHighest),
                         contentAlignment = Alignment.Center,
-                    ) { Text(glyph, fontSize = 15.sp) }
+                    ) { Text(r.glyph, fontSize = 15.sp) }
                     Column(Modifier.weight(1f)) {
-                        Text(name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(meta, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            r.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            color = if (r.done) cs.onSurfaceVariant else cs.onSurface,
+                            textDecoration = if (r.done) TextDecoration.LineThrough else null,
+                        )
+                        if (r.meta.isNotEmpty()) Text(
+                            r.meta, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
                     }
+                    if (r.right.isNotEmpty()) Text(
+                        r.right, style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold, color = cs.onSurfaceVariant,
+                    )
                 }
             }
         }

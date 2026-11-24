@@ -161,4 +161,21 @@ class TimelineTest {
         assertEquals("101st", ordinal(101))
         assertEquals("111th", ordinal(111))
     }
+
+    // The workday's own stretches, summed; the ones you chose an activity for are their own things.
+    @Test fun theWorkdayLineCountsOnlyTheWorkdaysOwnStretches() {
+        fun seg(fromMin: Int, toMin: Int, work: Boolean, label: String = "") =
+            Segment(fromMin * MIN, toMin * MIN, work, label = label)
+        val day = listOf(
+            seg(0, 50, true),
+            seg(50, 60, false),
+            seg(60, 75, false, "walk"),   // a walk is not the workday's break
+            seg(75, 125, true),
+        )
+        assertEquals("1h 40m work · 10m breaks", workdayLine(day))
+        assertEquals("50m work", workdayLine(listOf(seg(0, 50, true))))
+        assertEquals("10m breaks", workdayLine(listOf(seg(0, 10, false))))
+        assertNull(workdayLine(emptyList()))
+        assertNull(workdayLine(listOf(seg(0, 15, false, "walk")))) // nothing but a walk is no workday
+    }
 }

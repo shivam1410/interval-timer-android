@@ -128,3 +128,18 @@ fun ordinal(n: Int): String = n.toString() + when {
 
 fun dropBlips(segs: List<Segment>, keepLast: Boolean): List<Segment> =
     segs.filterIndexed { i, s -> s.ms >= MIN || (keepLast && i == segs.lastIndex) }
+
+/**
+ * What the workday itself came to: "4h 10m of work, 44m of breaks" over the plain stretches of a day.
+ * The stretches you chose an activity for are their own things and are left out. Null when none ran.
+ */
+fun workdayLine(segs: List<Segment>): String? {
+    val plain = segs.filter { it.label.isEmpty() }
+    if (plain.isEmpty()) return null
+    val work = plain.filter { it.work }.sumOf { it.ms }
+    val rest = plain.filterNot { it.work }.sumOf { it.ms }
+    return listOfNotNull(
+        work.takeIf { it > 0 }?.let { "${fmtDur(it)} work" },
+        rest.takeIf { it > 0 }?.let { "${fmtDur(it)} breaks" },
+    ).joinToString(" · ").ifEmpty { null }
+}
