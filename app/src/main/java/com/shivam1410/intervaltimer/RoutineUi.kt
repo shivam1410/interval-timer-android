@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
@@ -113,7 +114,7 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
     }
     // The start card, until you start: not while its timer runs, and not when you already did a step today.
     if (!started && !timed && step == 0 && doneToday(r, today) == null) {
-        return RoutineStartCard(r, autoStart, onBack) { started = true }
+        return RoutineStartCard(r, habits, autoStart, onBack) { started = true }
     }
     // Toggl: a timer from opening the routine until it's finished or you leave it.
     DisposableEffect(id) {
@@ -187,7 +188,7 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
  * saves it to the routine, so tomorrow it's already right; Off means no timer, just the steps.
  */
 @Composable
-private fun RoutineStartCard(r: Routine, autoStart: Boolean, onBack: () -> Unit, onStart: () -> Unit) {
+private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean, onBack: () -> Unit, onStart: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     var min by remember(r.id) { mutableStateOf(r.minutes) }
     // Asks first when a workday or another timer runs; the steps open only once the routine's timer is away.
@@ -201,25 +202,84 @@ private fun RoutineStartCard(r: Routine, autoStart: Boolean, onBack: () -> Unit,
     }
     // A reminder's Start: the same press, so a workday already running still gets asked about first.
     LaunchedEffect(Unit) { if (autoStart) go() }
-    val stretches = routineSteps(r).count { it is HabitStep }
+    val today = History.today()
+    val steps = routineSteps(r)
+    val stretches = steps.count { it is HabitStep }
+    val items by Library.items.collectAsState()
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
             IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
             Text("${r.emoji} ${r.name}", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-            Text("${r.steps.size} steps" + if (stretches > 0) " \u00b7 $stretches stretches" else "", style = MaterialTheme.typography.headlineSmall)
-            min?.let { Text("about $it min", color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) }
-            Text("Timer", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 24.dp, bottom = 4.dp))
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(min == null, { min = null }, { Text("Off") })
-                listOf(10, 15, 20, 30).forEach { m -> FilterChip(min == m, { min = m }, { Text("$m min") }) }
-            }
+        Text(routineSummary(r, min), color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+        // The card used to say "5 steps" and name none of them. Showing the list is the whole point of a routine.
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            steps.forEachIndexed { i, st -> StepPreview(i + 1, st, habits, items, today) }
+        }
+        // The timer is a choice about this run, not a gate in front of it: it sits under the list, not over Start.
+        Row(
+            Modifier.fillMaxWidth().padding(top = 12.dp).horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("On a timer", style = MaterialTheme.typography.labelLarge, color = cs.onSurfaceVariant)
+            FilterChip(min == null, { min = null }, { Text("Off") })
+            listOf(10, 15, 20, 30).forEach { m -> FilterChip(min == m, { min = m }, { Text("$m min") }) }
         }
         Button(
             { go() },
-            Modifier.fillMaxWidth().padding(bottom = 24.dp).height(64.dp),
+            Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 24.dp).height(64.dp),
         ) { Text(min?.let { "\u25b6  Start \u00b7 $it min" } ?: "Start", fontSize = 20.sp) }
+    }
+}
+
+/** One step as it looks before you begin: what it is, and what today asks of it. */
+@Composable
+private fun StepPreview(n: Int, st: RoutineStep, habits: List<Habit>, items: List<LibraryItem>, today: java.time.LocalDate) {
+    val cs = MaterialTheme.colorScheme
+    val habit = (st as? HabitStep)?.let { s -> habits.firstOrNull { it.id == s.habitId && !it.ended } }
+    val stage = habit?.let { it.stageOn(it.dayOf(today)) }
+    val act = (st as? ActivityStep)?.let { stepActivity(it.activityId) }
+    val done = habit != null && today in habit.done
+    val name = when (st) {
+        is TextStep -> st.text
+        is HabitStep -> habit?.let { habitTitle(it, items) } ?: "Stretch (gone)"
+        is ActivityStep -> act?.name ?: "Timer (gone)"
+    }
+    val meta = when (st) {
+        is TextStep -> "Tick it off"
+        is HabitStep -> habit?.let { "Habit \u00b7 day ${it.dayOf(today)} of ${it.totalDays}" } ?: "No longer running"
+        is ActivityStep -> "Timer"
+    }
+    val right = when (st) {
+        is TextStep -> ""
+        is HabitStep -> stage?.let(::label).orEmpty()
+        is ActivityStep -> act?.quickMin?.let { "$it min" }.orEmpty()
+    }
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+            .background(if (done) cs.surfaceContainerLow else cs.surfaceContainer).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            if (done) "\u2713" else "$n",
+            style = MaterialTheme.typography.labelLarge,
+            color = if (done) cs.primary else cs.onSurfaceVariant,
+            modifier = Modifier.width(20.dp),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                name, style = MaterialTheme.typography.titleSmall,
+                color = if (done) cs.onSurfaceVariant else cs.onSurface,
+                textDecoration = if (done) TextDecoration.LineThrough else null,
+            )
+            Text(meta, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+        }
+        if (right.isNotEmpty()) Text(right, style = MaterialTheme.typography.labelLarge, color = cs.onSurfaceVariant)
     }
 }
 

@@ -1,11 +1,50 @@
 package com.shivam1410.intervaltimer
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
 import java.time.ZoneOffset
 
 class TimelineTest {
+    // Offering something you haven't done lately.
+
+    private fun used(id: String, daysAgo: Long) =
+        LocalDate.of(2026, 10, 15).minusDays(daysAgo) to listOf(Segment(0, MIN, work = false, label = id))
+
+    private val today = LocalDate.of(2026, 10, 15)
+
+    @Test fun lastUsedKeepsTheMostRecentDayPerActivity() {
+        val lines = mapOf(used("stretch", 0), used("sketch", 12))
+        val last = lastUsed(lines)
+        assertEquals(today, last["stretch"])
+        assertEquals(today.minusDays(12), last["sketch"])
+        assertEquals(0L, daysSinceUsed(last, "stretch", today))
+        assertEquals(12L, daysSinceUsed(last, "sketch", today))
+        assertNull(daysSinceUsed(last, "nap", today)) // never used
+    }
+
+    @Test fun workStretchesAndUnlabelledBreaksAreNotActivities() {
+        val lines = mapOf(
+            today to listOf(Segment(0, MIN, work = true, label = "stretch"), Segment(MIN, 2 * MIN, work = false)),
+        )
+        assertEquals(emptyMap<String, LocalDate>(), lastUsed(lines))
+    }
+
+    @Test fun theSuggestionIsWhateverYouHaveLeftLongest() {
+        val last = lastUsed(mapOf(used("stretch", 0), used("sketch", 12), used("walk", 3)))
+        val ids = listOf("stretch", "sketch", "walk")
+        assertEquals("sketch", staleChoice(ids, last, today, exclude = "stretch"))
+        // Never used beats merely old, and the one you are already offered is skipped.
+        assertEquals("nap", staleChoice(ids + "nap", last, today, exclude = "stretch"))
+        assertEquals("sketch", staleChoice(ids, last, today, exclude = "nap"))
+    }
+
+    @Test fun nothingIsSuggestedWhenEverythingIsRecent() {
+        val last = lastUsed(mapOf(used("stretch", 0), used("sketch", 2)))
+        assertNull(staleChoice(listOf("stretch", "sketch"), last, today, exclude = "stretch"))
+    }
+
     private val day = LocalDate.of(2026, 10, 15)
     private fun work(from: Long, to: Long, over: Boolean = false) = Segment(from * MIN, to * MIN, work = true, over = over)
     private fun rest(from: Long, to: Long, over: Boolean = false) = Segment(from * MIN, to * MIN, work = false, over = over)

@@ -612,6 +612,49 @@ fun Toggle(icon: Int, label: String, value: Boolean, onChange: (Boolean) -> Unit
     }
 }
 
+/**
+ * Prepare offers two: your usual, and one you haven't touched in a while. Everything else is behind
+ * "Something else…", because a wall of twenty tiles is the last thing a tired break needs.
+ */
+@Composable
+private fun TwoChoices(usual: Activity, onMore: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val today = History.today()
+    val last = remember(History.timelines.value) { lastUsed(History.timelines.value) }
+    val fresh = remember(last, usual.id) { staleChoice(QUICK, last, today, exclude = usual.id)?.let(::activity) }
+    val breakMin = Timer.settings.value.breakMin
+    Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Pick one", style = MaterialTheme.typography.labelLarge, color = cs.onTertiaryContainer)
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ChoiceCard("Your usual", usual, "${usual.minutes ?: breakMin} min", Modifier.weight(1f)) { Timer.chooseActivity(usual.id) }
+            fresh?.let { f ->
+                val days = daysSinceUsed(last, f.id, today)
+                ChoiceCard(
+                    days?.let { "Not for $it days" } ?: "Never tried", f, "${f.minutes ?: breakMin} min", Modifier.weight(1f),
+                ) { Timer.chooseActivity(f.id) }
+            }
+        }
+        TextButton(onMore, Modifier.align(Alignment.CenterHorizontally)) {
+            Text("Something else…", color = cs.onTertiaryContainer)
+        }
+    }
+}
+
+@Composable
+private fun ChoiceCard(flag: String, a: Activity, length: String, modifier: Modifier, onPick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Column(
+        modifier.clip(RoundedCornerShape(16.dp)).background(cs.surface)
+            .clickable(onClickLabel = "Choose ${a.name}", onClick = onPick).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(a.emoji, fontSize = 22.sp)
+        Text(flag, style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+        Text(a.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface)
+        Text(length, style = MaterialTheme.typography.labelLarge, color = cs.primary, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
 /** Break picker: same tiles as the quick timers; solid surface tiles on the tinted card, chosen one filled. */
 @Composable
 private fun ActivityPicker(selected: String, breakMin: Int, onPick: (String) -> Unit) {
@@ -792,7 +835,9 @@ private fun nextLabel(plan: List<Phase>, s: Session, at: Boolean = true): String
 @Composable
 private fun BreakChoices(p: Phase, s: Session, chosen: Activity, elapsedMs: Long) {
     val quick = s.quick != null
-    var changing by remember(s.index) { mutableStateOf(p.kind == Kind.PREP) }
+    // The catalogue used to open itself at the start of every break — twenty choices at the moment you
+    // have least appetite for choosing. Prepare now offers two, and the rest is one tap away.
+    var changing by remember(s.index) { mutableStateOf(false) }
     Card(
         Modifier.fillMaxWidth().padding(top = 20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
@@ -813,13 +858,16 @@ private fun BreakChoices(p: Phase, s: Session, chosen: Activity, elapsedMs: Long
             val primary = p.kind == Kind.ACTIVITY && hasPrimaryAction(chosen)
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (primary) PrimaryAction(chosen, Modifier.weight(1.4f).height(44.dp))
-                if (!quick) Button({ changing = !changing }, Modifier.weight(1f).height(44.dp), colors = colors, contentPadding = pad) {
+                // In Prepare the two-choice card carries "Something else…", so this would be a second door
+                // to the same room; it comes back as "Done" once the full picker is open.
+                if (!quick && (p.kind != Kind.PREP || changing)) Button({ changing = !changing }, Modifier.weight(1f).height(44.dp), colors = colors, contentPadding = pad) {
                     // Toggles the tile picker; "Done" closes it so the row never ends up with a lone button.
                     Text(if (changing) "Done" else if (primary) "Change" else "Change activity", maxLines = 1)
                 }
                 Button({ Timer.extendBreak() }, Modifier.weight(1f).height(44.dp), colors = colors, contentPadding = pad) { Text("+10 min", maxLines = 1) }
             }
             if (p.kind == Kind.ACTIVITY) ActivityCue(chosen, elapsedMs, s.paused)
+            if (p.kind == Kind.PREP && !changing && !quick) TwoChoices(chosen) { changing = true }
             if (changing) ActivityPicker(chosen.id, Timer.settings.value.breakMin) { Timer.chooseActivity(it) }
         }
     }

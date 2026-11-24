@@ -86,6 +86,14 @@ fun firstUndoneStep(r: Routine, habits: List<Habit>, today: LocalDate): Int {
     return if (i < 0) steps.size else i
 }
 
+/** The line under a routine's name: "5 steps · 1 stretch · about 15 min". [minutes] null = no timer. */
+fun routineSummary(r: Routine, minutes: Int?): String {
+    val stretches = routineSteps(r).count { it is HabitStep }
+    return "${r.steps.size} ${if (r.steps.size == 1) "step" else "steps"}" +
+        (if (stretches > 0) " · $stretches ${if (stretches == 1) "stretch" else "stretches"}" else "") +
+        (minutes?.let { " · about $it min" } ?: "")
+}
+
 /** Habits that live in a routine (not deleted): Home's deck leaves them out. */
 fun habitsInRoutines(rs: List<Routine>): Set<String> =
     rs.filterNot { it.deleted }.flatMap(::routineSteps).filterIsInstance<HabitStep>().map { it.habitId }.toSet()

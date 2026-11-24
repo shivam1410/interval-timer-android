@@ -41,6 +41,24 @@ fun splitRun(work: Boolean, from: Long, to: Long, overFrom: Long?, label: String
 fun activityTotals(segs: List<Segment>): Map<String, Long> =
     segs.filter { !it.work && it.label.isNotEmpty() }.groupBy { it.label }.mapValues { (_, v) -> v.sumOf { it.ms } }
 
+/** The last day each break activity was actually used, read back from the recorded timelines. */
+fun lastUsed(timelines: Map<LocalDate, List<Segment>>): Map<String, LocalDate> =
+    timelines.flatMap { (date, segs) -> segs.filter { !it.work && it.label.isNotEmpty() }.map { it.label to date } }
+        .groupBy({ it.first }, { it.second }).mapValues { (_, dates) -> dates.max() }
+
+/** Days since [id] was last used, or null if it never has been. */
+fun daysSinceUsed(last: Map<String, LocalDate>, id: String, today: LocalDate): Long? =
+    last[id]?.let { ChronoUnit.DAYS.between(it, today) }
+
+/**
+ * Something you haven't touched in a while, to offer beside your usual pick: among [ids] the one used
+ * longest ago, never-used first, skipping [exclude]. Null when everything is too recent to be a change.
+ */
+fun staleChoice(ids: List<String>, last: Map<String, LocalDate>, today: LocalDate, exclude: String, minDays: Long = 7): String? {
+    fun since(id: String) = daysSinceUsed(last, id, today) ?: Long.MAX_VALUE
+    return ids.filter { it != exclude }.maxByOrNull(::since)?.takeIf { since(it) >= minDays }
+}
+
 /** Each phone logs its own sessions, so the union (minus copies already synced both ways) is the full day. */
 fun mergeTimelines(a: Map<LocalDate, List<Segment>>, b: Map<LocalDate, List<Segment>>): Map<LocalDate, List<Segment>> =
     (a.keys + b.keys).associateWith { (a[it].orEmpty() + b[it].orEmpty()).distinct().sortedBy(Segment::start) }

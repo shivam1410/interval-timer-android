@@ -169,4 +169,14 @@ class RoutineTest {
         // It is not a stretch, so it never holds a finished routine open either.
         assertEquals(540, routineDoneToday(routine.copy(done = mapOf(today to 540)), habits, today))
     }
+
+    @Test fun theSummaryLineCountsAndPluralisesHonestly() {
+        val plain = Routine("r", "☀️", "Morning", listOf("a", "b", "c"), null, emptyMap(), 0)
+        assertEquals("3 steps", routineSummary(plain, null))
+        assertEquals("3 steps · about 15 min", routineSummary(plain, 15))
+        assertEquals("1 step", routineSummary(plain.copy(steps = listOf("a")), null))
+        // One stretch is a stretch, not "1 stretches" — the line this app shipped for a while.
+        assertEquals("2 steps · 1 stretch", routineSummary(plain.copy(steps = listOf("a", habitStep("h1"))), null))
+        assertEquals("2 steps · 2 stretches", routineSummary(plain.copy(steps = listOf(habitStep("h1"), habitStep("h2"))), null))
+    }
 }
