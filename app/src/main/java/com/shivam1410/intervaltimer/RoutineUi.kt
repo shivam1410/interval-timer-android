@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
@@ -163,59 +164,127 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
     }
     val habitToDo = habit != null && stage != null && today !in habit.done
 
+    val steps = routineSteps(r)
+    val typical by Routines.typical.collectAsState()
+    val leftMin = stepsLeftMs(r.steps.drop(step), typical)?.let { ((it + 30_000L) / 60_000L).toInt().coerceAtLeast(1) }
+
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
-            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
-            Text("${r.emoji} ${r.name}", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp).weight(1f))
-            if (!finished) Text("Step ${step + 1} of ${r.steps.size}", color = cs.onSurfaceVariant)
-        }
-        if (timed) RoutineClock(session)
-        // Progress dots: done steps filled.
-        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            r.steps.indices.forEach { i -> Box(Modifier.size(10.dp).clip(CircleShape).background(if (i < step) cs.primary else cs.surfaceContainerHighest)) }
-        }
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            if (finished) {
-                val at = doneToday(r, LocalDate.now())
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("✓", fontSize = 64.sp, color = cs.primary)
-                    Text("${r.name} done" + (at?.let { " · ${fmtMinute(it)}" } ?: ""), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-                    // The record line is a fact and always appears; the count under it is a score, and waits.
-                    DensityDots(routineDensity(r, today), r.done.keys, long = true)
-                }
-            } else if (habit != null && stage != null) {
-                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(habitTitle(habit, items), fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
-                    if (habitToDo) key(habit.id) { HabitDoer(habit, items, stage, habit.dayOf(today), onDone = ::next) }
-                    else Text("✓ Done today", style = MaterialTheme.typography.headlineSmall, color = cs.primary)
-                }
-            } else if (current is TextStep) {
-                Text(current.text, fontSize = 36.sp, lineHeight = 44.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-            } else if (act != null) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(act.emoji, fontSize = 56.sp)
-                    Text(act.name, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-                    Text(act.hint, color = cs.onSurfaceVariant, textAlign = TextAlign.Center)
-                    // Once it runs, the clock replaces Start; the gong ends it and ✓ Done moves the routine on.
-                    if (actRunning) RoutineClock(session)
-                    else Button({ startTimer(act.id) }, Modifier.padding(top = 8.dp).height(56.dp)) {
-                        Text("▶  Start · ${act.quickMin ?: DEFAULT_ROUTINE_MIN} min", fontSize = 18.sp)
-                    }
-                }
-            } else if (current is ActivityStep) {
-                Text("Timer removed", fontSize = 28.sp, color = cs.onSurfaceVariant, textAlign = TextAlign.Center)
-            }
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            RoundIcon(R.drawable.ic_chevron_down, "Leave the routine", onBack)
+            Text(
+                "${r.emoji} ${r.name.uppercase()}", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp, color = cs.onSurfaceVariant,
+                textAlign = TextAlign.Center, maxLines = 1,
+            )
+            Spacer(Modifier.width(34.dp))
         }
         if (finished) {
-            Button(onBack, Modifier.fillMaxWidth().padding(bottom = 24.dp).height(64.dp), shape = RoundedCornerShape(32.dp)) { Text("Close", fontSize = 20.sp) }
-        } else {
-            // A habit still to do has its own Completed / Start; otherwise the big ✓ moves on.
-            if (!habitToDo) Button(::next, Modifier.fillMaxWidth().height(64.dp), shape = RoundedCornerShape(32.dp)) { Text(if (habit != null) "Next" else "✓  Done", fontSize = 22.sp) }
-            Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton({ stepAt = System.currentTimeMillis(); step-- }, enabled = step > 0) { Text("Back") }
-                TextButton({ next(finished = false) }) { Text("Skip") }
+            // The end of a routine is a record, not a trophy: what it was, when, and how often you keep it.
+            val at = doneToday(r, today)
+            Column(
+                Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Box(Modifier.size(84.dp).clip(CircleShape).background(cs.primary), contentAlignment = Alignment.Center) {
+                    Text("✓", fontSize = 40.sp, color = cs.onPrimary)
+                }
+                Text(
+                    "${r.name} done", Modifier.padding(top = 20.dp), fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                )
+                Text(
+                    "${r.steps.size} steps" + (at?.let { " · finished ${fmtMinute(it)}" } ?: ""),
+                    Modifier.padding(top = 6.dp), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant,
+                )
+                if (at != null) Column(
+                    Modifier.fillMaxWidth().padding(top = 26.dp).clip(RoundedCornerShape(16.dp)).background(cs.surface)
+                        .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 14.dp),
+                ) {
+                    Text(
+                        "ADDED TO TODAY'S LINE", style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold, letterSpacing = 0.9.sp, color = cs.onSurfaceVariant,
+                    )
+                    Row(Modifier.fillMaxWidth().padding(top = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(fmtMinute(at), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurfaceVariant)
+                        Box(Modifier.padding(horizontal = 11.dp).size(9.dp).clip(CircleShape).background(cs.primary))
+                        Text("${r.name} · ${r.steps.size} steps", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    }
+                }
+                DensityDots(routineDensity(r, today), r.done.keys, long = true)
+            }
+            TextButton({ step = 0; started = true }, Modifier.align(Alignment.CenterHorizontally)) { Text("Run it again") }
+            Button(
+                onBack, Modifier.fillMaxWidth().padding(bottom = 20.dp).height(72.dp), shape = RoundedCornerShape(20.dp),
+            ) { Text("Back to the day", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+            return@Column
+        }
+
+        // How far through, as bars rather than a count you have to hold in your head.
+        Row(Modifier.fillMaxWidth().padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            r.steps.indices.forEach { i ->
+                Box(
+                    Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp))
+                        .background(if (i < step) cs.primary else cs.surfaceContainerHighest),
+                )
             }
         }
+        Text(
+            "Step ${step + 1} of ${r.steps.size}" + (leftMin?.let { " · about $it min left" } ?: ""),
+            Modifier.padding(top = 7.dp), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+        )
+        if (timed) RoutineClock(session)
+
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            val kind = when {
+                habit != null -> "STRETCH"
+                current is ActivityStep -> "ON A TIMER"
+                else -> "TICK IT OFF"
+            }
+            Text(
+                kind, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+                letterSpacing = 1.2.sp, color = cs.primary,
+            )
+            if (habit != null && stage != null) {
+                Text(habitTitle(habit, items), Modifier.padding(top = 10.dp), fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                if (habitToDo) key(habit.id) { HabitDoer(habit, items, stage, habit.dayOf(today), onDone = ::next) }
+                else Text("✓ Done today", Modifier.padding(top = 10.dp), style = MaterialTheme.typography.headlineSmall, color = cs.primary)
+            } else if (current is TextStep) {
+                Text(current.text, Modifier.padding(top = 10.dp), fontSize = 38.sp, fontWeight = FontWeight.Bold, lineHeight = 44.sp)
+                Text("No timer. Do it, then tap.", Modifier.padding(top = 10.dp), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+            } else if (act != null) {
+                Text(act.name, Modifier.padding(top = 10.dp), fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                Text(act.hint, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+                if (actRunning) RoutineClock(session)
+                else Button({ startTimer(act.id) }, Modifier.padding(top = 12.dp).height(56.dp)) {
+                    Text("▶  Start · ${act.quickMin ?: DEFAULT_ROUTINE_MIN} min", fontSize = 18.sp)
+                }
+            } else if (current is ActivityStep) {
+                Text("Timer removed", Modifier.padding(top = 10.dp), fontSize = 28.sp, color = cs.onSurfaceVariant)
+            }
+        }
+
+        // Skip on the left, what is coming on the right: the board's quiet row above the one big button.
+        Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton({ next(finished = false) }) { Text("Skip this") }
+            Spacer(Modifier.weight(1f))
+            stepLabel(steps.getOrNull(step + 1), habits, items, today)?.let { n ->
+                Text(
+                    "NEXT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.7.sp, color = cs.onSurfaceVariant,
+                )
+                Text(
+                    n, Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (!habitToDo) Button(
+            ::next, Modifier.fillMaxWidth().padding(bottom = 20.dp).height(72.dp), shape = RoundedCornerShape(20.dp),
+        ) { Text("Done", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+        else Spacer(Modifier.height(20.dp))
     }
 }
 
@@ -581,5 +650,15 @@ private fun DensityDots(d: Density, done: Set<LocalDate>, long: Boolean = false)
             if (long) "${d.done} of the last ${d.of} days" else "${d.done} of ${d.of}",
             Modifier.padding(start = 5.dp), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant,
         )
+    }
+}
+
+/** One line naming a step, for the "NEXT" preview. */
+private fun stepLabel(st: RoutineStep?, habits: List<Habit>, items: List<LibraryItem>, today: java.time.LocalDate): String? = when (st) {
+    null -> null
+    is TextStep -> st.text
+    is ActivityStep -> stepActivity(st.activityId)?.name
+    is HabitStep -> habits.firstOrNull { it.id == st.habitId && !it.ended }?.let { h ->
+        habitTitle(h, items) + (h.stageOn(h.dayOf(today))?.let { " · ${label(it)}" } ?: "")
     }
 }
