@@ -70,6 +70,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -353,6 +354,7 @@ internal fun DayStrip(blocks: List<DayBlock>, modifier: Modifier = Modifier, mar
     // used to spend the whole width on spacing and draw nothing at all. Past the point where a gap costs
     // more than a block, they close up and the day reads as one proportional band.
     val gap = if (blocks.size > 48) 0.dp else 2.dp
+    val at = if (elapsed > 0.001f && elapsed < 0.999f) elapsed else mark
     Column(modifier) {
         Box(Modifier.fillMaxWidth().height(34.dp)) {
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.Bottom) {
@@ -374,16 +376,27 @@ internal fun DayStrip(blocks: List<DayBlock>, modifier: Modifier = Modifier, mar
             // Where you are in the day, drawn where it actually falls rather than described in words. Running,
             // that is how much you have done; idle, [mark] puts the clock there instead, so a morning you have
             // not started still shows what is already behind you.
-            val at = if (elapsed > 0.001f && elapsed < 0.999f) elapsed else mark
             if (at != null) Row(Modifier.matchParentSize()) {
                 Spacer(Modifier.weight(at))
-                Box(Modifier.width(2.dp).fillMaxHeight().background(cs.error))
+                Box(Modifier.width(2.dp).fillMaxHeight().background(cs.secondary))
                 Spacer(Modifier.weight(1f - at))
+            }
+        }
+        // "now", under the line that marks it. The board names it because a bare rule in a bar of bars
+        // reads as one more block rather than as this moment.
+        at?.let { a ->
+            Row(Modifier.fillMaxWidth()) {
+                Spacer(Modifier.weight(a.coerceIn(0.02f, 0.98f)))
+                Text(
+                    "now", Modifier.offset(x = (-10).dp), style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold, color = cs.secondary,
+                )
+                Spacer(Modifier.weight(1f - a.coerceIn(0.02f, 0.98f)))
             }
         }
         // A day under way runs from when you started it, which is not the hours printed above the strip: two
         // different days on one screen unless the strip says which one it is.
-        if (from != null && to != null) Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        if (from != null && to != null) Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
             Text(clock(from), Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
             Text(clock(to), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
         }
