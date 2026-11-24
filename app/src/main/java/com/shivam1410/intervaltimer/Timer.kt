@@ -403,9 +403,14 @@ object Timer {
         if (s.done(pl)) return "${fmtDur(s.workMs)} focused · ${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"}"
         val p = pl[s.index]
         if (overtimeMs(pl, s, now) != null) return "Still going? Tap Next when you're done, or +10 min."
+        // On a break the phone is face-down and this line is all you see. The hint alone never answered
+        // the only question a break raises, which is when it ends.
+        // First, not last: a notification line is cut off at the end, and the time is the part worth keeping.
+        val back = if (s.paused) null else untilWork(pl, s.index, s.left(now))
+            ?.let { "Back at " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(now + it)) + " · " }
         return when (p.kind) {
-            Kind.PREP -> "Lie down. Put your phone aside. Close your eyes."
-            Kind.ACTIVITY -> chosen.hint
+            Kind.PREP -> back.orEmpty() + "Lie down. Put your phone aside. Close your eyes."
+            Kind.ACTIVITY -> back.orEmpty() + chosen.hint
             Kind.WORK -> {
                 val next = pl.getOrNull(s.index + 1) ?: return "Last block of the day"
                 val breakMs = pl.drop(s.index + 1).takeWhile { it.kind != Kind.WORK }.sumOf { it.ms }
