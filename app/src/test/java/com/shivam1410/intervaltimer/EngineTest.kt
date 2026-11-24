@@ -423,4 +423,18 @@ class EngineTest {
         assertEquals(0.5f, dayGone(1 * 60, 22 * 60, 360)!!, 0.001f)
         assertNull(dayGone(12 * 60, 10 * 60, 0))
     }
+
+    // On a break, how long until work starts again — the question a bare countdown does not answer.
+    @Test fun aBreakKnowsHowLongUntilWorkStartsAgain() {
+        val p = plan(Settings(workMin = 50, breakMin = 10, prepMin = 2), cycles = 2)
+        val prep = p.indexOfFirst { it.kind == Kind.PREP }
+        // Mid-prepare with 1 minute left: that minute, then the 8-minute activity that follows it.
+        assertEquals(9 * MIN, untilWork(p, prep, MIN))
+        // Mid-activity with 3 minutes left: just those three.
+        assertEquals(3 * MIN, untilWork(p, prep + 1, 3 * MIN))
+        // Inside the last break of the day there is no work to come back to.
+        assertNull(untilWork(p, p.lastIndex, MIN))
+        // From a work block it measures the break ahead of the next one.
+        assertEquals(MIN + 10 * MIN, untilWork(p, 0, MIN))
+    }
 }

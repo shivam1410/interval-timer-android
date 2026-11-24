@@ -893,7 +893,10 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
                         routine != null -> "Routine"
                         quick -> "Quick timer"
                         // The plan that is actually running, not the full day: a late start plans fewer.
-                        else -> "Cycle ${p.cycle} / ${cyclesIn(Timer.plan)}"
+                        // On a break the cycle alone answers nothing useful — when you are back at it does,
+                        // and without it the only way to know is to add the prepare and the activity up.
+                        else -> "Cycle ${p.cycle} / ${cyclesIn(Timer.plan)}" +
+                            (untilWork(plan, s.index, left).takeIf { !isWork }?.let { " · back at ${clock(now + it)}" } ?: "")
                     },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -20,6 +20,17 @@ fun cyclesFor(startMin: Int, endMin: Int, workMin: Int, breakMin: Int): Int =
  * Starting at 11:40 against 09:00–17:30 leaves 350, not a deficit of 160.
  */
 /**
+ * How long from now until work starts again, given [leftMs] of the phase at [index] — the phase's own
+ * remainder plus every break phase between it and the next work block. Null in the last break of the day,
+ * where there is no work to come back to and a time would be an invention.
+ */
+fun untilWork(plan: List<Phase>, index: Int, leftMs: Long): Long? {
+    val rest = plan.drop(index + 1)
+    if (rest.none { it.kind == Kind.WORK }) return null
+    return leftMs + rest.takeWhile { it.kind != Kind.WORK }.sumOf { it.ms }
+}
+
+/**
  * Where now falls across a planned day of [planMin] minutes that starts at [startMin], as 0..1 — or null
  * before it begins and once it is over, where a marker would be a claim rather than a location. Drawn on
  * an idle morning it answers the question a clock cannot: how much of today's shape is already behind you.
