@@ -113,7 +113,9 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
 
         val active = days.filter { it.active }
         val total = days.sumOf { it.workMs }
-        Panel("All time") {
+        // Four zeros under a headline that already says "Nothing here yet" is the printed zero the rest
+        // of this screen is careful to avoid. The panel arrives with the first day worth counting.
+        if (days.isNotEmpty()) Panel("All time") {
             Line("Focused", fmtDur(total))
             Line("Cycles completed", "${days.sumOf { it.cycles }}")
             Line("Active days", "${active.size}")
@@ -132,10 +134,8 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
             if (ambientMs > 0) Line("🎧 Ambient sounds (not break)", fmtDur(ambientMs))
         }
 
-        Panel("Recent days") {
-            if (days.isEmpty()) {
-                Text("No workdays recorded yet. Finish or end a workday and it shows up here.", color = cs.onSurfaceVariant)
-            }
+        // Its own "nothing yet" said the headline's line over again, in smaller type.
+        if (days.isNotEmpty()) Panel("Recent days") {
             val fmt = DateTimeFormatter.ofPattern("EEE, MMM d")
             days.sortedByDescending { it.date }.take(10).forEach { d ->
                 Line(
