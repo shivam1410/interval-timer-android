@@ -120,7 +120,7 @@ private fun SettingsList(open: (String) -> Unit) {
         Group("YOUR DAY") {
         val habits by Habits.all.collectAsState()
         Entry(first = true, open = { open("habits") }) {
-            Icon(painterResource(R.drawable.ic_calendar), null, Modifier.size(28.dp), tint = cs.primary)
+            Glyph { Icon(painterResource(R.drawable.ic_calendar), null, Modifier.size(26.dp), tint = cs.primary) }
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text("Habits & routines", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 val n = habits.count { !it.ended }
@@ -128,7 +128,7 @@ private fun SettingsList(open: (String) -> Unit) {
             }
         }
         Entry(open = { open("stretches") }) {
-            Text("🤸", fontSize = 26.sp)
+            Glyph { Text("🤸", fontSize = 22.sp) }
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text("Stretches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text("${CATALOG.size} 30-day plans · make your own", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
@@ -137,9 +137,10 @@ private fun SettingsList(open: (String) -> Unit) {
         }
         Group("WHEN IT SPEAKS") {
         Entry(first = true, open = { open("notifications") }) {
-            Icon(painterResource(R.drawable.ic_gong), null, Modifier.size(28.dp), tint = cs.primary)
+            Glyph { Icon(painterResource(R.drawable.ic_gong), null, Modifier.size(26.dp), tint = cs.primary) }
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
-                Text("Notifications", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                // The page it opens is called "Alerts and cues"; the row that opens it should say so.
+                Text("Alerts and cues", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(
                     listOfNotNull(if (s.gong) "Gong" else null, if (s.vibrate) "vibration" else null, if (s.reminder) "daily reminder" else null, if (c.enabled) "nudges" else null)
                         .joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "All off" },
@@ -150,14 +151,14 @@ private fun SettingsList(open: (String) -> Unit) {
         }
         Group("ELSEWHERE") {
         Entry(first = true, open = { open("profile") }) {
-            Avatar(p, 48.dp)
+            Glyph { Avatar(p, 32.dp) }
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text(p?.displayName?.ifEmpty { null } ?: if (p == null) "Not signed in" else "Google account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(syncLine(p), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
         }
         Entry(open = { open("toggl") }) {
-            Text("⏱", fontSize = 26.sp)
+            Glyph { Text("⏱", fontSize = 22.sp) }
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text("Toggl Track", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(if (toggl) "Connected" else "Not connected", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
@@ -165,7 +166,7 @@ private fun SettingsList(open: (String) -> Unit) {
         }
         val ctx = androidx.compose.ui.platform.LocalContext.current
         Entry(open = { open("icon") }) {
-            AppIconPreview(AppIcons.current(ctx), 32)
+            Glyph { AppIconPreview(AppIcons.current(ctx), 32) }
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text("App icon", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(APP_ICONS.firstOrNull { it.id == AppIcons.current(ctx) }?.label.orEmpty(), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
@@ -178,6 +179,15 @@ private fun SettingsList(open: (String) -> Unit) {
             style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, textAlign = TextAlign.Center,
         )
     }
+}
+
+/**
+ * Every row's leading glyph in the same slot, whatever it is — a vector, an emoji, a photo or the app's
+ * own icon. Without it each one was its own size and the names below them never lined up.
+ */
+@Composable
+private fun Glyph(content: @Composable () -> Unit) {
+    Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) { content() }
 }
 
 /** A small label over one card holding the group's rows, divided — the board's shape, not a card each. */
@@ -234,9 +244,14 @@ private fun ProfilePage() {
         if (p == null) Button({ activity?.signIn() }) { Text("Sign in with Google") }
     }
     if (p != null) Section("SYNC") {
-        Text(syncLine(p), style = MaterialTheme.typography.bodyMedium)
-        if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
-        Button({ Drive.sync() }) { Text("Sync now") }
+        // The button belongs beside the line it acts on, as the update row below it has it.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                Text(syncLine(p), style = MaterialTheme.typography.bodyMedium)
+                if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+            }
+            Button({ Drive.sync() }) { Text("Sync now") }
+        }
     }
     Section("APP UPDATES") {
         Row(verticalAlignment = Alignment.CenterVertically) {

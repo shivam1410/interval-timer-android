@@ -79,11 +79,11 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
     val act = (current as? ActivityStep)?.let { stepActivity(it.activityId) }
     val actRunning = act != null && session.quick == act.id && !session.idle
     // One timer at a time, the routine's own included: the guard asks before a step's timer takes over.
-    val startTimer = rememberStartGuard { actId ->
+    val startTimer = rememberStartGuard { actId, min ->
         val lib = items.firstOrNull { "lib:${it.id}" == actId && !it.deleted }
         if (lib != null) startLibraryItem(ctx, lib) // opens its video or file too, as on home
         else {
-            Timer.startQuick(actId)
+            Timer.startQuick(actId, min)
             Strava.record(ctx, actId) // a walk also records in Strava, as it does from home
         }
     }
@@ -117,6 +117,14 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
     // no sight of what was already behind you — which is exactly when the overview is worth having.
     if (!started && !timed && !finished && doneToday(r, today) == null) {
         return RoutineStartCard(r, habits, autoStart, onBack) { fromTop -> if (fromTop) step = 0; started = true }
+    }
+    // A routine of one timer step is that timer. Showing a second Start under the one you just pressed
+    // was two taps and two screens to begin a walk.
+    val onlyTimer = (routineSteps(r).singleOrNull() as? ActivityStep)?.takeIf { stepActivity(it.activityId) != null }
+    LaunchedEffect(started, onlyTimer) {
+        val only = onlyTimer ?: return@LaunchedEffect
+        val a = stepActivity(only.activityId) ?: return@LaunchedEffect
+        if (started && session.quick != a.id) startTimer(a.id, only.minutes ?: a.quickMin)
     }
     // Toggl: a timer from opening the routine until it's finished or you leave it.
     DisposableEffect(id) {
@@ -231,9 +239,10 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
             } else if (act != null) {
                 Text(act.name, Modifier.padding(top = 10.dp), fontSize = 32.sp, fontWeight = FontWeight.Bold)
                 Text(act.hint, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+                val stepMin = (current as? ActivityStep)?.minutes ?: act.quickMin ?: DEFAULT_ROUTINE_MIN
                 if (actRunning) RoutineClock(session)
-                else Button({ startTimer(act.id) }, Modifier.padding(top = 12.dp).height(56.dp)) {
-                    Text("▶  Start · ${act.quickMin ?: DEFAULT_ROUTINE_MIN} min", fontSize = 18.sp)
+                else Button({ startTimer(act.id, stepMin) }, Modifier.padding(top = 12.dp).height(56.dp)) {
+                    Text("▶  Start · $stepMin min", fontSize = 18.sp)
                 }
             } else if (current is ActivityStep) {
                 Text("Timer removed", Modifier.padding(top = 10.dp), fontSize = 28.sp, color = cs.onSurfaceVariant)
@@ -271,7 +280,7 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
     val cs = MaterialTheme.colorScheme
     var min by remember(r.id) { mutableStateOf(r.minutes) }
     // Asks first when a workday or another timer runs; the steps open only once the routine's timer is away.
-    val start = rememberStartGuard { id -> Timer.startQuick(id); onStart(false) }
+    val start = rememberStartGuard { id, min -> Timer.startQuick(id, min); onStart(false) }
     fun go() {
         // Saved first, so the engine reads this length when it builds the timer's single phase.
         if (min != r.minutes) Routines.save(r.copy(minutes = min))
@@ -297,6 +306,8 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
     // so the board gives it the step itself, the reminder, and how often you have kept it.
     val lone = steps.singleOrNull()
     val loneAct = (lone as? ActivityStep)?.let { stepActivity(it.activityId) }
+    // The step's own length wins over the activity's, which is the whole point of asking for one.
+    val loneMin = (lone as? ActivityStep)?.minutes ?: loneAct?.quickMin
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Row(
@@ -311,7 +322,7 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
             Column(Modifier.weight(1f)) {
                 Text(r.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    if (lone != null) "One step" + ((min ?: loneAct?.quickMin)?.let { " · $it minutes" } ?: "")
+                    if (lone != null) "One step" + ((loneMin ?: min)?.let { " · $it minutes" } ?: "")
                     else r.remindMin?.let { "Reminds at ${fmtMinute(it)} · nudges at ${fmtMinute(it + NUDGE_MIN)}" }
                         ?: routineSummary(r, min),
                     style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 1,
@@ -421,7 +432,7 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
         ) {
             Text(
                 (if (alreadyDone > 0) "Carry on" else loneAct?.let { "Start the ${it.name.lowercase()}" } ?: "Start") +
-                    ((min ?: loneAct?.quickMin.takeIf { lone != null })?.let { " · $it min" } ?: ""),
+                    ((loneMin ?: min)?.let { " · $it min" } ?: ""),
                 fontSize = 18.sp, fontWeight = FontWeight.Bold,
             )
         }
@@ -453,7 +464,7 @@ private fun StepPreview(
     val right = when (st) {
         is TextStep -> ""
         is HabitStep -> stage?.let(::label).orEmpty()
-        is ActivityStep -> act?.quickMin?.let { "$it min" }.orEmpty()
+        is ActivityStep -> (st.minutes ?: act?.quickMin)?.let { "$it min" }.orEmpty()
     }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
@@ -513,6 +524,11 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
     var remind by remember { mutableStateOf(r.remindMin) }
     var picking by remember { mutableStateOf(false) }
     var pickingTimer by remember { mutableStateOf(false) }
+    // Picking the activity is only half of it: how long you want it for is the other half, and asking
+    // afterwards beats finding out at the start card that it is always the stock length.
+    var timerFor by remember { mutableStateOf<Activity?>(null) }
+    var timerMin by remember { mutableIntStateOf(DEFAULT_ROUTINE_MIN) }
+    var timerAt by remember { mutableStateOf<Int?>(null) } // the step being changed; null while adding
     var level by remember { mutableStateOf(Level.BEGINNER) }
     val clean = steps.map { it.trim() }.filter { it.isNotEmpty() }
     val habits by Habits.all.collectAsState()
@@ -534,7 +550,9 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
                 timers.forEach { a ->
                     Row(
                         Modifier.fillMaxWidth().clickable {
-                            steps = steps.filter { it.isNotBlank() } + actStep(a.id)
+                            timerFor = a
+                            timerMin = a.quickMin ?: DEFAULT_ROUTINE_MIN
+                            timerAt = null
                             pickingTimer = false
                         }.padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -548,6 +566,30 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
         },
         confirmButton = { TextButton({ pickingTimer = false }) { Text("Cancel") } },
     )
+    timerFor?.let { a ->
+        AlertDialog(
+            onDismissRequest = { timerFor = null; timerAt = null },
+            title = { Text("How long?") },
+            text = {
+                Column {
+                    Text("${a.emoji} ${a.name}", style = MaterialTheme.typography.titleMedium)
+                    Text(a.hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Stepper("Each time", timerMin, "min", 1..180) { timerMin = it }
+                }
+            },
+            confirmButton = {
+                TextButton({
+                    val st = actStep(a.id, timerMin)
+                    val at = timerAt
+                    steps = if (at != null) steps.mapIndexed { i, x -> if (i == at) st else x }
+                    else steps.filter { it.isNotBlank() } + st
+                    timerFor = null
+                    timerAt = null
+                }) { Text(if (timerAt == null) "Add" else "Save") }
+            },
+            dismissButton = { TextButton({ timerFor = null; timerAt = null }) { Text("Cancel") } },
+        )
+    }
     if (picking) AlertDialog(
         onDismissRequest = { picking = false },
         title = { Text("Add a stretch") },
@@ -604,9 +646,15 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
                         if (asStep != null) {
                             // A timer: started where the step is, with its own clock; not editable as text.
                             val a = stepActivity(asStep.activityId)
+                            val mins = asStep.minutes ?: a?.quickMin ?: DEFAULT_ROUTINE_MIN
                             Text(
-                                "⏱ " + (a?.let { "${it.name} · ${it.quickMin ?: DEFAULT_ROUTINE_MIN} min" } ?: "Removed timer"),
-                                Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 16.dp), style = MaterialTheme.typography.bodyLarge,
+                                "⏱ " + (a?.let { "${it.name} · $mins min" } ?: "Removed timer"),
+                                Modifier.weight(1f)
+                                    .clickable(enabled = a != null, onClickLabel = "Change how long") {
+                                        timerFor = a; timerMin = mins; timerAt = i
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 16.dp),
+                                style = MaterialTheme.typography.bodyLarge,
                             )
                         } else if (hs != null) {
                             // A habit: done with its figure and count when the routine runs; not editable as text.

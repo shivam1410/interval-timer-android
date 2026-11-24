@@ -92,7 +92,7 @@ fun MyLibrary(onQuick: (String) -> Unit = {}) {
     Text("YOUR OWN FILES", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Guarded: one timer at a time, so a workday or another quick timer is ended only after you say so.
-        val start = rememberStartGuard { id -> items.firstOrNull { "lib:${it.id}" == id }?.let { startLibraryItem(ctx, it) } }
+        val start = rememberStartGuard { id, _ -> items.firstOrNull { "lib:${it.id}" == id }?.let { startLibraryItem(ctx, it) } }
         items.forEach { item ->
             // An item that opens a video or a file starts at once, so the countdown doesn't strand you
             // mid-count in another app. A plain exercise opens nothing, so it gets the same 5-4-3-2-1

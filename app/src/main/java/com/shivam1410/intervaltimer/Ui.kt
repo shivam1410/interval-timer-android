@@ -148,7 +148,7 @@ fun Root(now: Long) {
     val settings by Timer.settings.collectAsState()
     val update by Updater.ready.collectAsState()
     val updateError by Updater.error.collectAsState()
-    val plan = remember(settings, session.quick) { session.quick?.let(::quickPlan) ?: plan(settings) }
+    val plan = remember(settings, session.quick, session.quickMin) { session.quick?.let { quickPlan(it, session.quickMin) } ?: plan(settings) }
     val ctx = LocalContext.current
     var stretchBack by rememberSaveable { mutableStateOf("") }
     var page by rememberSaveable { mutableStateOf("") } // "", "history", "settings", "habits", "stretches", "habit:<id>", "routine:<id>"
@@ -164,7 +164,7 @@ fun Root(now: Long) {
     // Back on the running screen puts it away instead of closing the app; back on Home still leaves.
     BackHandler(running && !minimised && page.isEmpty() && countdown == null) { minimised = true }
     LaunchedEffect(running) { if (!running) minimised = false }
-    val startQuick = rememberStartGuard { id -> minimised = false; countdownFrom = page; page = ""; countdown = id }
+    val startQuick = rememberStartGuard { id, _ -> minimised = false; countdownFrom = page; page = ""; countdown = id }
     // A nudge's Sketch / Relax button: same 5-4-3-2-1 as tapping the quick timer on home.
     val nudged by Nudges.requestedQuick.collectAsState()
     LaunchedEffect(nudged) {
@@ -207,7 +207,7 @@ fun Root(now: Long) {
             page == "habits" -> SettingsScreen(settings, start = "habits") { page = "" }
             // The catalogue opens from Home and from the Library; back belongs where you came from.
             page == "stretches" -> SettingsScreen(settings, start = "stretches") { page = stretchBack }
-            page == "library" -> LibraryScreen(startQuick, onStretches = { stretchBack = "library"; page = "stretches" }) { page = "" }
+            page == "library" -> LibraryScreen({ id -> startQuick(id, null) }, onStretches = { stretchBack = "library"; page = "stretches" }) { page = "" }
             page == "shape" -> ShapeScreen(settings, now) { page = "" }
             page == "today" -> DayScreen(History.today(), onDate = {}) { page = "" }
             page.startsWith("habitrun:") -> HabitRunScreen(page.removePrefix("habitrun:")) { page = "" }
@@ -216,7 +216,7 @@ fun Root(now: Long) {
             countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null; page = countdownFrom } }
             session.idle || minimised -> Setup(
                 settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habitrun:$it" },
-                onAddHabit = { stretchBack = ""; page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = startQuick,
+                onAddHabit = { stretchBack = ""; page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = { id -> startQuick(id, null) },
                 onLibrary = { page = "library" }, onShape = { page = "shape" }, onToday = { page = "today" },
                 mini = session.takeIf { minimised }, onRestore = { minimised = false },
             )
@@ -348,7 +348,10 @@ private fun Setup(
  * The point is to read the shape of what's left from across the room, without doing arithmetic.
  */
 @Composable
-internal fun DayStrip(blocks: List<DayBlock>, modifier: Modifier = Modifier, mark: Float? = null, from: Long? = null, to: Long? = null) {
+internal fun DayStrip(
+    blocks: List<DayBlock>, modifier: Modifier = Modifier, mark: Float? = null,
+    from: Long? = null, to: Long? = null, nowMs: Long = 0,
+) {
     if (blocks.isEmpty()) return
     val cs = MaterialTheme.colorScheme
     val total = blocks.sumOf { it.ms }.toFloat().coerceAtLeast(1f)
@@ -391,7 +394,10 @@ internal fun DayStrip(blocks: List<DayBlock>, modifier: Modifier = Modifier, mar
             Row(Modifier.fillMaxWidth()) {
                 Spacer(Modifier.weight(a.coerceIn(0.02f, 0.98f)))
                 Text(
-                    "now", Modifier.offset(x = (-10).dp), style = MaterialTheme.typography.labelSmall,
+                    // The time itself, not the word: the line already says "now", and the clock it
+                    // points at is the thing you were going to work out anyway.
+                    if (nowMs > 0) clock(nowMs) else "now",
+                    Modifier.offset(x = (-18).dp), style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold, color = cs.secondary,
                 )
                 Spacer(Modifier.weight(1f - a.coerceIn(0.02f, 0.98f)))
@@ -491,23 +497,31 @@ private fun ScheduledLine(at: Long) {
  * Only one timer runs at a time. Returns the way to start [start]: straight away when nothing is going,
  * otherwise after asking whether to end what is running. Renders the question itself.
  */
+/** Starting something: the id, and the length a routine step asked for (null = the activity's own). */
+fun interface StartGuard {
+    operator fun invoke(id: String, minutes: Int?)
+}
+
+/** Most things have only their own length to run for. */
+operator fun StartGuard.invoke(id: String) = invoke(id, null)
+
 @Composable
-fun rememberStartGuard(start: (String) -> Unit): (String) -> Unit {
+fun rememberStartGuard(start: StartGuard): StartGuard {
     val session by Timer.session.collectAsState()
     val settings by Timer.settings.collectAsState()
-    val plan = session.quick?.let(::quickPlan) ?: plan(settings)
-    var pending by remember { mutableStateOf<String?>(null) }
-    pending?.let { id ->
+    val plan = session.quick?.let { quickPlan(it, session.quickMin) } ?: plan(settings)
+    var pending by remember { mutableStateOf<Pair<String, Int?>?>(null) }
+    pending?.let { (id, min) ->
         val from = session.quick?.let { activity(it).name } ?: "your workday"
         AlertDialog(
             onDismissRequest = { pending = null },
             title = { Text("One timer at a time") },
             text = { Text("End $from and start ${activity(id).name}?") },
-            confirmButton = { TextButton({ pending = null; Timer.stop(); start(id) }) { Text("End and start") } },
+            confirmButton = { TextButton({ pending = null; Timer.stop(); start(id, min) }) { Text("End and start") } },
             dismissButton = { TextButton({ pending = null }) { Text("Keep going") } },
         )
     }
-    return { id -> if (session.running(plan)) pending = id else start(id) }
+    return StartGuard { id, min -> if (session.running(plan)) pending = id to min else start(id, min) }
 }
 
 @Composable
@@ -1097,7 +1111,7 @@ private fun HoursCard(s: Settings, now: Long, onShape: () -> Unit, justToday: Bo
         if (picking) JustTodayDialog(s) { picking = false }
         DayStrip(
             dayBlocks(plan(s), Session(), now), Modifier.fillMaxWidth().padding(top = 12.dp),
-            mark = dayGone(minuteOfDay(now), s.workStart, (total / 60_000L).toInt()),
+            mark = dayGone(minuteOfDay(now), s.workStart, (total / 60_000L).toInt()), nowMs = now,
         )
         Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
             val style = MaterialTheme.typography.labelMedium

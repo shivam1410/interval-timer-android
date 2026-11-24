@@ -47,7 +47,8 @@ val DEFAULT_ROUTINES = listOf(
 sealed interface RoutineStep
 data class TextStep(val text: String) : RoutineStep
 data class HabitStep(val habitId: String) : RoutineStep
-data class ActivityStep(val activityId: String) : RoutineStep
+/** [minutes]: the length picked when the step was added; null means the activity's own default. */
+data class ActivityStep(val activityId: String, val minutes: Int? = null) : RoutineStep
 
 private const val HABIT_PREFIX = "habit:"
 private const val ACT_PREFIX = "act:"
@@ -55,15 +56,22 @@ private const val ACT_PREFIX = "act:"
 /** The stored step string for habit [id]; steps stay plain strings so storage and Drive sync don't change. */
 fun habitStep(id: String) = HABIT_PREFIX + id
 
-/** The stored step string for activity [id] ("walk", "lib:<id>"): the same plain-string trick as [habitStep]. */
-fun actStep(id: String) = ACT_PREFIX + id
+/**
+ * The stored step string for activity [id] ("walk", "lib:<id>"): the same plain-string trick as
+ * [habitStep]. A length the activity doesn't have by itself goes after a "|", which an activity id
+ * never contains; the suffix is only written when it differs, so steps older builds already have
+ * stay exactly as they were.
+ */
+fun actStep(id: String, minutes: Int? = null) =
+    ACT_PREFIX + id + (minutes?.takeIf { it != activity(id).quickMin }?.let { "|$it" } ?: "")
 
 /** The activity a timer step runs ("walk", "lib:<id>"), or null when it is gone (a library item you deleted). */
 fun stepActivity(id: String): Activity? = activity(id).takeIf { it.id == id }
 
 fun stepOf(s: String): RoutineStep = when {
     s.startsWith(HABIT_PREFIX) -> HabitStep(s.removePrefix(HABIT_PREFIX))
-    s.startsWith(ACT_PREFIX) -> ActivityStep(s.removePrefix(ACT_PREFIX))
+    s.startsWith(ACT_PREFIX) -> s.removePrefix(ACT_PREFIX)
+        .let { ActivityStep(it.substringBefore('|'), it.substringAfter('|', "").toIntOrNull()) }
     else -> TextStep(s)
 }
 

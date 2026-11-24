@@ -234,7 +234,9 @@ data class Phase(val kind: Kind, val cycle: Int, val ms: Long)
 val QUICK = listOf("nsdr", "sketch", "stretch", "exercise", "walk", "nap", "breathing")
 
 /** A one-off quick timer is a single activity phase. */
-fun quickPlan(id: String): List<Phase> = listOf(Phase(Kind.ACTIVITY, 1, (activity(id).quickMin ?: 10) * MIN))
+/** [minutes]: the length a routine step asked for; without one the activity's own default. */
+fun quickPlan(id: String, minutes: Int? = null): List<Phase> =
+    listOf(Phase(Kind.ACTIVITY, 1, (minutes ?: activity(id).quickMin ?: 10) * MIN))
 
 /**
  * One block of the day drawn to scale: work or break, how long it lasts, and how much of it is behind you.
@@ -339,6 +341,9 @@ data class Session(
     val breakMs: Long = 0,
     val cycles: Int = 0,
     val quick: String? = null, // activity id when this is a one-off quick timer, not a workday
+    // The length this quick timer was started for, when it isn't the activity's own: a routine step can
+    // ask for 20 minutes of a walk that is usually 15. Kept here so the plan survives a restart.
+    val quickMin: Int? = null,
     val overAlerted: Boolean = false, // the "time's up" gong/alert for the current phase already fired
     val runFrom: Long = 0,
     val log: List<Segment> = emptyList(),

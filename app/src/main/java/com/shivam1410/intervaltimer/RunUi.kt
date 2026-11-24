@@ -492,6 +492,7 @@ private fun ColumnScope.WorkScreen(plan: List<Phase>, s: Session, now: Long, ove
         DayStrip(
             dayBlocks(plan, s, now), Modifier.fillMaxWidth().padding(top = 16.dp),
             from = s.startedAt, to = now + left.coerceAtLeast(0) + plan.drop(s.index + 1).sumOf { it.ms },
+            nowMs = now,
         )
         Spacer(Modifier.weight(1f))
         Text(

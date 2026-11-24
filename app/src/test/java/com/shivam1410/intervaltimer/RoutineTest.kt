@@ -216,4 +216,20 @@ class RoutineTest {
         // Nothing left to do is not "about 0 minutes".
         assertNull(stepsLeftMs(emptyList(), typical))
     }
+
+    // A timer step can carry a length of its own. The suffix is only written when it differs from the
+    // activity's, so every step an older build already wrote still reads back exactly as it did.
+    @Test fun aTimerStepRemembersHowLongYouAskedFor() {
+        assertEquals("act:walk", actStep("walk"))
+        assertEquals("act:walk", actStep("walk", activity("walk").quickMin)) // the usual length adds nothing
+        assertEquals("act:walk|25", actStep("walk", 25))
+        assertEquals(ActivityStep("walk", null), stepOf("act:walk"))
+        assertEquals(ActivityStep("walk", 25), stepOf("act:walk|25"))
+        // A library item's id has a colon of its own; the length still comes off cleanly.
+        assertEquals(ActivityStep("lib:abc123", 40), stepOf("act:lib:abc123|40"))
+        assertEquals(ActivityStep("lib:abc123", null), stepOf("act:lib:abc123"))
+        // Rubbish in the suffix is no length, not a crash.
+        assertEquals(ActivityStep("walk", null), stepOf("act:walk|"))
+        assertEquals(ActivityStep("walk", null), stepOf("act:walk|soon"))
+    }
 }

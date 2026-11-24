@@ -5,7 +5,7 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 
 - **Gong + vibration** at every transition (single gong → break, double → work, long → day done)
 - **Home is today**: your hours (10:00 AM — 6:00 PM) and the cycles they buy, the day drawn as a
-  strip with a mark where the clock already is, what you did earlier, your habits, your routines and
+  strip with the clock marked on it where you are, what you did earlier, your habits, your routines and
   the way into the Library. **Just today…** bends the hours for one day without rewriting the ones you
   keep; the card says **TODAY'S HOURS** while it is set. Tapping the card opens **Shape of the day** —
   the two ends of the day as a pair of tiles, the rhythm (Workday 50:10 · Deep 90:15 · Pomodoro 25:5 ·
@@ -153,6 +153,9 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   syncs to your Drive's private app folder (`drive.appdata`, invisible to you and other apps) and
   merges across phones. Without sign-in it all stays local; Android's built-in Google backup
   still covers settings and history
+- **A routine of one timer is that timer**: adding a timer step asks how long you want it for (tap the
+  step to change it later), and the routine's Start starts it — one tap, not a Start under a Start. The
+  page says what the routine adds that the Library's timer doesn't: the reminder and the record
 - **A routine learns how long it takes you**: each step is timed as you finish it, so the start card
   says "Usually takes you about 9 min", or "1 of 3 already done today · about 3 min left". Measured,
   never guessed — it stays quiet until every remaining step has been timed, and skipping teaches it
