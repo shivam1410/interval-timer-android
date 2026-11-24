@@ -272,83 +272,46 @@ private fun Setup(
         return
     }
 
-    Column(Modifier.fillMaxSize()) {
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-            Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(greeting, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                HistoryPill(onHistory)
+    // Before the day starts: the day's name, the hours as a card with the clock marked on them, the one
+    // decision this screen exists for, and everything else today holds in one list.
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        History.today().format(java.time.format.DateTimeFormatter.ofPattern("EEEE")),
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                    )
+                    Text(clock(now), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                DayDots(onHistory)
                 Spacer(Modifier.width(8.dp))
+                // The board shows no way into Settings; the app needs one, so the chip stays.
                 ProfileChip(onSettings)
             }
-            // The hours are the day's shape; changing them belongs on its own screen, not interleaved
-            // with what today is actually doing.
-            Column(
-                Modifier.fillMaxWidth().padding(top = 16.dp).clip(RoundedCornerShape(16.dp))
-                    .clickable(onClickLabel = "Shape of the day", onClick = onShape).padding(vertical = 4.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Your hours", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                    Text("Change ›", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                }
-                Text(
-                    "${clockMin(s.workStart)} — ${clockMin(s.workEnd)}",
-                    style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    "${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"} · ${s.workMin} min work · ${s.breakMin} min break" +
-                        if (s.spare > 0) " · ${s.spare} min free" else "",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            DayStrip(
-                dayBlocks(Timer.plan, mini ?: Session(), now), Modifier.fillMaxWidth().padding(top = 14.dp),
-                mark = if (mini == null) dayGone(minuteOfDay(now), s.workStart, (total / 60_000L).toInt()) else null,
-                // Idle, the strip is the hours already printed above it. Running, it is the day you started.
-                from = mini?.startedAt,
-                to = mini?.let { m -> now + m.left(now).coerceAtLeast(0) + Timer.plan.drop(m.index + 1).sumOf { it.ms } },
-            )
-            EarlierRow(onToday, Modifier.padding(top = 8.dp))
-            mini?.let { UpNext(Timer.plan, it, s, now) }
-            // Starting late costs you cycles, never a scolding: say what fits and let the full day stand beside it.
-            if (mini == null && fits in 1 until s.cycles && scheduled == null) Text(
-                "Start now and ${fits} ${if (fits == 1) "cycle fits" else "cycles fit"} before ${clockMin(s.workEnd)}. Running all ${s.cycles} would end at ${clock(now + total)}. Both are fine.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-
-            HabitsSection(onHabit, onAddHabit)
-            RoutinesRow(onRoutine)
-            // Quick timers, your files and ambient sound used to run on down this same scroll, under a Start
-            // button that had nothing to do with them. They are one tap away instead.
-            LibraryRow(onLibrary)
+            Spacer(Modifier.height(16.dp))
+            HoursCard(s, now, onShape)
+            scheduled?.let { ScheduledLine(it) }
+            if (scheduled == null) StartCard(s, now, fits) { cycles -> Timer.start(cycles) }
+            EarlierRow(onToday, Modifier.padding(top = 12.dp))
+            AlsoToday(onRoutine, onHabit, onAddHabit)
             Spacer(Modifier.height(16.dp))
         }
-        // Set from the Custom schedule; shown (with Cancel) whenever a start is armed, preset picked after or not.
-        scheduled?.let { ScheduledLine(it) }
-        // Something already running: its bar takes the place of Start now, because only one timer runs at a time.
-        if (mini != null) MiniTimer(mini, now, onRestore)
-        // Started late: two equal offers, never a deficit. Fit what's left, or run the whole day anyway.
-        else if (fits in 1 until s.cycles && scheduled == null) Row(
-            Modifier.fillMaxWidth().padding(20.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        // The board ends the page with one way to start anything else, not a summary of what is in there.
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 12.dp).height(52.dp).clip(RoundedCornerShape(16.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                .clickable(onClickLabel = "Library", onClick = onLibrary),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
         ) {
-            Button(
-                { Timer.start(fits) },
-                Modifier.weight(1f).height(64.dp),
-                shape = RoundedCornerShape(32.dp),
-            ) { Text("Fit to ${clockMin(s.workEnd)}", fontSize = 16.sp) }
-            OutlinedButton(
-                { Timer.start() },
-                Modifier.weight(1f).height(64.dp),
-                shape = RoundedCornerShape(32.dp),
-            ) { Text("Run all ${s.cycles}", fontSize = 16.sp) }
+            Text("+", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Text(
+                "  Start something else", style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
-        else Button(
-            onClick = { Timer.start() },
-            modifier = Modifier.fillMaxWidth().padding(20.dp).height(64.dp),
-            shape = RoundedCornerShape(32.dp),
-        ) { Text("Start now", fontSize = 20.sp) }
     }
 }
 
@@ -794,25 +757,36 @@ private fun DayHeader(onHistory: () -> Unit) {
             today.format(java.time.format.DateTimeFormatter.ofPattern("EEEE")),
             Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
         )
-        if (!d.worthShowing) HistoryPill(onHistory) else Row(
-            Modifier.clip(CircleShape).background(cs.surface).border(1.dp, cs.outlineVariant, CircleShape)
-                .clickable(onClickLabel = "History", onClick = onHistory).padding(horizontal = 11.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                (d.of - 1 downTo 0).forEach { i ->
-                    val on = days.any { it.date == today.minusDays(i.toLong()) && it.active }
-                    Box(
-                        Modifier.size(5.dp).clip(RoundedCornerShape(1.5.dp))
-                            .background(if (on) cs.primary else cs.surfaceContainerHighest),
-                    )
-                }
+        DayDots(onHistory)
+    }
+}
+
+/** How often you showed up, as dots — or the plain History pill while there is too little to judge. */
+@Composable
+private fun DayDots(onHistory: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val days by History.days.collectAsState()
+    val today = History.today()
+    val d = density(days, today)
+    if (!d.worthShowing) return HistoryPill(onHistory)
+    Row(
+        Modifier.clip(CircleShape).background(cs.surface).border(1.dp, cs.outlineVariant, CircleShape)
+            .clickable(onClickLabel = "History", onClick = onHistory).padding(horizontal = 11.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            (d.of - 1 downTo 0).forEach { i ->
+                val on = days.any { it.date == today.minusDays(i.toLong()) && it.active }
+                Box(
+                    Modifier.size(5.dp).clip(RoundedCornerShape(1.5.dp))
+                        .background(if (on) cs.primary else cs.surfaceContainerHighest),
+                )
             }
-            Text(
-                "${d.done} of ${d.of}", Modifier.padding(start = 7.dp),
-                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
-            )
         }
+        Text(
+            "${d.done} of ${d.of}", Modifier.padding(start = 7.dp),
+            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -983,5 +957,145 @@ private fun EarlierRow(onToday: () -> Unit, modifier: Modifier = Modifier) {
     ) {
         Text("⌄", Modifier.padding(end = 9.dp), style = MaterialTheme.typography.titleMedium, color = cs.onSurfaceVariant)
         Text("Earlier · $line", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+    }
+}
+
+// ---------- Home before the day starts (C+ "Day idle" board) ----------
+
+/** Your hours as a card: the shape of the day with the clock marked on it. */
+@Composable
+private fun HoursCard(s: Settings, now: Long, onShape: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val total = plan(s).sumOf { it.ms }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surface)
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
+            .clickable(onClickLabel = "Shape of the day", onClick = onShape).padding(14.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "YOUR HOURS", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant,
+            )
+            Text("Change ›", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = cs.primary)
+        }
+        DayStrip(
+            dayBlocks(plan(s), Session(), now), Modifier.fillMaxWidth().padding(top = 12.dp),
+            mark = dayGone(minuteOfDay(now), s.workStart, (total / 60_000L).toInt()),
+        )
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            val style = MaterialTheme.typography.labelMedium
+            Text(clockMin(s.workStart), Modifier.weight(1f), style = style, color = cs.onSurfaceVariant)
+            Text(clockMin(s.workEnd), style = style, color = cs.onSurfaceVariant)
+        }
+    }
+}
+
+/** The one decision this screen exists for: start the day, and on a late morning how much of it. */
+@Composable
+private fun StartCard(s: Settings, now: Long, fits: Int, onStart: (Int?) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val total = plan(s).sumOf { it.ms }
+    val late = fits in 1 until s.cycles
+    Column(
+        Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(20.dp)).background(cs.surface)
+            .border(1.5.dp, cs.primary, RoundedCornerShape(20.dp)).padding(16.dp),
+    ) {
+        Text(
+            if (late) "${fits.spelled()} ${if (fits == 1) "cycle fits" else "cycles fit"} before ${clockMin(s.workEnd)}."
+            else "${s.cycles.spelled()} cycles, ending at ${clock(now + total)}.",
+            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            if (late) "Or run the full ${s.cycles.spelled()} and finish at ${clock(now + total)}. Both are fine."
+            else "Start when you like — the hours above are only the shape.",
+            style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 5.dp),
+        )
+        Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (late) {
+                TwoLineButton("Fit to ${clockMin(s.workEnd)}", "$fits ${if (fits == 1) "cycle" else "cycles"}", true, Modifier.weight(1f)) { onStart(fits) }
+                TwoLineButton("Run all ${s.cycles}", "ends ${clock(now + total)}", false, Modifier.weight(1f)) { onStart(null) }
+            } else {
+                TwoLineButton("Start now", "ends ${clock(now + total)}", true, Modifier.weight(1f)) { onStart(null) }
+            }
+        }
+    }
+}
+
+/** The board's two-line button: what it does, and what that costs, in smaller type beneath. */
+@Composable
+private fun TwoLineButton(title: String, sub: String, filled: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier.height(56.dp).clip(shape)
+            .then(if (filled) Modifier.background(cs.primary) else Modifier.border(1.dp, cs.outline, shape))
+            .clickable(onClickLabel = title, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        val fg = if (filled) cs.onPrimary else cs.primary
+        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = fg, maxLines = 1)
+        Text(sub, style = MaterialTheme.typography.labelSmall, color = fg.copy(alpha = 0.78f), maxLines = 1)
+    }
+}
+
+private fun Int.spelled() = listOf(
+    "no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+).getOrNull(this) ?: toString()
+
+/** Everything else the day holds — routines and the stretches due — as one list, in the order it happens. */
+@Composable
+private fun AlsoToday(onRoutine: (String) -> Unit, onHabit: (String) -> Unit, onAddHabit: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val today = History.today()
+    val routines by Routines.all.collectAsState()
+    val habits by Habits.all.collectAsState()
+    val items by Library.items.collectAsState()
+    val left = routines.filter { !it.deleted && routineDoneToday(it, habits, today) == null }
+        .map { Triple(it.remindMin, "${it.emoji}|${it.name}|${routineSummary(it, it.minutes)}", "routine:${it.id}") }
+    val deck = habitDeck(habits.filter { !it.ended }, today, hidden = habitsInRoutines(routines))
+        .filter { today !in it.done }
+        .map { h ->
+            val day = h.dayOf(today)
+            Triple(
+                h.remindMin,
+                "🦵|${habitTitle(h, items)}|Day $day of ${h.totalDays}" + (h.stageOn(day)?.let { " · ${label(it)}" } ?: ""),
+                "habit:${h.id}",
+            )
+        }
+    val rows = (left + deck).sortedWith(compareBy(nullsLast()) { it.first })
+    Text(
+        "ALSO TODAY", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+        letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        rows.forEach { (at, text, route) ->
+            val (glyph, name, meta) = text.split("|")
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surface)
+                    .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
+                    .clickable(onClickLabel = "Open $name") {
+                        if (route.startsWith("routine:")) onRoutine(route.removePrefix("routine:")) else onHabit(route.removePrefix("habit:"))
+                    }
+                    .padding(horizontal = 13.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(11.dp),
+            ) {
+                Box(
+                    Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(cs.surfaceContainerHighest),
+                    contentAlignment = Alignment.Center,
+                ) { Text(glyph, fontSize = 15.sp) }
+                Column(Modifier.weight(1f)) {
+                    Text(name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(meta, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Text(
+                    at?.let(::fmtMinute) ?: "Any", style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold, color = cs.onSurfaceVariant,
+                )
+            }
+        }
+        AddHabitRow("Add a habit", onAddHabit)
     }
 }

@@ -195,7 +195,7 @@ fun HabitDoer(h: Habit, items: List<LibraryItem>, stage: Stage, day: Int, onDone
 
 /** The row under the habit cards: start one, or add another (the catalog, in Settings › Habits). */
 @Composable
-private fun AddHabitRow(label: String, onStart: () -> Unit) {
+internal fun AddHabitRow(label: String, onStart: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainerHigh)
