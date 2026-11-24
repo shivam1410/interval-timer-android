@@ -316,10 +316,12 @@ private fun Setup(
                 ProfileChip(onSettings)
             }
             Spacer(Modifier.height(16.dp))
+            // What the day has come to so far, before what is left of it: it used to be a line you had
+            // to open to see any of.
+            TodaySoFar(now, onToday)
             HoursCard(s, now, onShape)
             scheduled?.let { ScheduledLine(it) }
             if (scheduled == null) StartCard(s, now, cyclesLeftToday(s, minuteOfDay(now))) { cycles -> Timer.start(cycles ?: s.cycles) }
-            EarlierRow(onToday, Modifier.padding(top = 12.dp))
             AlsoToday(onRoutine, onHabit)
             Spacer(Modifier.height(16.dp))
         }
@@ -1057,8 +1059,6 @@ private fun EarlierRow(onToday: () -> Unit, modifier: Modifier = Modifier) {
     val today = History.today()
     val todayRec = History.days.collectAsState().value.firstOrNull { it.date == today }
     val liveHabits by Habits.all.collectAsState()
-    // The raw fact that it finished, not routineDoneToday — that asks whether it is still on your list
-    // (a stretch falling due again reopens it), which is a different question from what happened.
     val doneRoutines = Routines.all.collectAsState().value
         .filterNot { it.deleted }.filter { doneToday(it, today) != null }.map { it.name }
     val doneHabits = liveHabits.count { !it.ended && today in it.done }
@@ -1073,6 +1073,64 @@ private fun EarlierRow(onToday: () -> Unit, modifier: Modifier = Modifier) {
             Modifier.padding(end = 9.dp).size(18.dp), tint = cs.onSurfaceVariant,
         )
         Text("Earlier · $line", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+    }
+}
+
+/**
+ * The day's own record at the top of the idle screen: what it has come to in three numbers, and the
+ * shape of it when a workday has run. It was a line saying "Earlier · Morning done" that you had to
+ * open to see any of.
+ */
+@Composable
+private fun TodaySoFar(now: Long, onToday: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val today = History.today()
+    val todayRec = History.days.collectAsState().value.firstOrNull { it.date == today }
+    val liveHabits by Habits.all.collectAsState()
+    // The raw fact that it finished, not routineDoneToday — that asks whether it is still on your list
+    // (a stretch falling due again reopens it), which is a different question from what happened.
+    val routines = Routines.all.collectAsState().value.filterNot { it.deleted }
+    val doneRoutines = routines.filter { doneToday(it, today) != null }
+    val doneHabits = liveHabits.count { !it.ended && today in it.done }
+    // Nothing yet is not a day to summarise: no empty wave, no row of zeros.
+    earlierToday(todayRec?.workMs ?: 0L, todayRec?.cycles ?: 0, doneRoutines.map { it.name }, doneHabits) ?: return
+    val stored by History.timelines.collectAsState()
+    val session by Timer.session.collectAsState()
+    val segs = remember(stored, session, now) {
+        dropBlips(joined(History.timeline(today, session, Timer.plan, now)), keepLast = false)
+    }
+    val work = todayRec?.workMs ?: 0
+    val cycles = todayRec?.cycles ?: 0
+    // No clip on the way round: the block has no background of its own, and a 16dp corner at the top
+    // left was taking a bite out of the T.
+    Column(
+        Modifier.fillMaxWidth().padding(bottom = 14.dp)
+            .clickable(onClickLabel = "How today went", onClick = onToday),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "TODAY SO FAR", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant,
+            )
+            Text(
+                "See it all ›", style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold, color = cs.secondary,
+            )
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 9.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            EndTile("FOCUSED", if (work > 0) fmtDur(work) else "—", Modifier.weight(1f))
+            EndTile("CYCLES", if (cycles > 0) "$cycles" else "—", Modifier.weight(1f))
+            EndTile(
+                "ROUTINES",
+                if (doneRoutines.isEmpty()) "—" else "${doneRoutines.size} of ${routines.size}",
+                Modifier.weight(1f),
+            )
+        }
+        // The wave only has something to draw once a workday has run; the tiles carry the rest.
+        if (segs.isNotEmpty()) Column(
+            Modifier.fillMaxWidth().padding(top = 9.dp).clip(RoundedCornerShape(16.dp)).background(cs.surface)
+                .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)).padding(12.dp),
+        ) { DayWave(segs) }
     }
 }
 
@@ -1187,31 +1245,49 @@ private fun AlsoToday(onRoutine: (String) -> Unit, onHabit: (String) -> Unit) {
         "ALSO TODAY", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
         letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
     )
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        rows.forEach { (at, text, route) ->
+    // A thread, as the day screen draws what already happened: the time on the left, a dot on the line,
+    // and the thing itself in a card. The ones with no hour of their own gather at the end under "Any",
+    // which is where they actually sit — after everything the clock has a claim on.
+    Column(Modifier.fillMaxWidth()) {
+        rows.forEachIndexed { i, (at, text, route) ->
             val (glyph, name, meta) = text.split("|")
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surface)
-                    .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
-                    .clickable(onClickLabel = "Open $name") {
-                        if (route.startsWith("routine:")) onRoutine(route.removePrefix("routine:")) else onHabit(route.removePrefix("habit:"))
-                    }
-                    .padding(horizontal = 13.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(11.dp),
-            ) {
-                Box(
-                    Modifier.size(32.dp).clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerHighest),
-                    contentAlignment = Alignment.Center,
-                ) { Text(glyph, fontSize = 15.sp) }
-                Column(Modifier.weight(1f)) {
-                    Text(name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(meta, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+            val last = i == rows.lastIndex
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                 Text(
-                    at?.let(::fmtMinute) ?: "Any", style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold, color = cs.onSurfaceVariant,
+                    at?.let(::fmtMinute) ?: "Any", Modifier.width(52.dp).padding(top = 12.dp),
+                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
+                    color = cs.onSurfaceVariant, textAlign = TextAlign.End, maxLines = 1,
                 )
+                Column(
+                    Modifier.width(11.dp).fillMaxHeight().padding(start = 1.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        Modifier.padding(top = 15.dp).size(9.dp).clip(CircleShape)
+                            .background(if (at == null) cs.outlineVariant else cs.secondary),
+                    )
+                    if (!last) Box(Modifier.width(2.dp).weight(1f).background(cs.outlineVariant))
+                }
+                Row(
+                    Modifier.weight(1f).padding(start = 11.dp, top = 4.dp, bottom = 8.dp)
+                        .clip(RoundedCornerShape(16.dp)).background(cs.surface)
+                        .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
+                        .clickable(onClickLabel = "Open $name") {
+                            if (route.startsWith("routine:")) onRoutine(route.removePrefix("routine:")) else onHabit(route.removePrefix("habit:"))
+                        }
+                        .padding(horizontal = 13.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(11.dp),
+                ) {
+                    Box(
+                        Modifier.size(32.dp).clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerHighest),
+                        contentAlignment = Alignment.Center,
+                    ) { Text(glyph, fontSize = 15.sp) }
+                    Column(Modifier.weight(1f)) {
+                        Text(name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(meta, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
             }
         }
     }

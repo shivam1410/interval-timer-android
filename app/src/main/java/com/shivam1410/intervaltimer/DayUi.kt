@@ -222,7 +222,7 @@ private fun segmentColor(s: Segment): Color {
  * and pauses drop to the baseline. Overtime gets its own colour.
  */
 @Composable
-private fun DayWave(segs: List<Segment>) {
+internal fun DayWave(segs: List<Segment>) {
     val cs = MaterialTheme.colorScheme
     val (from, to) = hourSpan(segs, ZoneId.systemDefault())
     val measurer = rememberTextMeasurer()

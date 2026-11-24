@@ -5,8 +5,9 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 
 - **Gong + vibration** at every transition (single gong → break, double → work, long → day done)
 - **Home is today**: your hours (10:00 AM — 6:00 PM) and the cycles they buy, the day drawn as a
-  strip with the clock marked on it where you are, what you did earlier, your habits, your routines and
-  the way into the Library. Tapping the hours opens **Shape of the day** —
+  strip with the clock marked on it where you are, what the day has come to so far (focused, cycles,
+  routines, and its shape once a workday has run — tap for the whole day), your habits and routines as a thread down the day, by the hour
+  each is due, and the way into the Library. Tapping the hours opens **Shape of the day** —
   the two ends of the day as a pair of tiles, the rhythm (Workday 50:10 · Deep 90:15 · Pomodoro 25:5 ·
   Custom) and **what that makes**: the cycle count, the day's shape under it, focus, breaks, and the
   minutes that don't fill another cycle, left free rather than padded out. Start late and you get two
