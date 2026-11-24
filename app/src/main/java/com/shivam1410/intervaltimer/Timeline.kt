@@ -91,8 +91,30 @@ fun joined(segs: List<Segment>): List<Segment> = segs.fold(emptyList()) { acc, s
  */
 fun timesDone(all: Map<LocalDate, List<Segment>>, id: String, today: LocalDate, window: Int = 14): Int {
     val from = today.minusDays((window - 1).toLong())
-    return all.filterKeys { !it.isBefore(from) && !it.isAfter(today) }
-        .values.flatten().count { it.label == id && it.ms >= MIN }
+    var n = 0
+    all.filterKeys { !it.isBefore(from) && !it.isAfter(today) }.values.forEach { day ->
+        // One doing of a thing leaves more than one stretch behind: a timer that holds at 0 and counts
+        // up is split at its planned end, and almost every walk ends that way. Stretches that run into
+        // each other are one sitting, measured whole — so a false start and the walk that followed it
+        // are one walk, not a blip and a walk.
+        var ms = 0L
+        var end = Long.MIN_VALUE
+        day.forEach { seg ->
+            val joins = seg.label == id && seg.start == end
+            if (!joins) {
+                if (ms >= MIN) n++
+                ms = 0
+            }
+            if (seg.label == id) {
+                ms += seg.ms
+                end = seg.end
+            } else {
+                end = Long.MIN_VALUE
+            }
+        }
+        if (ms >= MIN) n++
+    }
+    return n
 }
 
 /** "1st", "2nd", "3rd", "11th", "21st" — said the way people say them, not "1th". */

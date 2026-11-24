@@ -131,6 +131,29 @@ class TimelineTest {
         assertEquals(3, timesDone(lines, "walk", today, window = 4))
     }
 
+    // One doing of a thing leaves several stretches behind: a timer that holds at 0 and counts up is
+    // split at its planned end, and almost every walk ends that way.
+    @Test fun oneWalkThatRanIntoOvertimeIsStillOneWalk() {
+        val ran = listOf(
+            Segment(0, 15 * MIN, work = false, label = "walk"),
+            Segment(15 * MIN, 18 * MIN, work = false, over = true, label = "walk"),
+        )
+        assertEquals(1, timesDone(mapOf(today to ran), "walk", today))
+        // A false start and the real thing, back to back, are one walk of 5 m 40 s — not a blip and a walk.
+        val after = listOf(
+            Segment(0, 40_000, work = false, label = "walk"),
+            Segment(40_000, 40_000 + 5 * MIN, work = false, label = "walk"),
+        )
+        assertEquals(1, timesDone(mapOf(today to after), "walk", today))
+        // Two sittings with something else between them are two.
+        val twice = listOf(
+            Segment(0, 15 * MIN, work = false, label = "walk"),
+            Segment(15 * MIN, 30 * MIN, work = true),
+            Segment(30 * MIN, 45 * MIN, work = false, label = "walk"),
+        )
+        assertEquals(2, timesDone(mapOf(today to twice), "walk", today))
+    }
+
     @Test fun ordinalsReadTheWayPeopleSayThem() {
         assertEquals(listOf("1st", "2nd", "3rd", "4th"), (1..4).map(::ordinal))
         assertEquals(listOf("11th", "12th", "13th"), (11..13).map(::ordinal))
