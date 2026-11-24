@@ -421,6 +421,43 @@ private fun TimeRow(label: String, minuteOfDay: Int, onPick: (Int) -> Unit) {
     }
 }
 
+/** One end of the day: a tile you tap to pick the time, the time itself big enough to read at a glance. */
+@Composable
+private fun HourTile(label: String, minuteOfDay: Int, modifier: Modifier, onPick: (Int) -> Unit) {
+    val ctx = LocalContext.current
+    val cs = MaterialTheme.colorScheme
+    Column(
+        modifier.clip(RoundedCornerShape(16.dp)).background(cs.surface)
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
+            .clickable(onClickLabel = "Pick the time") {
+                android.app.TimePickerDialog(
+                    ctx, { _, h, m -> onPick(h * 60 + m) },
+                    minuteOfDay / 60, minuteOfDay % 60, android.text.format.DateFormat.is24HourFormat(ctx),
+                ).show()
+            }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Text(
+            label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+            letterSpacing = 0.7.sp, color = cs.onSurfaceVariant,
+        )
+        Text(
+            fmtMinute(minuteOfDay), Modifier.padding(top = 2.dp), fontSize = 24.sp,
+            fontWeight = FontWeight.Bold, letterSpacing = (-0.6).sp, maxLines = 1,
+        )
+    }
+}
+
+/** A [Stepper] in a card of its own. */
+@Composable
+private fun StepperCard(content: @Composable () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surface)
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)).padding(horizontal = 13.dp, vertical = 4.dp),
+    ) { content() }
+}
+
 /** 5th row of the Custom schedule: start now, or once at one of the next whole hours (armed by the Start button). */
 @Composable
 private fun StartAt(pick: Long?, now: Long, onPick: (Long?) -> Unit) {
@@ -518,16 +555,16 @@ private fun ShapeScreen(s: Settings, now: Long, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
         ScreenBar("Shape of the day", "Hours in, cycles out", onBack)
 
-        Section("YOUR HOURS") {
-            TimeRow("Day starts", s.workStart) { v -> set { copy(workStart = v) } }
-            TimeRow("Day ends", s.workEnd) { v -> set { copy(workEnd = v) } }
-            // The cycle count is worked out from the hours, never typed in.
-            Text(
-                "${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"} fit" +
-                    if (s.spare > 0) " · ${s.spare} min stays free at the end" else "",
-                style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-            )
+        // The two ends of the day, side by side with the span between them: a pair of times you set, not
+        // two rows of a form. The cycle count they make is worked out below, never typed in.
+        Text(
+            "YOUR HOURS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 20.dp, bottom = 9.dp),
+        )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            HourTile("START", s.workStart, Modifier.weight(1f)) { v -> set { copy(workStart = v) } }
+            Box(Modifier.padding(horizontal = 10.dp).width(14.dp).height(2.dp).background(cs.outlineVariant))
+            HourTile("END", s.workEnd, Modifier.weight(1f)) { v -> set { copy(workEnd = v) } }
         }
 
         Text("RHYTHM", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
@@ -539,17 +576,11 @@ private fun ShapeScreen(s: Settings, now: Long, onBack: () -> Unit) {
             }
             PresetChip("Custom", if (s.custom) "${s.workMin}:${s.breakMin}" else "···", s.custom) { set { copy(custom = true) } }
         }
-        Section("") {
-            Stepper("Work", s.workMin, "min", 1..180, "One block of focus") { v -> set { copy(workMin = v, custom = true) } }
-            Stepper("Break", s.breakMin, "min", 1..60, "Between blocks") { v -> set { copy(breakMin = v, custom = true) } }
-            Stepper("Prepare (in break)", s.prepMin, "min", 0..10, "Lie down before the activity") { v -> set { copy(prepMin = v) } }
-        }
-
         // Hours in, cycles out, and what the cycles buy — the count alone never said whether eight
         // cycles meant a long day or a short one. Worked out, never typed in.
         Column(
-            Modifier.fillMaxWidth().padding(top = 24.dp).clip(RoundedCornerShape(16.dp)).background(cs.surface)
-                .border(1.5.dp, cs.primary, RoundedCornerShape(16.dp)).padding(15.dp),
+            Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(20.dp)).background(cs.surface)
+                .border(1.5.dp, cs.primary, RoundedCornerShape(20.dp)).padding(15.dp),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -568,11 +599,24 @@ private fun ShapeScreen(s: Settings, now: Long, onBack: () -> Unit) {
                     fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
                 )
             }
+            // The shape itself, so the number above it has something to be the length of.
+            DayStrip(dayBlocks(plan(s), Session(), now), Modifier.fillMaxWidth().padding(top = 12.dp))
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Figure(fmtDur(s.cycles * s.workMin * MIN), "focus")
                 Figure(fmtDur(s.cycles * s.breakMin * MIN), "breaks")
                 Figure(if (s.spare > 0) fmtDur(s.spare * MIN) else "none", "spare")
             }
+            if (s.spare > 0) Text(
+                "The ${s.spare} minutes that don't make another cycle stay free at the end — they aren't padded out.",
+                Modifier.padding(top = 7.dp), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
+            )
+        }
+
+        // One card per number, as the board has them: three rows sharing a card read as a form.
+        Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            StepperCard { Stepper("Work", s.workMin, "min", 1..180, "One block of focus") { v -> set { copy(workMin = v, custom = true) } } }
+            StepperCard { Stepper("Break", s.breakMin, "min", 1..60, "Between blocks") { v -> set { copy(breakMin = v, custom = true) } } }
+            StepperCard { Stepper("Prepare (in break)", s.prepMin, "min", 0..10, "Lie down before the activity") { v -> set { copy(prepMin = v) } } }
         }
 
         Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -723,16 +767,30 @@ internal fun Stepper(label: String, value: Int, unit: String, range: IntRange, n
                 Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        IconButton({ onChange((value - 1).coerceIn(range)) }, enabled = value > range.first) { Text("−", fontSize = 22.sp) }
+        StepButton("−", "Less", value > range.first) { onChange((value - 1).coerceIn(range)) }
         // Tap the number to type it; −/+ stay for small nudges.
         var editing by remember { mutableStateOf(false) }
         Text(
             "$value $unit".trim(),
-            Modifier.width(72.dp).clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "Edit $label") { editing = true }.padding(vertical = 8.dp),
+            Modifier.width(64.dp).clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "Edit $label") { editing = true }.padding(vertical = 8.dp),
             textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold,
         )
         if (editing) NumberDialog(label, value, unit, range, onDismiss = { editing = false }) { onChange(it); editing = false }
-        IconButton({ onChange((value + 1).coerceIn(range)) }, enabled = value < range.last) { Text("+", fontSize = 22.sp) }
+        StepButton("+", "More", value < range.last) { onChange((value + 1).coerceIn(range)) }
+    }
+}
+
+/** The −/+ of a [Stepper]: a rounded square, as the boards draw them, not a bare glyph. */
+@Composable
+private fun StepButton(glyph: String, label: String, enabled: Boolean, onClick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Box(
+        Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(cs.surfaceContainerHighest)
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(10.dp))
+            .clickable(enabled = enabled, onClickLabel = label, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(glyph, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = if (enabled) cs.onSurface else cs.outlineVariant)
     }
 }
 
