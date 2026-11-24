@@ -40,7 +40,7 @@ fun NudgeSection() {
     val (usage, media) = access
     fun open(action: String) = ctx.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 
-    Section("Instagram & YouTube nudges") {
+    Section("INSTAGRAM & YOUTUBE NUDGES") {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Nudge me to sketch or relax instead")

@@ -36,6 +36,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
@@ -104,9 +109,9 @@ private fun SettingsList(open: (String) -> Unit) {
     Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Grouped, and what you touch daily first: the flat list opened on Google sign-in, which is the
         // one row most days never need.
-        Group("Your day")
+        Group("YOUR DAY") {
         val habits by Habits.all.collectAsState()
-        Entry(open = { open("habits") }) {
+        Entry(first = true, open = { open("habits") }) {
             Icon(painterResource(R.drawable.ic_calendar), null, Modifier.size(28.dp), tint = cs.primary)
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text("Habits & routines", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -121,8 +126,9 @@ private fun SettingsList(open: (String) -> Unit) {
                 Text("${CATALOG.size} 30-day plans · make your own", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
         }
-        Group("When it speaks")
-        Entry(open = { open("notifications") }) {
+        }
+        Group("WHEN IT SPEAKS") {
+        Entry(first = true, open = { open("notifications") }) {
             Icon(painterResource(R.drawable.ic_gong), null, Modifier.size(28.dp), tint = cs.primary)
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text("Notifications", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -133,8 +139,9 @@ private fun SettingsList(open: (String) -> Unit) {
                 )
             }
         }
-        Group("Elsewhere")
-        Entry(open = { open("profile") }) {
+        }
+        Group("ELSEWHERE") {
+        Entry(first = true, open = { open("profile") }) {
             Avatar(p, 48.dp)
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text(p?.displayName?.ifEmpty { null } ?: if (p == null) "Not signed in" else "Google account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -156,6 +163,7 @@ private fun SettingsList(open: (String) -> Unit) {
                 Text(APP_ICONS.firstOrNull { it.id == AppIcons.current(ctx) }?.label.orEmpty(), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
         }
+        }
         Text(
             "Interval Timer ${BuildConfig.VERSION_NAME}",
             Modifier.fillMaxWidth().padding(top = 16.dp),
@@ -164,20 +172,27 @@ private fun SettingsList(open: (String) -> Unit) {
     }
 }
 
-/** A small label over a run of [Entry] rows. */
+/** A small label over one card holding the group's rows, divided — the board's shape, not a card each. */
 @Composable
-private fun Group(label: String) {
+private fun Group(label: String, content: @Composable () -> Unit) {
+    val cs = MaterialTheme.colorScheme
     Text(
-        label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 8.dp, start = 4.dp),
+        label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+        letterSpacing = 1.sp, color = cs.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp, start = 4.dp, bottom = 9.dp),
     )
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surface)
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)),
+    ) { content() }
 }
 
 /** A tappable card row with a › at the end. */
 @Composable
-private fun Entry(open: () -> Unit, content: @Composable RowScope.() -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = open), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun Entry(first: Boolean = false, open: () -> Unit, content: @Composable RowScope.() -> Unit) {
+    Column {
+        if (!first) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Row(Modifier.fillMaxWidth().clickable(onClick = open).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             content()
             Text("›", fontSize = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

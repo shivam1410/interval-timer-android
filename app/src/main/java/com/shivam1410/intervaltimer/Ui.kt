@@ -951,8 +951,10 @@ private fun StartCard(s: Settings, now: Long, fits: Int, onStart: (Int?) -> Unit
             .border(1.5.dp, cs.primary, RoundedCornerShape(20.dp)).padding(16.dp),
     ) {
         Text(
-            if (late) "${fits.spelled()} ${if (fits == 1) "cycle fits" else "cycles fit"} before ${clockMin(s.workEnd)}."
-            else "${s.cycles.spelled()} cycles, ending at ${clock(now + total)}.",
+            // Spelled, and a sentence starts with a capital: "eight cycles, ending at 4:42 AM." read as a
+            // fragment someone had cut the front off.
+            if (late) "${fits.spelled().replaceFirstChar { it.uppercase() }} ${if (fits == 1) "cycle fits" else "cycles fit"} before ${clockMin(s.workEnd)}."
+            else "${s.cycles.spelled().replaceFirstChar { it.uppercase() }} ${if (s.cycles == 1) "cycle" else "cycles"}, ending at ${clock(now + total)}.",
             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
         )
         Text(
@@ -963,7 +965,7 @@ private fun StartCard(s: Settings, now: Long, fits: Int, onStart: (Int?) -> Unit
         Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (late) {
                 TwoLineButton("Fit to ${clockMin(s.workEnd)}", "$fits ${if (fits == 1) "cycle" else "cycles"}", true, Modifier.weight(1f)) { onStart(fits) }
-                TwoLineButton("Run all ${s.cycles}", "ends ${clock(now + total)}", false, Modifier.weight(1f)) { onStart(null) }
+                TwoLineButton("Run all ${s.cycles.spelled()}", "ends ${clock(now + total)}", false, Modifier.weight(1f)) { onStart(null) }
             } else {
                 TwoLineButton("Start now", "ends ${clock(now + total)}", true, Modifier.weight(1f)) { onStart(null) }
             }
