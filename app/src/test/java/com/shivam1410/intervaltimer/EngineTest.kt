@@ -1,6 +1,7 @@
 package com.shivam1410.intervaltimer
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -407,5 +408,19 @@ class EngineTest {
         val sixHours = s.copy(workEnd = 16 * 60) // 10:00-16:00
         assertEquals(6, sixHours.cycles)
         assertEquals(6 * 3, plan(sixHours).size) // WORK, PREP, ACTIVITY per cycle
+    }
+
+    // Where now falls across a planned day, so an idle morning can show the hours already behind you.
+    @Test fun nowIsPlacedAcrossThePlannedDayAndNowhereOutsideIt() {
+        // 10:00 start, an eight-hour plan: midday is a quarter of the way in.
+        assertEquals(0.25f, dayGone(12 * 60, 10 * 60, 480)!!, 0.001f)
+        // Before it begins and after it ends there is no honest place to draw the line.
+        assertNull(dayGone(9 * 60, 10 * 60, 480))
+        assertNull(dayGone(10 * 60, 10 * 60, 480)) // the very start is not "gone"
+        assertNull(dayGone(18 * 60, 10 * 60, 480))
+        assertNull(dayGone(23 * 60, 10 * 60, 480))
+        // A day that runs past midnight still measures forward from its start.
+        assertEquals(0.5f, dayGone(1 * 60, 22 * 60, 360)!!, 0.001f)
+        assertNull(dayGone(12 * 60, 10 * 60, 0))
     }
 }

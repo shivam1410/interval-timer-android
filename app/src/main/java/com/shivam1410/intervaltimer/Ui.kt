@@ -278,7 +278,10 @@ private fun Setup(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            DayStrip(dayBlocks(Timer.plan, mini ?: Session(), now), Modifier.fillMaxWidth().padding(top = 14.dp))
+            DayStrip(
+                dayBlocks(Timer.plan, mini ?: Session(), now), Modifier.fillMaxWidth().padding(top = 14.dp),
+                mark = if (mini == null) dayGone(minuteOfDay(now), s.workStart, (total / 60_000L).toInt()) else null,
+            )
             // What today already holds. Absent entirely on a morning that hasn't started — the day ahead
             // is the point of this screen, and an empty "Earlier" row would just be furniture.
             val today = History.today()
@@ -393,7 +396,7 @@ private fun UpNext(plan: List<Phase>, s: Session, settings: Settings, now: Long)
  * The point is to read the shape of what's left from across the room, without doing arithmetic.
  */
 @Composable
-private fun DayStrip(blocks: List<DayBlock>, modifier: Modifier = Modifier) {
+private fun DayStrip(blocks: List<DayBlock>, modifier: Modifier = Modifier, mark: Float? = null) {
     if (blocks.isEmpty()) return
     val cs = MaterialTheme.colorScheme
     val total = blocks.sumOf { it.ms }.toFloat().coerceAtLeast(1f)
@@ -419,11 +422,14 @@ private fun DayStrip(blocks: List<DayBlock>, modifier: Modifier = Modifier) {
                 }
             }
         }
-        // Where you are in the day, drawn where it actually falls rather than described in words.
-        if (elapsed > 0.001f && elapsed < 0.999f) Row(Modifier.matchParentSize()) {
-            Spacer(Modifier.weight(elapsed))
+        // Where you are in the day, drawn where it actually falls rather than described in words. Running,
+        // that is how much you have done; idle, [mark] puts the clock there instead, so a morning you have
+        // not started still shows what is already behind you.
+        val at = if (elapsed > 0.001f && elapsed < 0.999f) elapsed else mark
+        if (at != null) Row(Modifier.matchParentSize()) {
+            Spacer(Modifier.weight(at))
             Box(Modifier.width(2.dp).fillMaxHeight().background(cs.error))
-            Spacer(Modifier.weight(1f - elapsed))
+            Spacer(Modifier.weight(1f - at))
         }
     }
 }

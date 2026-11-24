@@ -19,6 +19,17 @@ fun cyclesFor(startMin: Int, endMin: Int, workMin: Int, breakMin: Int): Int =
  * Minutes of your hours still ahead at [nowMin]: the whole window before they start, 0 once they are over.
  * Starting at 11:40 against 09:00–17:30 leaves 350, not a deficit of 160.
  */
+/**
+ * Where now falls across a planned day of [planMin] minutes that starts at [startMin], as 0..1 — or null
+ * before it begins and once it is over, where a marker would be a claim rather than a location. Drawn on
+ * an idle morning it answers the question a clock cannot: how much of today's shape is already behind you.
+ */
+fun dayGone(nowMin: Int, startMin: Int, planMin: Int): Float? {
+    if (planMin <= 0) return null
+    val since = ((nowMin - startMin) % (24 * 60) + 24 * 60) % (24 * 60)
+    return (since.toFloat() / planMin).takeIf { it > 0f && it < 1f }
+}
+
 fun minsLeftOfDay(nowMin: Int, startMin: Int, endMin: Int): Int =
     minOf(windowMin(startMin, endMin), ((endMin - nowMin) % (24 * 60) + 24 * 60) % (24 * 60))
 
