@@ -109,8 +109,7 @@ fun habitGlyph(h: Habit, items: List<LibraryItem>): String {
         "shoulder" in name || "supraspinatus" in name -> "\uD83D\uDE46"   // person gesturing
         "wall push" in name || "push" in name -> "\uD83E\uDDCD"           // person standing
         "squat" in name || "wall sit" in name || "wall-sit" in name -> "\uD83E\uDDCE"
-        "glute" in name || "bridge" in name -> "\uD83C\uDF09"             // bridge
-        "calf" in name || "tib" in name -> "\uD83E\uDDB5"                 // leg
+        "calf" in name || "tib" in name || "glute" in name -> "\uD83E\uDDB5"  // leg
         "neck" in name || "eye" in name -> "\uD83D\uDC41\uFE0F"
         "walk" in name -> "\uD83D\uDEB6"
         else -> "\uD83E\uDD38"                                             // cartwheel: a stretch

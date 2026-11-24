@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -175,20 +176,42 @@ fun StretchesPage(open: (String) -> Unit) {
             Text("RUNNING NOW", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant)
             running.forEach { h ->
                 val day = h.dayOf(today)
-                Row(card().clickable(onClickLabel = "Open the calendar") { open("habit:${h.id}") }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(habitTitle(h, items), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Column(
+                    card().clickable(onClickLabel = "Open the calendar") { open("habit:${h.id}") }.padding(13.dp),
+                ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(cs.surfaceContainerHighest),
+                            contentAlignment = Alignment.Center,
+                        ) { Text(habitGlyph(h, items), fontSize = 17.sp) }
+                        Column(Modifier.weight(1f).padding(start = 11.dp)) {
+                            Text(habitTitle(h, items), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                "Day ${day.coerceAtMost(h.totalDays)} of ${h.totalDays}",
+                                Modifier.padding(top = 1.dp), style = MaterialTheme.typography.labelMedium,
+                                color = cs.onSurfaceVariant,
+                            )
+                        }
                         Text(
-                            "Day ${day.coerceAtMost(h.totalDays)} of ${h.totalDays}" +
-                                (h.stageOn(day)?.let { " · ${label(it)}" } ?: " · finished"),
-                            style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                            h.stageOn(day)?.let(::label) ?: "finished", Modifier.padding(start = 10.dp),
+                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                            color = cs.secondary, maxLines = 1,
                         )
                     }
-                    Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
+                    // The whole plan as a strip: which days you did, and how much of it is still ahead.
+                    Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        val from = h.start
+                        repeat(h.totalDays) { i ->
+                            val d = from.plusDays(i.toLong())
+                            Box(
+                                Modifier.weight(1f).height(7.dp).clip(RoundedCornerShape(2.dp))
+                                    .background(if (d in h.done) cs.primary else cs.surfaceContainerHighest),
+                            )
+                        }
+                    }
                 }
             }
         }
-        AddRow("✏️", "Make your own habit", "Any exercise, your own numbers") { custom = true }
         Text("THE CATALOGUE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
         CATALOG.forEach { e ->
             Row(card().clickable(onClickLabel = "See the plan") { open("plan:${e.id}") }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -199,6 +222,18 @@ fun StretchesPage(open: (String) -> Unit) {
                 }
                 Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
             }
+        }
+        // The way out of the catalogue when none of it fits: dashed, at the end, as the board has it.
+        Row(
+            Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(16.dp)).dashedBorder(cs.outlineVariant)
+                .clickable(onClickLabel = "Make your own habit") { custom = true },
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
+        ) {
+            Text("+", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = cs.secondary)
+            Text(
+                "  Make your own · any exercise, your numbers", style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold, color = cs.onSurface,
+            )
         }
     }
 }

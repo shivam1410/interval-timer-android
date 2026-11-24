@@ -269,4 +269,17 @@ class HabitTest {
         // A half-written or foreign entry is dropped, never thrown over.
         assertEquals(mapOf("h2" to 930), decodeTimes("h1=,=5,bare,h2=930"))
     }
+
+    // The glyph comes from the movement, so a list of stretches isn't one leg over and over. A glute
+    // bridge is a movement, not a river crossing: the pun used to win.
+    @Test fun glyphFollowsTheMovement() {
+        fun glyph(title: String) = habitGlyph(habit(stages = emptyList()).copy(title = title), emptyList())
+        assertEquals("\uD83E\uDDB5", glyph("Glute bridge"))
+        assertEquals("\uD83E\uDDB5", glyph("Calf raises"))
+        assertEquals("\uD83D\uDE46", glyph("Supraspinatus presses"))
+        assertEquals("\uD83E\uDDCE", glyph("Wall sit"))
+        assertEquals("\uD83E\uDD38", glyph("Something new")) // nothing matched: still a stretch
+        // The movement a nameless habit does is in its stages, so those are read too.
+        assertEquals("\uD83E\uDDB5", habitGlyph(habit().copy(title = ""), emptyList()))
+    }
 }
