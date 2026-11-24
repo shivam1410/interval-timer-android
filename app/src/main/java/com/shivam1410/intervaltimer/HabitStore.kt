@@ -67,7 +67,9 @@ object Habits {
             if (on && date == LocalDate.now()) rest + (id to java.time.LocalTime.now().let { it.hour * 60 + it.minute }) else rest
         }
         times.value = if (day.isEmpty()) times.value - date else times.value + (date to day)
-        timePrefs.edit().putString(date.toString(), encodeTimes(day)).apply()
+        // Untick the last habit of a day and the day goes with it, rather than leaving an empty entry
+        // behind for every date ever touched.
+        timePrefs.edit().apply { if (day.isEmpty()) remove(date.toString()) else putString(date.toString(), encodeTimes(day)) }.apply()
         if (on) app.getSystemService(NotificationManager::class.java).cancel(notifId(id))
     }
 

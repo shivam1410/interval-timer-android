@@ -137,7 +137,7 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
     // to be skipped the moment one step had been done today, dropping you into the middle of the list with
     // no sight of what was already behind you — which is exactly when the overview is worth having.
     if (!started && !timed && !finished && doneToday(r, today) == null) {
-        return RoutineStartCard(r, habits, step, autoStart, onBack) { started = true }
+        return RoutineStartCard(r, habits, autoStart, onBack) { started = true }
     }
     // Toggl: a timer from opening the routine until it's finished or you leave it.
     DisposableEffect(id) {
@@ -213,7 +213,7 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
  * saves it to the routine, so tomorrow it's already right; Off means no timer, just the steps.
  */
 @Composable
-private fun RoutineStartCard(r: Routine, habits: List<Habit>, from: Int, autoStart: Boolean, onBack: () -> Unit, onStart: () -> Unit) {
+private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean, onBack: () -> Unit, onStart: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     var min by remember(r.id) { mutableStateOf(r.minutes) }
     // Asks first when a workday or another timer runs; the steps open only once the routine's timer is away.
@@ -238,8 +238,11 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, from: Int, autoSta
         }
         Text(routineSummary(r, min), color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
         // Picked up part-way through: say so, so the ticked steps below read as yours rather than a glitch.
-        if (from > 0) Text(
-            "$from of ${routineSteps(r).size} already done today",
+        // Counted from the steps themselves, not from where you would resume: a stretch already done that
+        // sits after a step you have not ticked is still done, and the list below already shows it so.
+        val alreadyDone = steps.count { st -> (st as? HabitStep)?.habitId?.let { id -> habits.any { it.id == id && !it.ended && today in it.done } } == true }
+        if (alreadyDone > 0) Text(
+            "$alreadyDone of ${steps.size} already done today",
             style = MaterialTheme.typography.bodyMedium, color = cs.primary, modifier = Modifier.padding(top = 2.dp),
         )
         // The card used to say "5 steps" and name none of them. Showing the list is the whole point of a routine.
@@ -264,7 +267,7 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, from: Int, autoSta
             Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 24.dp).height(64.dp),
             shape = RoundedCornerShape(32.dp),
         ) {
-            val verb = if (from > 0) "Carry on" else "Start"
+            val verb = if (alreadyDone > 0) "Carry on" else "Start"
             Text(min?.let { "\u25b6  $verb \u00b7 $it min" } ?: verb, fontSize = 20.sp)
         }
     }
