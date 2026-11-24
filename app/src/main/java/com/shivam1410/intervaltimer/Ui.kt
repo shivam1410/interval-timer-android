@@ -618,6 +618,14 @@ private fun ShapeScreen(s: Settings, now: Long, onBack: () -> Unit) {
             Stepper("Prepare (in break)", s.prepMin, "min", 0..10) { v -> set { copy(prepMin = v) } }
         }
 
+        // Hours in, cycles out — and this is what the cycles actually buy. The count alone never said
+        // whether eight cycles meant a long day or a short one.
+        Section("That makes") {
+            Line("Focus", fmtDur(s.cycles * s.workMin * MIN))
+            Line("Breaks", fmtDur(s.cycles * s.breakMin * MIN))
+            Line("Spare at the end", if (s.spare > 0) fmtDur(s.spare * MIN) else "none")
+        }
+
         Section("Start it later") {
             // Picking an hour arms it there and then, rather than leaving it for a button on another screen.
             StartAt(scheduled, now) { at ->
