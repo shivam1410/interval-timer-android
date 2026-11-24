@@ -111,4 +111,31 @@ class TimelineTest {
         val segs = listOf(work(0, 50), rest(50, 52), rest(52, 60).copy(label = "nsdr"), rest(110, 130).copy(label = "nsdr"), rest(170, 180).copy(label = "walk"))
         assertEquals(mapOf("nsdr" to 28 * MIN, "walk" to 10 * MIN), activityTotals(segs))
     }
+
+    // "Your 9th walk in 14 days": how often one activity has come round lately.
+    @Test fun timesDoneCountsEachRunInsideTheWindow() {
+        fun day(n: Long, vararg segs: Segment) = today.minusDays(n) to segs.toList()
+        fun walk(ms: Long = 15 * MIN) = Segment(0, ms, work = false, label = "walk")
+        val lines = mapOf(
+            day(0, walk(), walk()),          // twice today
+            day(3, walk()),
+            day(13, walk()),                 // the oldest day still inside a fortnight
+            day(14, walk()),                 // one day too old
+            day(1, walk(30_000)),            // half a minute: a blip, not a walk
+            day(2, Segment(0, 15 * MIN, work = false, label = "sketch")),
+        )
+        assertEquals(4, timesDone(lines, "walk", today))
+        assertEquals(1, timesDone(lines, "sketch", today))
+        assertEquals(0, timesDone(lines, "nap", today))
+        // A shorter window looks back less far.
+        assertEquals(3, timesDone(lines, "walk", today, window = 4))
+    }
+
+    @Test fun ordinalsReadTheWayPeopleSayThem() {
+        assertEquals(listOf("1st", "2nd", "3rd", "4th"), (1..4).map(::ordinal))
+        assertEquals(listOf("11th", "12th", "13th"), (11..13).map(::ordinal))
+        assertEquals(listOf("21st", "22nd", "23rd"), (21..23).map(::ordinal))
+        assertEquals("101st", ordinal(101))
+        assertEquals("111th", ordinal(111))
+    }
 }

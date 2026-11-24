@@ -84,5 +84,25 @@ fun joined(segs: List<Segment>): List<Segment> = segs.fold(emptyList()) { acc, s
  * Drops stretches under a minute, left behind by skipping through unused slots; [keepLast] keeps
  * the last one when it is still running, so today's graph doesn't wait a minute to show it.
  */
+/**
+ * How many times activity [id] has actually been done in the last [window] days, today included. Counts
+ * runs, not days: two walks this afternoon are two walks. Anything under a minute was a false start, not
+ * a walk, and is left out the same way [dropBlips] leaves it off the day graph.
+ */
+fun timesDone(all: Map<LocalDate, List<Segment>>, id: String, today: LocalDate, window: Int = 14): Int {
+    val from = today.minusDays((window - 1).toLong())
+    return all.filterKeys { !it.isBefore(from) && !it.isAfter(today) }
+        .values.flatten().count { it.label == id && it.ms >= MIN }
+}
+
+/** "1st", "2nd", "3rd", "11th", "21st" — said the way people say them, not "1th". */
+fun ordinal(n: Int): String = n.toString() + when {
+    n % 100 in 11..13 -> "th"
+    n % 10 == 1 -> "st"
+    n % 10 == 2 -> "nd"
+    n % 10 == 3 -> "rd"
+    else -> "th"
+}
+
 fun dropBlips(segs: List<Segment>, keepLast: Boolean): List<Segment> =
     segs.filterIndexed { i, s -> s.ms >= MIN || (keepLast && i == segs.lastIndex) }

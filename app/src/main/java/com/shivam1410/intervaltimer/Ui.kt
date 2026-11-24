@@ -1038,6 +1038,16 @@ private fun BreakChoices(p: Phase, s: Session, chosen: Activity, elapsedMs: Long
             } else {
                 Text("${chosen.emoji}  ${chosen.name}", style = MaterialTheme.typography.titleLarge)
                 Text(chosen.hint, style = MaterialTheme.typography.bodyLarge)
+                // Started on its own, this is the one you chose: say how often it has come round lately.
+                // Not on the first — "1st walk in 14 days" when you have never walked says nothing.
+                if (quick) {
+                    val lines by History.timelines.collectAsState()
+                    val nth = timesDone(lines, chosen.id, History.today()) + 1
+                    if (nth >= 2) Text(
+                        "${ordinal(nth)} in the last 14 days",
+                        style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                }
             }
             // One row of actions: the activity's own button (play / open) + Change + +10 min, equal height.
             val cs = MaterialTheme.colorScheme
