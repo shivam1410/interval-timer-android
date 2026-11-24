@@ -195,4 +195,28 @@ class RoutineTest {
         assertEquals("2 steps · 1 stretch", routineSummary(plain.copy(steps = listOf("a", habitStep("h1"))), null))
         assertEquals("2 steps · 2 stretches", routineSummary(plain.copy(steps = listOf(habitStep("h1"), habitStep("h2"))), null))
     }
+
+    // How long a routine's steps actually take, learnt from running it.
+
+    @Test fun aStepsTypicalTimeFollowsYouWithoutChasingOneOddRun() {
+        // Nothing known yet: the first honest measurement is the measurement.
+        assertEquals(60_000L, blendStep(null, 60_000L))
+        // A later run moves it, but the past still counts double.
+        assertEquals(50_000L, blendStep(60_000L, 30_000L))
+        // One run you walked away from does not become the new normal.
+        assertEquals(60_000L, blendStep(60_000L, 45 * 60_000L))
+        // Nor does a step you skipped through in half a second.
+        assertEquals(60_000L, blendStep(60_000L, 500L))
+        // Rubbish with nothing to fall back on stays unknown.
+        assertNull(blendStep(null, 500L))
+    }
+
+    @Test fun whatIsLeftIsOnlyWorthSayingWhenEveryStepIsKnown() {
+        val typical = mapOf("Take meds" to 30_000L, "act:walk" to 900_000L)
+        assertEquals(930_000L, stepsLeftMs(listOf("Take meds", "act:walk"), typical))
+        // One step never timed and there is no honest total to print.
+        assertNull(stepsLeftMs(listOf("Take meds", "Brush teeth"), typical))
+        // Nothing left to do is not "about 0 minutes".
+        assertNull(stepsLeftMs(emptyList(), typical))
+    }
 }

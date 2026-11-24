@@ -31,15 +31,27 @@ object Routines {
     val visible get() = all.value.filterNot { it.deleted }
     private lateinit var app: Context
     private val prefs get() = app.getSharedPreferences("routines", Context.MODE_PRIVATE)
+    // How long each step usually takes, measured by running them. Kept on this phone and never synced:
+    // it is this phone's reading of this body on these mornings, and nothing else depends on it.
+    private val stepPrefs get() = app.getSharedPreferences("stepTimes", Context.MODE_PRIVATE)
+    val typical = MutableStateFlow<Map<String, Long>>(emptyMap())
 
     fun init(ctx: Context) {
         app = ctx.applicationContext
         val stored = prefs.getString("items", null)
         all.value = if (stored == null) DEFAULT_ROUTINES else decodeRoutines(stored)
         routineActivities = all.value.filterNot { it.deleted }.map { it.toActivity() }
+        typical.value = stepPrefs.all.mapNotNull { (k, v) -> (v as? Long)?.let { k to it } }.toMap()
         app.getSystemService(NotificationManager::class.java)
             .createNotificationChannel(NotificationChannel(CH, "Routine reminder", NotificationManager.IMPORTANCE_HIGH))
         arm() // boot and updates start the process, which lands here
+    }
+
+    /** A step just finished in [ms]: fold it into what that step usually takes. Skips are not finishes. */
+    fun timeStep(step: String, ms: Long) {
+        val next = blendStep(typical.value[step], ms) ?: return
+        typical.value = typical.value + (step to next)
+        stepPrefs.edit().putLong(step, next).apply()
     }
 
     /** From MainActivity: a reminder's Start was tapped. */

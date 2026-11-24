@@ -123,8 +123,14 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
             Strava.record(ctx, actId) // a walk also records in Strava, as it does from home
         }
     }
-    fun next() {
+    // When the step on screen began, so finishing it measures how long it took. Reset on every move,
+    // including Back and Skip, so the next step is timed from when you actually reached it.
+    var stepAt by remember(id) { mutableLongStateOf(System.currentTimeMillis()) }
+    fun next(finished: Boolean = true) {
         if (actRunning) Timer.stop() // leaving a step whose timer still runs banks that time in History
+        // Skipped or stepped back over: not a measurement of doing it, so it teaches the estimate nothing.
+        if (finished) r.steps.getOrNull(step)?.let { Routines.timeStep(it, System.currentTimeMillis() - stepAt) }
+        stepAt = System.currentTimeMillis()
         step++
         if (step >= r.steps.size) {
             Routines.finish(r.id)
@@ -201,8 +207,8 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
             // A habit still to do has its own Completed / Start; otherwise the big ✓ moves on.
             if (!habitToDo) Button(::next, Modifier.fillMaxWidth().height(64.dp), shape = RoundedCornerShape(32.dp)) { Text(if (habit != null) "Next" else "✓  Done", fontSize = 22.sp) }
             Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton({ step-- }, enabled = step > 0) { Text("Back") }
-                TextButton(::next) { Text("Skip") }
+                TextButton({ stepAt = System.currentTimeMillis(); step-- }, enabled = step > 0) { Text("Back") }
+                TextButton({ next(finished = false) }) { Text("Skip") }
             }
         }
     }
@@ -240,9 +246,18 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
         // Picked up part-way through: say so, so the ticked steps below read as yours rather than a glitch.
         // Counted from the steps themselves, not from where you would resume: a stretch already done that
         // sits after a step you have not ticked is still done, and the list below already shows it so.
-        val alreadyDone = steps.count { st -> (st as? HabitStep)?.habitId?.let { id -> habits.any { it.id == id && !it.ended && today in it.done } } == true }
+        fun stepDone(i: Int) = (steps.getOrNull(i) as? HabitStep)?.habitId
+            ?.let { id -> habits.any { it.id == id && !it.ended && today in it.done } } == true
+        val alreadyDone = steps.indices.count(::stepDone)
+        // Measured, not guessed: how long these steps have actually taken you, and only once every one
+        // of them has been timed. A timer you set says what you meant to spend; this says what it costs.
+        val typical by Routines.typical.collectAsState()
+        val leftMin = stepsLeftMs(r.steps.filterIndexed { i, _ -> !stepDone(i) }, typical)?.let { (it / 60_000L).toInt().coerceAtLeast(1) }
         if (alreadyDone > 0) Text(
-            "$alreadyDone of ${steps.size} already done today",
+            "$alreadyDone of ${steps.size} already done today" + (leftMin?.let { " · about $it min left" } ?: ""),
+            style = MaterialTheme.typography.bodyMedium, color = cs.primary, modifier = Modifier.padding(top = 2.dp),
+        ) else if (leftMin != null) Text(
+            "Usually takes you about $leftMin min",
             style = MaterialTheme.typography.bodyMedium, color = cs.primary, modifier = Modifier.padding(top = 2.dp),
         )
         // The card used to say "5 steps" and name none of them. Showing the list is the whole point of a routine.

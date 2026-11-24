@@ -104,6 +104,34 @@ const val NUDGE_MIN = 30
 /** The minute [r] was finished on [today], or null. */
 fun doneToday(r: Routine, today: LocalDate): Int? = r.done[today]
 
+/** Longer than this and you were not doing the step, you were somewhere else. */
+const val STEP_MAX_MS = 30 * 60_000L
+
+/**
+ * A step's typical time with [sample] folded in: the past counts double, so the figure follows how long
+ * you actually take without one interrupted run becoming the new normal. A sample under a second (tapped
+ * straight through) or over [STEP_MAX_MS] (you walked away) was not a measurement and changes nothing.
+ *
+ * Steps are keyed by what they are — "Take meds", "habit:<id>", "act:walk" — not by where they sit, so
+ * reordering a routine keeps what it learnt, and a step shared by two routines is timed once.
+ */
+fun blendStep(old: Long?, sample: Long): Long? = when {
+    sample < 1_000L || sample > STEP_MAX_MS -> old
+    old == null -> sample
+    else -> (old * 2 + sample) / 3
+}
+
+/**
+ * How long the steps in [remaining] usually take together — or null unless every one of them has been
+ * timed, because a total missing a step is not an estimate, it is an underestimate presented as one.
+ */
+fun stepsLeftMs(remaining: List<String>, typical: Map<String, Long>): Long? {
+    if (remaining.isEmpty()) return null
+    var total = 0L
+    for (step in remaining) total += typical[step] ?: return null
+    return total
+}
+
 /**
  * How often [r] has been done lately, on the same forgiving terms as a habit's: the window is the routine's
  * own age — from the first time it was ever done — capped at [window] days. A routine you have never done
