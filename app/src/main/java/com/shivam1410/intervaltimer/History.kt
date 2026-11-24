@@ -21,6 +21,21 @@ data class Day(val date: LocalDate, val workMs: Long, val breakMs: Long, val cyc
 }
 
 /**
+ * What today already holds, for the line above the day still ahead: cycles and time from the workday,
+ * then the routines you finished and how many habits you ticked. Null when nothing has happened yet,
+ * so a morning that has not started shows no empty "Earlier" row at all.
+ */
+fun earlierToday(workMs: Long, cycles: Int, routinesDone: List<String>, habitsDone: Int): String? {
+    val parts = buildList {
+        if (cycles > 0) add("$cycles ${if (cycles == 1) "cycle" else "cycles"}")
+        if (workMs >= MIN) add("${fmtDur(workMs)} focused")
+        routinesDone.forEach { add("$it done") }
+        if (habitsDone > 0) add("$habitsDone ${if (habitsDone == 1) "habit" else "habits"}")
+    }
+    return parts.joinToString(" · ").ifEmpty { null }
+}
+
+/**
  * How often you showed up lately: [done] active days out of the [of] you have had the app.
  * Density rather than a streak, because one missed Tuesday should cost nothing.
  */

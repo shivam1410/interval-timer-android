@@ -246,6 +246,39 @@ fun dayBlocks(plan: List<Phase>, s: Session, now: Long): List<DayBlock> {
     return out
 }
 
+/** A block still ahead: when it begins, whether it is work, which cycle it belongs to, and how long it runs. */
+data class Upcoming(val at: Long, val work: Boolean, val cycle: Int, val ms: Long)
+
+/**
+ * The blocks after the one running, with real clock times rather than "in 32 minutes". A break's prepare
+ * and its activity are one entry, so the list reads as the day does: work, break, work.
+ */
+fun upNext(plan: List<Phase>, s: Session, now: Long, limit: Int = 3): List<Upcoming> {
+    if (s.idle || s.done(plan) || limit <= 0) return emptyList()
+    var at = now + s.left(now)
+    val out = mutableListOf<Upcoming>()
+    for (i in s.index + 1 until plan.size) {
+        val p = plan[i]
+        val work = p.kind == Kind.WORK
+        val last = out.lastOrNull()
+        if (last != null && !last.work && !work) {
+            out[out.lastIndex] = last.copy(ms = last.ms + p.ms) // prepare and its activity are one break
+        } else {
+            if (out.size == limit) break
+            out += Upcoming(at, work, p.cycle, p.ms)
+        }
+        at += p.ms
+    }
+    return out
+}
+
+/**
+ * Work blocks still to come after the last entry [upNext] returned. Whether that entry is a cycle's work
+ * or its break, what remains is every cycle after it — the break belongs to the cycle it follows.
+ */
+fun cyclesAfter(plan: List<Phase>, shown: List<Upcoming>): Int =
+    shown.lastOrNull()?.let { (cyclesIn(plan) - it.cycle).coerceAtLeast(0) } ?: 0
+
 /** Cycles a built plan actually holds — the truth while one is running, since a late start can shorten it. */
 fun cyclesIn(plan: List<Phase>): Int = plan.count { it.kind == Kind.WORK }
 

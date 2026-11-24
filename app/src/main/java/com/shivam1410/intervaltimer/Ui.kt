@@ -182,13 +182,15 @@ fun Root(now: Long) {
             page == "habits" -> SettingsScreen(settings, start = "habits") { page = "" }
             page == "stretches" -> SettingsScreen(settings, start = "stretches") { page = "" }
             page == "library" -> LibraryScreen(startQuick) { page = "" }
+            page == "shape" -> ShapeScreen(settings, now) { page = "" }
+            page == "today" -> DayScreen(History.today()) { page = "" }
             page.startsWith("habit:") -> HabitCalendarScreen(page.removePrefix("habit:")) { page = "" }
             page.startsWith("routine:") -> RoutineScreen(page.removePrefix("routine:"), autoStart) { page = ""; autoStart = false }
             countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null } }
             session.idle || minimised -> Setup(
                 settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit:$it" },
                 onAddHabit = { page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = startQuick,
-                onLibrary = { page = "library" },
+                onLibrary = { page = "library" }, onShape = { page = "shape" }, onToday = { page = "today" },
                 mini = session.takeIf { minimised }, onRestore = { minimised = false },
             )
             session.done(plan) -> Done(session, settings) { page = "history" }
@@ -232,7 +234,7 @@ private fun Banner(text: String, action: String, onClick: () -> Unit) {
 @Composable
 private fun Setup(
     s: Settings, now: Long, onHistory: () -> Unit, onSettings: () -> Unit, onHabit: (String) -> Unit, onAddHabit: () -> Unit,
-    onRoutine: (String) -> Unit, onQuick: (String) -> Unit, onLibrary: () -> Unit,
+    onRoutine: (String) -> Unit, onQuick: (String) -> Unit, onLibrary: () -> Unit, onShape: () -> Unit, onToday: () -> Unit,
     mini: Session? = null, onRestore: () -> Unit = {},
 ) {
     val total = plan(s).sumOf { it.ms }
@@ -245,9 +247,6 @@ private fun Setup(
     fun set(f: Settings.() -> Settings) = Timer.saveSettings(s.f())
     val scheduled by Timer.scheduledAt.collectAsState()
     // "Start at" only picks a time; the big button arms it. Dropped once that hour passes or Custom is left.
-    var picked by remember { mutableStateOf<Long?>(null) }
-    val pick = picked?.takeIf { s.custom && it > now }
-    val from = pick ?: scheduled ?: now
     val ctx = LocalContext.current
 
     Column(Modifier.fillMaxSize()) {
@@ -258,52 +257,62 @@ private fun Setup(
                 Spacer(Modifier.width(8.dp))
                 ProfileChip(onSettings)
             }
-            Text("Your hours", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 20.dp))
-            Text(
-                "${clockMin(s.workStart)} — ${clockMin(s.workEnd)}",
-                style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                "${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"} · ${s.workMin} min work · ${s.breakMin} min break" +
-                    if (s.spare > 0) " · ${s.spare} min free" else "",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // The hours are the day's shape; changing them belongs on its own screen, not interleaved
+            // with what today is actually doing.
+            Column(
+                Modifier.fillMaxWidth().padding(top = 16.dp).clip(RoundedCornerShape(16.dp))
+                    .clickable(onClickLabel = "Shape of the day", onClick = onShape).padding(vertical = 4.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Your hours", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                    Text("Change ›", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                }
+                Text(
+                    "${clockMin(s.workStart)} — ${clockMin(s.workEnd)}",
+                    style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    "${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"} · ${s.workMin} min work · ${s.breakMin} min break" +
+                        if (s.spare > 0) " · ${s.spare} min free" else "",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             DayStrip(dayBlocks(Timer.plan, mini ?: Session(), now), Modifier.fillMaxWidth().padding(top = 14.dp))
+            // What today already holds. Absent entirely on a morning that hasn't started — the day ahead
+            // is the point of this screen, and an empty "Earlier" row would just be furniture.
+            val today = History.today()
+            val todayRec = History.days.collectAsState().value.firstOrNull { it.date == today }
+            val liveHabits by Habits.all.collectAsState()
+            // The raw fact that it finished, not routineDoneToday — that asks whether it is still on your
+            // list (a stretch falling due again reopens it), which is a different question from what happened.
+            val doneRoutines = Routines.all.collectAsState().value
+                .filterNot { it.deleted }.filter { doneToday(it, today) != null }.map { it.name }
+            val doneHabits = liveHabits.count { !it.ended && today in it.done }
+            earlierToday(todayRec?.workMs ?: 0L, todayRec?.cycles ?: 0, doneRoutines, doneHabits)?.let {
+                // The summary is the collapsed form; the day's own record is what it opens into. That screen
+                // lists routines and habits too, so whatever is summarised here is there to be looked at.
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(10.dp))
+                        .clickable(onClickLabel = "How today went", onClick = onToday).padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Earlier · $it",
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text("›", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            mini?.let { UpNext(Timer.plan, it, s, now) }
             // Starting late costs you cycles, never a scolding: say what fits and let the full day stand beside it.
-            if (mini == null && fits in 1 until s.cycles && pick == null && scheduled == null) Text(
+            if (mini == null && fits in 1 until s.cycles && scheduled == null) Text(
                 "Start now and ${fits} ${if (fits == 1) "cycle fits" else "cycles fit"} before ${clockMin(s.workEnd)}. Running all ${s.cycles} would end at ${clock(now + total)}. Both are fine.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 8.dp),
             )
-
-            // Four equal quick picks; only Custom reveals the schedule steppers.
-            Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                PRESETS.forEach { p ->
-                    PresetChip(p.name.substringBefore(' '), "${p.work}:${p.brk}", !s.custom && s.workMin == p.work && s.breakMin == p.brk) {
-                        set { copy(workMin = p.work, breakMin = p.brk, custom = false) }
-                    }
-                }
-                PresetChip("Custom", if (s.custom) "${s.workMin}:${s.breakMin}" else "···", s.custom) { set { copy(custom = true) } }
-            }
-
-            if (s.custom) {
-                Section("Schedule") {
-                    Stepper("Work", s.workMin, "min", 1..180) { v -> set { copy(workMin = v) } }
-                    Stepper("Break", s.breakMin, "min", 1..60) { v -> set { copy(breakMin = v) } }
-                    Stepper("Prepare (in break)", s.prepMin, "min", 0..10) { v -> set { copy(prepMin = v) } }
-                    TimeRow("Day starts", s.workStart) { v -> set { copy(workStart = v) } }
-                    TimeRow("Day ends", s.workEnd) { v -> set { copy(workEnd = v) } }
-                    Text(
-                        "${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"} fit" +
-                            if (s.spare > 0) " · ${s.spare} min stays free at the end" else "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                    StartAt(pick, now) { picked = it }
-                }
-            }
 
             HabitsSection(onHabit, onAddHabit)
             RoutinesRow(onRoutine)
@@ -317,7 +326,7 @@ private fun Setup(
         // Something already running: its bar takes the place of Start now, because only one timer runs at a time.
         if (mini != null) MiniTimer(mini, now, onRestore)
         // Started late: two equal offers, never a deficit. Fit what's left, or run the whole day anyway.
-        else if (fits in 1 until s.cycles && pick == null && scheduled == null) Row(
+        else if (fits in 1 until s.cycles && scheduled == null) Row(
             Modifier.fillMaxWidth().padding(20.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -332,19 +341,49 @@ private fun Setup(
                 shape = RoundedCornerShape(32.dp),
             ) { Text("Run all ${s.cycles}", fontSize = 16.sp) }
         }
-        // Says exactly what a tap does: start now (dropping any armed start), or arm the picked hour.
         else Button(
-            onClick = {
-                if (pick == null) Timer.start()
-                else {
-                    Timer.scheduleStart(pick)
-                    picked = null
-                    Toast.makeText(ctx, "Scheduled for ${clock(pick)}", Toast.LENGTH_SHORT).show()
-                }
-            },
+            onClick = { Timer.start() },
             modifier = Modifier.fillMaxWidth().padding(20.dp).height(64.dp),
             shape = RoundedCornerShape(32.dp),
-        ) { Text(pick?.let { "Start at ${clock(it)}" } ?: "Start now", fontSize = 20.sp) }
+        ) { Text("Start now", fontSize = 20.sp) }
+    }
+}
+
+/**
+ * What is coming, with the clock times it will actually happen at. "Break at 2:11" is something you can
+ * plan around; "in 32 minutes" is arithmetic you have to do while you are trying to work.
+ */
+@Composable
+private fun UpNext(plan: List<Phase>, s: Session, settings: Settings, now: Long) {
+    val next = upNext(plan, s, now)
+    if (next.isEmpty()) return
+    val cs = MaterialTheme.colorScheme
+    val breakName = activity(settings.activity).name
+    val endsAt = now + s.left(now) + plan.drop(s.index + 1).sumOf { it.ms }
+    val after = cyclesAfter(plan, next)
+    Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("NEXT", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, letterSpacing = 1.sp)
+        next.forEach { u ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    clock(u.at), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant,
+                    modifier = Modifier.width(72.dp),
+                )
+                Box(
+                    Modifier.width(4.dp).height(if (u.work) 20.dp else 10.dp).clip(RoundedCornerShape(2.dp))
+                        .background(if (u.work) cs.primary else cs.tertiary),
+                )
+                Text(
+                    if (u.work) "Cycle ${u.cycle} · work" else "Break · $breakName",
+                    Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(fmtDur(u.ms), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+            }
+        }
+        if (after > 0) Text(
+            "then $after more · ends ${clock(endsAt)}",
+            style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+        )
     }
 }
 
@@ -522,6 +561,60 @@ private fun LibraryRow(onLibrary: () -> Unit) {
             )
         }
         Text("›", style = MaterialTheme.typography.headlineSmall, color = cs.onSurfaceVariant)
+    }
+}
+
+/**
+ * The day's shape: the hours you keep and the rhythm you work in. Deciding this is a different act from
+ * running the day, so it gets its own screen instead of sitting between the strip and your habits.
+ */
+@Composable
+private fun ShapeScreen(s: Settings, now: Long, onBack: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val ctx = LocalContext.current
+    val scheduled by Timer.scheduledAt.collectAsState()
+    fun set(f: Settings.() -> Settings) = Timer.saveSettings(s.f())
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
+            Text("Shape of the day", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
+        }
+
+        Section("Your hours") {
+            TimeRow("Day starts", s.workStart) { v -> set { copy(workStart = v) } }
+            TimeRow("Day ends", s.workEnd) { v -> set { copy(workEnd = v) } }
+            // The cycle count is worked out from the hours, never typed in.
+            Text(
+                "${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"} fit" +
+                    if (s.spare > 0) " · ${s.spare} min stays free at the end" else "",
+                style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+
+        Text("Rhythm", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            PRESETS.forEach { p ->
+                PresetChip(p.name.substringBefore(' '), "${p.work}:${p.brk}", !s.custom && s.workMin == p.work && s.breakMin == p.brk) {
+                    set { copy(workMin = p.work, breakMin = p.brk, custom = false) }
+                }
+            }
+            PresetChip("Custom", if (s.custom) "${s.workMin}:${s.breakMin}" else "···", s.custom) { set { copy(custom = true) } }
+        }
+        Section("") {
+            Stepper("Work", s.workMin, "min", 1..180) { v -> set { copy(workMin = v, custom = true) } }
+            Stepper("Break", s.breakMin, "min", 1..60) { v -> set { copy(breakMin = v, custom = true) } }
+            Stepper("Prepare (in break)", s.prepMin, "min", 0..10) { v -> set { copy(prepMin = v) } }
+        }
+
+        Section("Start it later") {
+            // Picking an hour arms it there and then, rather than leaving it for a button on another screen.
+            StartAt(scheduled, now) { at ->
+                Timer.scheduleStart(at)
+                Toast.makeText(ctx, at?.let { "Scheduled for ${clock(it)}" } ?: "Scheduled start cleared", Toast.LENGTH_SHORT).show()
+            }
+        }
+        Spacer(Modifier.height(24.dp))
     }
 }
 

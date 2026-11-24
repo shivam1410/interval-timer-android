@@ -306,6 +306,49 @@ class EngineTest {
         assertEquals(0f, b[2].done)
     }
 
+    // What is coming up, as clock times.
+
+    @Test fun nothingIsComingWhenNothingIsRunning() {
+        assertTrue(upNext(p, Session(), 0).isEmpty())
+        assertTrue(upNext(p, Session(index = p.size, phaseMs = 1), 0).isEmpty())
+    }
+
+    @Test fun theNextBlocksCarryTheirOwnClockTimes() {
+        val mid = catchUp(p, start(p, 0), 20 * MIN) // 20 min into the first 50 min work block
+        val next = upNext(p, mid, 20 * MIN)
+        assertEquals(3, next.size)
+        // The break starts when this block ends, and prepare + activity count as one 10-minute break.
+        assertEquals(50 * MIN, next[0].at)
+        assertFalse(next[0].work)
+        assertEquals(10 * MIN, next[0].ms)
+        // Then cycle 2's work, an hour after the day began.
+        assertEquals(60 * MIN, next[1].at)
+        assertTrue(next[1].work)
+        assertEquals(2, next[1].cycle)
+        assertEquals(50 * MIN, next[1].ms)
+    }
+
+    @Test fun whatIsLeftAfterTheListIsCountedInWholeCycles() {
+        val mid = catchUp(p, start(p, 0), 20 * MIN)
+        val next = upNext(p, mid, 20 * MIN) // ends on cycle 2's break
+        assertEquals(2, next.last().cycle)
+        assertFalse(next.last().work)
+        // Cycles 3 to 8 are still to come: six, not five. A cycle's break belongs to the cycle before it.
+        assertEquals(6, cyclesAfter(p, next))
+        // Ending on a cycle's work leaves the same count, since that cycle's break is part of it.
+        assertEquals(6, cyclesAfter(p, next.dropLast(1)))
+        assertEquals(0, cyclesAfter(p, emptyList()))
+    }
+
+    @Test fun theListStopsAtTheLimitAndAtTheEndOfTheDay() {
+        val mid = catchUp(p, start(p, 0), 20 * MIN)
+        assertEquals(1, upNext(p, mid, 20 * MIN, limit = 1).size)
+        assertTrue(upNext(p, mid, 20 * MIN, limit = 0).isEmpty())
+        // Inside the last work block there is nothing after it.
+        val last = start(p, 0).copy(index = p.size - 1, endsAt = 1, phaseMs = 1)
+        assertTrue(upNext(p, last, 0).isEmpty())
+    }
+
     // Starting late: how much of your day is still ahead.
 
     private val day = s.copy(workStart = 9 * 60, workEnd = 17 * 60 + 30) // 510 min, 8 cycles, 30 spare

@@ -11,6 +11,20 @@ class HistoryTest {
     private val today = LocalDate.of(2026, 10, 7)
     private fun day(daysAgo: Long, cycles: Int = 8) = Day(today.minusDays(daysAgo), cycles * 50 * MIN, cycles * 10 * MIN, cycles)
 
+    // What today already holds.
+
+    @Test fun aMorningThatHasNotStartedSaysNothing() {
+        assertNull(earlierToday(0, 0, emptyList(), 0))
+        assertNull(earlierToday(30_000, 0, emptyList(), 0)) // half a minute is not worth a line
+    }
+
+    @Test fun earlierTodayReadsAsASentenceOfWhatIsBehindYou() {
+        assertEquals("2 cycles · 1h 48m focused", earlierToday(108 * MIN, 2, emptyList(), 0))
+        assertEquals("Morning done", earlierToday(0, 0, listOf("Morning"), 0))
+        assertEquals("1 cycle · 50m focused · Morning done · 2 habits", earlierToday(50 * MIN, 1, listOf("Morning"), 2))
+        assertEquals("Morning done · Evening done · 1 habit", earlierToday(0, 0, listOf("Morning", "Evening"), 1))
+    }
+
     // Density: how often you showed up, with nothing to break.
 
     @Test fun thereIsNothingToSayBeforeYouHaveShownUp() {

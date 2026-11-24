@@ -86,7 +86,9 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
 
         Panel("How the day went") {
             if (segs.isEmpty()) {
-                val msg = if (work + rest > 0) "This day only has totals: the timeline is recorded from v1.8.0 on." else "Nothing recorded on this day."
+                // "Nothing recorded" was a lie on a day of routines and habits: this panel is the workday only.
+                val msg = if (work + rest > 0) "This day only has totals: the timeline is recorded from v1.8.0 on."
+                else "No workday was run on this day."
                 Text(msg, color = cs.onSurfaceVariant)
             } else {
                 DayWave(segs)
@@ -113,11 +115,32 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
                 segs.forEach { s -> Line("${clock(s.start)} – ${clock(s.end)}", "${kindLabel(s)} · ${fmtDur(s.ms)}") }
             }
         }
+
+        // A day is not only its work blocks. Without these, a day of nothing but routines and habits
+        // reported "Nothing recorded on this day" while Home was listing what you had done.
+        val items by Library.items.collectAsState()
+        val routinesDone = Routines.all.collectAsState().value
+            .filterNot { it.deleted }.mapNotNull { r -> r.done[date]?.let { min -> min to r } }.sortedBy { it.first }
+        val habitsDone = Habits.all.collectAsState().value.filter { date in it.done }.map { habitTitle(it, items) }
+        if (routinesDone.isNotEmpty() || habitsDone.isNotEmpty()) {
+            Panel("Routines and habits") {
+                routinesDone.forEach { (min, r) -> Line("${r.emoji} ${r.name}", clockOfDay(min)) }
+                // Habits record the day they were done, not the minute, so there is no time to show.
+                habitsDone.forEach { Line(it, "done") }
+            }
+        }
         Box(Modifier.height(24.dp))
     }
 }
 
 private fun clock(ms: Long): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(ms))
+
+/** The same clock, for a time of day with no date behind it (a routine records the minute it finished). */
+private fun clockOfDay(minuteOfDay: Int): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(
+    java.util.Calendar.getInstance().apply {
+        set(java.util.Calendar.HOUR_OF_DAY, minuteOfDay / 60); set(java.util.Calendar.MINUTE, minuteOfDay % 60)
+    }.time,
+)
 
 private fun kindLabel(s: Segment) = (if (s.work) "Work" else if (s.label.isNotEmpty()) activityLabel(s.label) else "Break") + if (s.over) " (overtime)" else ""
 
