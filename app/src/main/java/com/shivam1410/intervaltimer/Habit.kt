@@ -98,6 +98,25 @@ fun habitDays(h: Habit, today: LocalDate, window: Int = 14): List<Boolean> {
 fun habitDeck(habits: List<Habit>, today: LocalDate, hidden: Set<String> = emptySet()): List<Habit> =
     habits.filterNot { it.id in hidden }.sortedBy { today in it.done }
 
+/**
+ * A glyph for a stretch, picked from the movement it actually is. Routines carry their own emoji and
+ * habits never did, so a list of both showed every stretch wearing the same leg.
+ */
+fun habitGlyph(h: Habit, items: List<LibraryItem>): String {
+    val name = (h.title.ifBlank { items.firstOrNull { it.id == h.itemId }?.title.orEmpty() } + " " +
+        h.stages.joinToString(" ") { it.demo }).lowercase()
+    return when {
+        "shoulder" in name || "supraspinatus" in name -> "\uD83D\uDE46"   // person gesturing
+        "wall push" in name || "push" in name -> "\uD83E\uDDCD"           // person standing
+        "squat" in name || "wall sit" in name || "wall-sit" in name -> "\uD83E\uDDCE"
+        "glute" in name || "bridge" in name -> "\uD83C\uDF09"             // bridge
+        "calf" in name || "tib" in name -> "\uD83E\uDDB5"                 // leg
+        "neck" in name || "eye" in name -> "\uD83D\uDC41\uFE0F"
+        "walk" in name -> "\uD83D\uDEB6"
+        else -> "\uD83E\uDD38"                                             // cartwheel: a stretch
+    }
+}
+
 fun habitTitle(h: Habit, items: List<LibraryItem>): String =
     h.title.ifBlank { items.firstOrNull { it.id == h.itemId && !it.deleted }?.title ?: "Habit" }
 

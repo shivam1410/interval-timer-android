@@ -333,11 +333,15 @@ private fun Breathing(color: Color) {
     val step = (ms / 4_000).toInt().coerceIn(0, 3)
     val f = ms % 4_000 / 4_000
     val scale = when (step) { 0 -> 0.55f + 0.4f * f; 1 -> 0.95f; 2 -> 0.95f - 0.4f * f; else -> 0.55f }
-    Box(Modifier.size(260.dp).scale(scale).clip(CircleShape).background(color.copy(alpha = 0.15f)))
-    Text(
-        listOf("Inhale", "Hold", "Exhale", "Hold")[step],
-        Modifier.padding(top = 150.dp), color = color, style = MaterialTheme.typography.titleMedium,
-    )
+    // Sized and centred in its own box. It used to be a 260dp circle with the word nudged 150dp down to
+    // clear the ring it sat inside; with the ring gone that left a huge disc and a word under its chin.
+    Box(Modifier.size(190.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.matchParentSize().scale(scale).clip(CircleShape).background(color.copy(alpha = 0.15f)))
+        Text(
+            listOf("Inhale", "Hold", "Exhale", "Hold")[step],
+            color = color, style = MaterialTheme.typography.titleMedium,
+        )
+    }
 }
 
 // ---------- Done ----------

@@ -90,6 +90,9 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
     // When the step on screen began, so finishing it measures how long it took. Reset on every move,
     // including Back and Skip, so the next step is timed from when you actually reached it.
     var stepAt by remember(id) { mutableLongStateOf(System.currentTimeMillis()) }
+    // When this sitting began, so the end can say how long it took rather than only when it finished.
+    val runFrom = remember(id) { System.currentTimeMillis() }
+    var tookMs by remember(id) { mutableLongStateOf(0L) }
     fun next(finished: Boolean = true) {
         if (actRunning) Timer.stop() // leaving a step whose timer still runs banks that time in History
         // Skipped or stepped back over: not a measurement of doing it, so it teaches the estimate nothing.
@@ -97,6 +100,7 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
         stepAt = System.currentTimeMillis()
         step++
         if (step >= r.steps.size) {
+            tookMs = System.currentTimeMillis() - runFrom
             Routines.finish(r.id)
             TogglSync.onRoutine(null, 0)
             if (timed) Timer.stop() // banks the time in History; the routine is over, however long it took
@@ -112,7 +116,7 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
     // to be skipped the moment one step had been done today, dropping you into the middle of the list with
     // no sight of what was already behind you — which is exactly when the overview is worth having.
     if (!started && !timed && !finished && doneToday(r, today) == null) {
-        return RoutineStartCard(r, habits, autoStart, onBack) { started = true }
+        return RoutineStartCard(r, habits, autoStart, onBack) { fromTop -> if (fromTop) step = 0; started = true }
     }
     // Toggl: a timer from opening the routine until it's finished or you leave it.
     DisposableEffect(id) {
@@ -156,7 +160,9 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
                     fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
                 )
                 Text(
-                    "${r.steps.size} steps" + (at?.let { " · finished ${fmtMinute(it)}" } ?: ""),
+                    "${r.steps.size} steps" +
+                        (tookMs.takeIf { it > 30_000L }?.let { " in ${spelledMinutes(it)}" } ?: "") +
+                        (at?.let { " · finished ${fmtMinute(it)}" } ?: ""),
                     Modifier.padding(top = 6.dp), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant,
                 )
                 if (at != null) Column(
@@ -256,15 +262,15 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
  * saves it to the routine, so tomorrow it's already right; Off means no timer, just the steps.
  */
 @Composable
-private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean, onBack: () -> Unit, onStart: () -> Unit) {
+private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean, onBack: () -> Unit, onStart: (Boolean) -> Unit) {
     val cs = MaterialTheme.colorScheme
     var min by remember(r.id) { mutableStateOf(r.minutes) }
     // Asks first when a workday or another timer runs; the steps open only once the routine's timer is away.
-    val start = rememberStartGuard { id -> Timer.startQuick(id); onStart() }
+    val start = rememberStartGuard { id -> Timer.startQuick(id); onStart(false) }
     fun go() {
         // Saved first, so the engine reads this length when it builds the timer's single phase.
         if (min != r.minutes) Routines.save(r.copy(minutes = min))
-        if (min == null) return onStart()
+        if (min == null) return onStart(false)
         TogglSync.onRoutine(null, 0) // the session's own entry takes over from here
         start("routine:${r.id}")
     }
@@ -274,58 +280,92 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
     val steps = routineSteps(r)
     val stretches = steps.count { it is HabitStep }
     val items by Library.items.collectAsState()
+    val typical by Routines.typical.collectAsState()
+    fun stepDone(i: Int) = (steps.getOrNull(i) as? HabitStep)?.habitId
+        ?.let { id -> habits.any { it.id == id && !it.ended && today in it.done } } == true
+    val alreadyDone = steps.indices.count(::stepDone)
+    val leftMin = stepsLeftMs(r.steps.filterIndexed { i, _ -> !stepDone(i) }, typical)
+        ?.let { ((it + 30_000L) / 60_000L).toInt().coerceAtLeast(1) }
+    var editing by remember(r.id) { mutableStateOf(false) }
+    var picking by remember(r.id) { mutableStateOf(false) }
+
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
-            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
-            Text("${r.emoji} ${r.name}", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
+        Row(
+            Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            RoundIcon(R.drawable.ic_chevron_down, "Back to the day", onBack)
+            Box(
+                Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(cs.secondaryContainer),
+                contentAlignment = Alignment.Center,
+            ) { Text(r.emoji, fontSize = 17.sp) }
+            Column(Modifier.weight(1f)) {
+                Text(r.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    r.remindMin?.let { "Reminds at ${fmtMinute(it)} · nudges at ${fmtMinute(it + NUDGE_MIN)}" }
+                        ?: routineSummary(r, min),
+                    style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 1,
+                )
+            }
+            RoundIcon(R.drawable.ic_edit, "Edit this routine") { editing = true }
         }
-        Text(routineSummary(r, min), color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
-        // Picked up part-way through: say so, so the ticked steps below read as yours rather than a glitch.
-        // Counted from the steps themselves, not from where you would resume: a stretch already done that
-        // sits after a step you have not ticked is still done, and the list below already shows it so.
-        fun stepDone(i: Int) = (steps.getOrNull(i) as? HabitStep)?.habitId
-            ?.let { id -> habits.any { it.id == id && !it.ended && today in it.done } } == true
-        val alreadyDone = steps.indices.count(::stepDone)
-        // Measured, not guessed: how long these steps have actually taken you, and only once every one
-        // of them has been timed. A timer you set says what you meant to spend; this says what it costs.
-        val typical by Routines.typical.collectAsState()
-        // To the nearest minute, not down to it: for "can I fit this in?", under-promising is the one
-        // direction that costs you.
-        val leftMin = stepsLeftMs(r.steps.filterIndexed { i, _ -> !stepDone(i) }, typical)
-            ?.let { ((it + 30_000L) / 60_000L).toInt().coerceAtLeast(1) }
-        if (alreadyDone > 0) Text(
-            "$alreadyDone of ${steps.size} already done today" + (leftMin?.let { " · about $it min left" } ?: ""),
-            style = MaterialTheme.typography.bodyMedium, color = cs.primary, modifier = Modifier.padding(top = 2.dp),
-        ) else if (leftMin != null) Text(
-            "Usually takes you about $leftMin min",
-            style = MaterialTheme.typography.bodyMedium, color = cs.primary, modifier = Modifier.padding(top = 2.dp),
+
+        Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            steps.indices.forEach { i ->
+                Box(
+                    Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp))
+                        .background(if (stepDone(i)) cs.primary else cs.surfaceContainerHighest),
+                )
+            }
+        }
+        Text(
+            "$alreadyDone of ${steps.size} done" + (leftMin?.let { " · about $it minutes left" } ?: ""),
+            Modifier.padding(top = 7.dp), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
         )
-        // The card used to say "5 steps" and name none of them. Showing the list is the whole point of a routine.
+
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            steps.forEachIndexed { i, st -> StepPreview(i + 1, st, habits, items, today) }
-        }
-        // The timer is a choice about this run, not a gate in front of it: it sits under the list, not over Start.
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+        ) { steps.forEachIndexed { i, st -> StepPreview(i + 1, st, habits, items, today) } }
+
+        // The timer is a line about this run, not a row of chips competing with Start.
         Row(
-            Modifier.fillMaxWidth().padding(top = 12.dp).horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(12.dp)).background(cs.surface)
+                .border(1.dp, cs.outlineVariant, RoundedCornerShape(12.dp))
+                .clickable(onClickLabel = "Change the timer") { picking = true }
+                .padding(horizontal = 13.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("On a timer", style = MaterialTheme.typography.labelLarge, color = cs.onSurfaceVariant)
-            FilterChip(min == null, { min = null }, { Text("Off") })
-            listOf(10, 15, 20, 30).forEach { m -> FilterChip(min == m, { min = m }, { Text("$m min") }) }
+            Text(
+                min?.let { "Whole routine on a $it-minute timer" } ?: "No timer — just the steps",
+                Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                "Change", style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold, color = cs.secondary,
+            )
         }
-        Button(
-            { go() },
-            Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 24.dp).height(64.dp),
-            shape = RoundedCornerShape(32.dp),
+        if (picking) Row(
+            Modifier.fillMaxWidth().padding(top = 8.dp).horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val verb = if (alreadyDone > 0) "Carry on" else "Start"
-            Text(min?.let { "\u25b6  $verb \u00b7 $it min" } ?: verb, fontSize = 20.sp)
+            FilterChip(min == null, { min = null; picking = false }, { Text("Off") })
+            listOf(10, 15, 20, 30).forEach { m -> FilterChip(min == m, { min = m; picking = false }, { Text("$m min") }) }
+        }
+
+        if (alreadyDone > 0) TextButton(
+            { onStart(true) }, Modifier.align(Alignment.CenterHorizontally),
+        ) { Text("Start again from the top") }
+        Button(
+            { go() }, Modifier.fillMaxWidth().padding(bottom = 20.dp).height(72.dp), shape = RoundedCornerShape(20.dp),
+        ) {
+            Text(
+                (if (alreadyDone > 0) "Carry on" else "Start") + (min?.let { " · $it min" } ?: ""),
+                fontSize = 18.sp, fontWeight = FontWeight.Bold,
+            )
         }
     }
+    if (editing) RoutineEditor(r, isNew = false) { editing = false }
 }
 
 /** One step as it looks before you begin: what it is, and what today asks of it. */

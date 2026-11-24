@@ -1007,7 +1007,7 @@ private fun AlsoToday(onRoutine: (String) -> Unit, onHabit: (String) -> Unit, on
             val day = h.dayOf(today)
             Triple(
                 h.remindMin,
-                "🦵|${habitTitle(h, items)}|Day $day of ${h.totalDays}" + (h.stageOn(day)?.let { " · ${label(it)}" } ?: ""),
+                "${habitGlyph(h, items)}|${habitTitle(h, items)}|Day $day of ${h.totalDays}" + (h.stageOn(day)?.let { " · ${label(it)}" } ?: ""),
                 "habit:${h.id}",
             )
         }
