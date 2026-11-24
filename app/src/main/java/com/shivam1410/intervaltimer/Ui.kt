@@ -53,8 +53,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.collectAsState
@@ -70,6 +68,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -89,19 +89,41 @@ import java.util.Date
 
 @Composable
 fun AppTheme(content: @Composable () -> Unit) {
-    val ctx = LocalContext.current
-    // Work follows the wallpaper (Material You); breaks use a fixed dark-pink palette (tertiary roles)
-    // so they read as "rest" regardless of wallpaper. Values are the M3 pink tonal palette.
+    // "Cool slate", the palette the C+ boards wear: work indigo, break teal, routine violet. Fixed rather
+    // than Material You — the screens were designed against these exact colours, and a wallpaper that
+    // turned work orange would undo the one thing the day's strip and blocks rely on to mean anything.
     val dark = isSystemInDarkTheme()
     val scheme = if (dark) {
-        dynamicDarkColorScheme(ctx).copy(
-            tertiary = Color(0xFFFFB0CB), onTertiary = Color(0xFF5E1133),
-            tertiaryContainer = Color(0xFF7D2A4A), onTertiaryContainer = Color(0xFFFFD9E3),
+        darkColorScheme(
+            primary = Color(0xFF8AA0D8), onPrimary = Color(0xFF0E1016),
+            primaryContainer = Color(0xFF272B36), onPrimaryContainer = Color(0xFF8AA0D8),
+            secondary = Color(0xFFB49BE6), onSecondary = Color(0xFF0E1016),
+            secondaryContainer = Color(0xFF272B36), onSecondaryContainer = Color(0xFFB49BE6),
+            tertiary = Color(0xFF4FB8A4), onTertiary = Color(0xFF0E1016),
+            tertiaryContainer = Color(0xFF1E3B37), onTertiaryContainer = Color(0xFF4FB8A4),
+            background = Color(0xFF0E1016), onBackground = Color(0xFFEEF0F6),
+            surface = Color(0xFF191C24), onSurface = Color(0xFFEEF0F6),
+            surfaceVariant = Color(0xFF272B36), onSurfaceVariant = Color(0xFF959BAC),
+            surfaceContainer = Color(0xFF191C24), surfaceContainerLow = Color(0xFF14171E),
+            surfaceContainerHigh = Color(0xFF1F232C), surfaceContainerHighest = Color(0xFF272B36),
+            outline = Color(0xFF3A3F4C), outlineVariant = Color(0xFF272B36),
+            error = Color(0xFFE0877C), onError = Color(0xFF0E1016),
         )
     } else {
-        dynamicLightColorScheme(ctx).copy(
-            tertiary = Color(0xFFA0305C), onTertiary = Color.White,
-            tertiaryContainer = Color(0xFFFFD9E3), onTertiaryContainer = Color(0xFF3E001C),
+        lightColorScheme(
+            primary = Color(0xFF3F5185), onPrimary = Color.White,
+            primaryContainer = Color(0xFFE2E7F5), onPrimaryContainer = Color(0xFF2B3860),
+            secondary = Color(0xFF6B4FA0), onSecondary = Color.White,
+            secondaryContainer = Color(0xFFEDE8F6), onSecondaryContainer = Color(0xFF4E3579),
+            tertiary = Color(0xFF1C7268), onTertiary = Color.White,
+            tertiaryContainer = Color(0xFFDEEBE8), onTertiaryContainer = Color(0xFF0F3F39),
+            background = Color(0xFFF5F6FA), onBackground = Color(0xFF15171E),
+            surface = Color.White, onSurface = Color(0xFF15171E),
+            surfaceVariant = Color(0xFFE8EAF1), onSurfaceVariant = Color(0xFF5B6076),
+            surfaceContainer = Color(0xFFFFFFFF), surfaceContainerLow = Color(0xFFFAFBFD),
+            surfaceContainerHigh = Color(0xFFEEF0F6), surfaceContainerHighest = Color(0xFFE8EAF1),
+            outline = Color(0xFFCFD3DF), outlineVariant = Color(0xFFE2E4EC),
+            error = Color(0xFFA33B30), onError = Color.White,
         )
     }
     MaterialTheme(colorScheme = scheme) {
@@ -965,7 +987,7 @@ private fun TwoLineButton(title: String, sub: String, filled: Boolean, modifier:
     }
 }
 
-private fun Int.spelled() = listOf(
+internal fun Int.spelled() = listOf(
     "no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
 ).getOrNull(this) ?: toString()
 

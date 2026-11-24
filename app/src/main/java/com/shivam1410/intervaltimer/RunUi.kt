@@ -54,6 +54,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -343,32 +344,81 @@ private fun Breathing(color: Color) {
 
 @Composable
 internal fun Done(s: Session, settings: Settings, onDay: () -> Unit) {
-    val work = s.workMs
-    val rest = s.breakMs
-    Column(
-        Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        val q = s.quick?.let(::activity)
-        Text(q?.emoji ?: "🎉", fontSize = 64.sp)
-        Text(q?.let { "${it.name} complete" } ?: "Workday complete", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 12.dp))
-        Card(Modifier.fillMaxWidth().padding(top = 24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (q != null) {
-                    Line("Duration", fmtDur(rest))
-                } else {
-                    Line("Focused", fmtDur(work))
-                    Line("Breaks", fmtDur(rest))
-                    Line("Cycles", "${s.cycles} / ${settings.cycles}")
+    val cs = MaterialTheme.colorScheme
+    val q = s.quick?.let(::activity)
+    val cycles = s.cycles
+    val planned = settings.cycles
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        Text(
+            History.dateOf(s.startedAt).format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM")).uppercase(),
+            Modifier.fillMaxWidth().padding(top = 8.dp), style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp, color = cs.onSurfaceVariant, textAlign = TextAlign.Center,
+        )
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                q?.let { "${it.name} done." } ?: "That's the day.",
+                fontSize = 34.sp, fontWeight = FontWeight.Bold, lineHeight = 39.sp,
+            )
+            // What you did, and nothing about what you didn't: the cycles you skipped are owed to no one.
+            Text(
+                q?.let { "You finished at ${clock(s.finishedAt)}." }
+                    ?: ("You ended at ${clock(s.finishedAt)}, after $cycles of $planned ${if (planned == 1) "cycle" else "cycles"}." +
+                        if (cycles < planned) " The ${(planned - cycles).spelled()} you didn't run aren't owed to anyone." else ""),
+                Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium,
+                color = cs.onSurfaceVariant, lineHeight = 20.sp,
+            )
+            if (q == null) Column(Modifier.padding(top = 26.dp)) {
+                DayStrip(dayBlocks(Timer.plan, s, s.finishedAt), Modifier.fillMaxWidth().height(76.dp))
+                Row(Modifier.fillMaxWidth().padding(top = 7.dp)) {
+                    val st = MaterialTheme.typography.labelSmall
+                    Text(clock(s.startedAt), Modifier.weight(1f), style = st, color = cs.onSurfaceVariant)
+                    Text("ended ${clock(s.finishedAt)}", style = st, color = cs.onSurfaceVariant)
                 }
-                Line("Started", clock(s.startedAt))
-                Line("Finished", clock(s.finishedAt))
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 22.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (q == null) {
+                    EndTile("FOCUSED", fmtDur(s.workMs), Modifier.weight(1f))
+                    EndTile("CYCLES", "$cycles", Modifier.weight(1f))
+                    EndTile("BREAKS", fmtDur(s.breakMs), Modifier.weight(1f))
+                } else EndTile("DURATION", fmtDur(s.breakMs), Modifier.weight(1f))
+            }
+            if (q == null) endCue(Cues.lists.collectAsState().value)?.let { cue ->
+                Column(
+                    Modifier.fillMaxWidth().padding(top = 20.dp).clip(RoundedCornerShape(16.dp)).background(cs.surface)
+                        .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 14.dp),
+                ) {
+                    Text(
+                        "END OF DAY", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp, color = cs.onSurfaceVariant,
+                    )
+                    Text(cue, Modifier.padding(top = 3.dp), style = MaterialTheme.typography.bodyMedium, lineHeight = 20.sp)
+                }
             }
         }
-        if (q == null) CueCard("Before you stop", endCue(Cues.lists.collectAsState().value), key = s.startedAt)
-        Button({ Timer.stop() }, Modifier.fillMaxWidth().padding(top = 24.dp).height(64.dp), shape = RoundedCornerShape(32.dp)) { Text("Done") }
-        if (s.quick == null) OutlinedButton(onDay, Modifier.fillMaxWidth().padding(top = 12.dp).height(64.dp), shape = RoundedCornerShape(32.dp)) { Text("See the whole day") }
+        if (q == null) TextButton(onDay, Modifier.align(Alignment.CenterHorizontally)) { Text("See the whole day") }
+        Button(
+            { Timer.stop() }, Modifier.fillMaxWidth().padding(bottom = 20.dp).height(72.dp),
+            shape = RoundedCornerShape(20.dp),
+        ) { Text("Done", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+    }
+}
+
+/** One of the end-of-day figures: a small label over a big number. */
+@Composable
+private fun EndTile(label: String, value: String, modifier: Modifier) {
+    val cs = MaterialTheme.colorScheme
+    Column(
+        modifier.clip(RoundedCornerShape(16.dp)).background(cs.surface)
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)).padding(13.dp),
+    ) {
+        Text(
+            label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+            letterSpacing = 0.8.sp, color = cs.onSurfaceVariant,
+        )
+        Text(value, Modifier.padding(top = 4.dp), fontSize = 19.sp, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 
@@ -489,6 +539,32 @@ private fun BreakScreen(
         if (p.kind == Kind.ACTIVITY && hasPrimaryAction(chosen)) PrimaryAction(
             chosen, Modifier.fillMaxWidth().padding(top = 16.dp).height(48.dp),
         )
+        // A walk is being recorded somewhere else while this runs. The board says so, with the way back
+        // into it, because nothing outside Strava can stop a recording it started.
+        if (quick && Strava.sportFor(s.quick.orEmpty()) != null) {
+            val ctx = LocalContext.current
+            Row(
+                Modifier.fillMaxWidth().padding(top = 16.dp).clip(RoundedCornerShape(16.dp)).background(cs.surface)
+                    .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(11.dp),
+            ) {
+                Box(Modifier.size(10.dp).clip(CircleShape).background(cs.error))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "RECORDING", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp, color = cs.onSurfaceVariant,
+                    )
+                    Text("Strava has the GPS", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                }
+                TextButton({ Strava.openRecording(ctx, s.quick) }) { Text("Open") }
+            }
+            Text(
+                "When the timer ends, Strava comes to the front so Pause and Finish are one tap away.",
+                Modifier.fillMaxWidth().padding(top = 8.dp), style = MaterialTheme.typography.labelMedium,
+                color = cs.onSurfaceVariant,
+            )
+        }
     }
 }
 

@@ -97,20 +97,49 @@ fun HabitDoer(h: Habit, items: List<LibraryItem>, stage: Stage, day: Int, onDone
         if (counting && clip.isEmpty() && demo != null) MovementDemo(demo, clockMs = clock)
         else ExerciseMedia(clip, demo)
         if (counting) {
+            // The count is the whole screen while it runs: which set, the number big enough to glance at
+            // from the floor, and a cell per rep so you can see it filling without reading the number.
             Text(
-                if (c.resting) "Rest ${c.restLeftSec}s" else "${c.done} / ${c.of}${if (stage.holdSec > 0 && !repHold) " s" else ""}",
-                style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
+                if (moves != null) "MOVE ${c.set.coerceAtMost(c.sets)} OF ${c.sets}" else "SET ${c.set.coerceAtMost(c.sets)} OF ${c.sets}",
+                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                letterSpacing = 1.2.sp, color = cs.primary,
             )
-            if (repHold && !c.resting) Text(if (c.holdLeftSec > 0) "Hold ${c.holdLeftSec}" else "Relax", style = MaterialTheme.typography.headlineSmall, color = cs.primary)
-            if (moves != null) Text(
-                if (c.resting) "Next, move ${c.set + 1} of ${c.sets}: ${moveName(c.set + 1)}" else "Move ${c.set} of ${c.sets}: ${moveName(c.set)}",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            else Text(if (c.resting) "Set ${c.set + 1} of ${c.sets} next" else "Set ${c.set} of ${c.sets}", color = cs.onSurfaceVariant)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Button({ Habits.markDone(h.id, today, true); countStart = null; onDone?.invoke() }, Modifier.weight(1f)) { Text("Completed") }
-                TextButton({ countStart = null }, Modifier.padding(start = 4.dp)) { Text("Cancel") } // started by mistake
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    if (c.resting) "Rest" else "${c.done}",
+                    fontSize = 92.sp, fontWeight = FontWeight.Bold, letterSpacing = (-4).sp, lineHeight = 96.sp,
+                )
+                Text(
+                    if (c.resting) " ${c.restLeftSec}s" else " / ${c.of}${if (stage.holdSec > 0 && !repHold) " s" else ""}",
+                    Modifier.padding(bottom = 10.dp), fontSize = 30.sp, fontWeight = FontWeight.SemiBold,
+                    color = cs.onSurfaceVariant,
+                )
             }
+            if (repHold && !c.resting) Text(
+                if (c.holdLeftSec > 0) "Hold ${c.holdLeftSec}" else "Relax",
+                style = MaterialTheme.typography.headlineSmall, color = cs.primary,
+            )
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                repeat(c.of.coerceIn(1, 40)) { i ->
+                    Box(
+                        Modifier.weight(1f).height(8.dp).clip(RoundedCornerShape(3.dp))
+                            .background(if (!c.resting && i < c.done) cs.primary else cs.surfaceContainerHighest),
+                    )
+                }
+            }
+            if (moves != null) Text(
+                if (c.resting) "Next: ${moveName(c.set + 1).orEmpty()}" else moveName(c.set).orEmpty(),
+                Modifier.padding(top = 8.dp), style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                "It counts for you — no tapping per rep", Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+            )
+            Button(
+                { Habits.markDone(h.id, today, true); countStart = null; onDone?.invoke() },
+                Modifier.fillMaxWidth().padding(top = 14.dp).height(64.dp), shape = RoundedCornerShape(32.dp),
+            ) { Text("✓  Completed", fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+            TextButton({ countStart = null }, Modifier.align(Alignment.CenterHorizontally)) { Text("Cancel") }
             return@Column
         }
         Text(if (moves != null) "${moves.size} moves × ${stage.reps} · ${stage.holdSec} s hold" else label(stage), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
