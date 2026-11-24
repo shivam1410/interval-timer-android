@@ -523,9 +523,10 @@ fun RoutineCalendarScreen(id: String, onBack: () -> Unit) {
             IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
             Text("${r.emoji} ${r.name}", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
         }
-        val streak = routineStreak(r, today)
+        // How often, not how unbroken: a run of days is a number one missed Tuesday destroys, and a
+        // number like that earns avoidance rather than effort. The count stays; the streak goes.
         Text(
-            "${doneInLast(r, today, 30)} of the last 30 days" + if (streak > 1) " · $streak days in a row" else "",
+            "${doneInLast(r, today, 30)} of the last 30 days",
             color = cs.onSurfaceVariant, modifier = Modifier.padding(bottom = 12.dp),
         )
         Row(Modifier.fillMaxWidth()) {

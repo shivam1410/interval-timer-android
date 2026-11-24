@@ -129,7 +129,6 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
     }
 }
 
-private fun clock(ms: Long): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(ms))
 
 /** The same clock, for a time of day with no date behind it (a routine records the minute it finished). */
 private fun clockOfDay(minuteOfDay: Int): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(
