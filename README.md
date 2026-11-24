@@ -6,8 +6,7 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Gong + vibration** at every transition (single gong → break, double → work, long → day done)
 - **Home is today**: your hours (10:00 AM — 6:00 PM) and the cycles they buy, the day drawn as a
   strip with the clock marked on it where you are, what you did earlier, your habits, your routines and
-  the way into the Library. **Just today…** bends the hours for one day without rewriting the ones you
-  keep; the card says **TODAY'S HOURS** while it is set. Tapping the card opens **Shape of the day** —
+  the way into the Library. Tapping the hours opens **Shape of the day** —
   the two ends of the day as a pair of tiles, the rhythm (Workday 50:10 · Deep 90:15 · Pomodoro 25:5 ·
   Custom) and **what that makes**: the cycle count, the day's shape under it, focus, breaks, and the
   minutes that don't fill another cycle, left free rather than padded out. Start late and you get two
@@ -30,7 +29,7 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - **Plain exercises**: leave the link empty for your own exercise (tib raises, stairs, a shoulder
     isometric), with a "How to do it" note and, optionally, a short clip of the movement (video or GIF
     from the photo picker) that loops muted on the timer. Tib raises get a built-in animated figure
-- **Habits** (several at once): **Stretches** (Home › **Add a habit**, or the Library's catalogue row)
+- **Habits** (several at once): **Stretches** (the Library's catalogue row, or Settings › Stretches)
   shows what you already have running — the movement's glyph, today's dose and the whole 30 days as a
   strip — above a **catalogue** of fixed 30-day plans with built-in animated figures: **Tib raises**, **Calf raises**, **Shoulder
   wall push** (a hold, in seconds), **Supraspinatus · 6 presses** (arm at 90° in / out / up / down, by the wall forward / back; 5 presses of 5 s each, a figure per move), **Wall sit**, **Glute bridge**

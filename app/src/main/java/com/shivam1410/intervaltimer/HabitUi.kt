@@ -157,20 +157,6 @@ fun HabitDoer(h: Habit, items: List<LibraryItem>, stage: Stage, day: Int, onDone
     }
 }
 
-/** The row under the habit cards: start one, or add another (the catalog, in Settings › Habits). */
-@Composable
-internal fun AddHabitRow(label: String, onStart: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainerHigh)
-            .clickable(onClickLabel = "Start a habit", onClick = onStart).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("📅", fontSize = 20.sp)
-        Text(label, Modifier.padding(start = 12.dp), color = cs.onSurface)
-    }
-}
-
 /**
  * Doing one stretch, on its own page (the C+ "Habit run" board). It used to be a card wedged into Home,
  * which is why Home could only ever show one of them at a time.

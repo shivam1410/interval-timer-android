@@ -43,7 +43,6 @@ object Timer {
      * Hours for one day only: "today I start at eleven" without rewriting the hours you keep. Stored with
      * the date it belongs to, so tomorrow goes back to your own shape without you having to undo anything.
      */
-    val todayHours = MutableStateFlow<Pair<Int, Int>?>(null)
     /** Cycles chosen for the run in progress; null = everything your hours hold. A late start fits fewer. */
     private var dayCycles: Int? = null
 
@@ -57,7 +56,6 @@ object Timer {
     fun init(ctx: Context) {
         app = ctx.applicationContext
         settings.value = loadSettings()
-        loadTodayHours()
         dayCycles = prefs.getInt("dayCycles", -1).takeIf { it > 0 }
         session.value = prefs.run {
             Session(getInt("index", -1), getLong("endsAt", 0), getLong("pausedLeft", 0), getLong("startedAt", 0), getLong("finishedAt", 0),
@@ -175,19 +173,6 @@ object Timer {
             prefs.edit().remove("ambientStart").apply()
         }
         ambient.value = id
-    }
-
-    /** Sets (or with null clears) today's own hours. */
-    fun setTodayHours(h: Pair<Int, Int>?) {
-        todayHours.value = h
-        prefs.edit().putString("todayHours", h?.let { "${LocalDate.now()}|${it.first}|${it.second}" }).apply()
-    }
-
-    private fun loadTodayHours() {
-        val parts = prefs.getString("todayHours", null)?.split("|") ?: return
-        // Yesterday's exception is not today's: a stored day that is not this one simply does not apply.
-        todayHours.value = parts.takeIf { it.size == 3 && it[0] == LocalDate.now().toString() }
-            ?.let { (it[1].toIntOrNull() ?: return) to (it[2].toIntOrNull() ?: return) }
     }
 
     fun saveSettings(s: Settings) {

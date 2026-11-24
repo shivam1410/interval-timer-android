@@ -216,7 +216,7 @@ fun Root(now: Long) {
             countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null; page = countdownFrom } }
             session.idle || minimised -> Setup(
                 settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habitrun:$it" },
-                onAddHabit = { stretchBack = ""; page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = { id -> startQuick(id, null) },
+                onRoutine = { page = "routine:$it" }, onQuick = { id -> startQuick(id, null) },
                 onLibrary = { page = "library" }, onShape = { page = "shape" }, onToday = { page = "today" },
                 mini = session.takeIf { minimised }, onRestore = { minimised = false },
             )
@@ -261,7 +261,7 @@ private fun Banner(text: String, action: String, onClick: () -> Unit) {
 
 @Composable
 private fun Setup(
-    s: Settings, now: Long, onHistory: () -> Unit, onSettings: () -> Unit, onHabit: (String) -> Unit, onAddHabit: () -> Unit,
+    s: Settings, now: Long, onHistory: () -> Unit, onSettings: () -> Unit, onHabit: (String) -> Unit,
     onRoutine: (String) -> Unit, onQuick: (String) -> Unit, onLibrary: () -> Unit, onShape: () -> Unit, onToday: () -> Unit,
     mini: Session? = null, onRestore: () -> Unit = {},
 ) {
@@ -299,8 +299,6 @@ private fun Setup(
 
     // Before the day starts: the day's name, the hours as a card with the clock marked on them, the one
     // decision this screen exists for, and everything else today holds in one list.
-    val justToday by Timer.todayHours.collectAsState()
-    val eff = justToday?.let { s.copy(workStart = it.first, workEnd = it.second) } ?: s
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             Spacer(Modifier.height(16.dp))
@@ -318,11 +316,11 @@ private fun Setup(
                 ProfileChip(onSettings)
             }
             Spacer(Modifier.height(16.dp))
-            HoursCard(eff, now, onShape, justToday != null)
+            HoursCard(s, now, onShape)
             scheduled?.let { ScheduledLine(it) }
-            if (scheduled == null) StartCard(eff, now, cyclesLeftToday(eff, minuteOfDay(now))) { cycles -> Timer.start(cycles ?: eff.cycles) }
+            if (scheduled == null) StartCard(s, now, cyclesLeftToday(s, minuteOfDay(now))) { cycles -> Timer.start(cycles ?: s.cycles) }
             EarlierRow(onToday, Modifier.padding(top = 12.dp))
-            AlsoToday(onRoutine, onHabit, onAddHabit)
+            AlsoToday(onRoutine, onHabit)
             Spacer(Modifier.height(16.dp))
         }
         // The board ends the page with one way to start anything else, not a summary of what is in there.
@@ -1082,33 +1080,18 @@ private fun EarlierRow(onToday: () -> Unit, modifier: Modifier = Modifier) {
 
 /** Your hours as a card: the shape of the day with the clock marked on it. */
 @Composable
-private fun HoursCard(s: Settings, now: Long, onShape: () -> Unit, justToday: Boolean) {
+private fun HoursCard(s: Settings, now: Long, onShape: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val total = plan(s).sumOf { it.ms }
-    var picking by remember { mutableStateOf(false) }
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surface)
             .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
             .clickable(onClickLabel = "Shape of the day", onClick = onShape).padding(14.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                if (justToday) "TODAY'S HOURS" else "YOUR HOURS", Modifier.weight(1f),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant,
-            )
-            // Today started late? Move today, not the shape you keep.
-            Text(
-                if (justToday) "Back to usual" else "Just today…",
-                Modifier.clip(RoundedCornerShape(8.dp))
-                    .clickable(onClickLabel = "Hours for today only") {
-                        if (justToday) Timer.setTodayHours(null) else picking = true
-                    }
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = cs.secondary,
-            )
-        }
-        if (picking) JustTodayDialog(s) { picking = false }
+        Text(
+            "YOUR HOURS", Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant,
+        )
         DayStrip(
             dayBlocks(plan(s), Session(), now), Modifier.fillMaxWidth().padding(top = 12.dp),
             mark = dayGone(minuteOfDay(now), s.workStart, (total / 60_000L).toInt()), nowMs = now,
@@ -1178,7 +1161,7 @@ internal fun Int.spelled() = listOf(
 
 /** Everything else the day holds — routines and the stretches due — as one list, in the order it happens. */
 @Composable
-private fun AlsoToday(onRoutine: (String) -> Unit, onHabit: (String) -> Unit, onAddHabit: () -> Unit) {
+private fun AlsoToday(onRoutine: (String) -> Unit, onHabit: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val today = History.today()
     val routines by Routines.all.collectAsState()
@@ -1197,6 +1180,9 @@ private fun AlsoToday(onRoutine: (String) -> Unit, onHabit: (String) -> Unit, on
             )
         }
     val rows = (left + deck).sortedWith(compareBy(nullsLast()) { it.first })
+    // Nothing left today is a finished day, not an empty list: the section goes rather than standing as
+    // a heading over nothing. The Earlier line above already says what the day came to.
+    if (rows.isEmpty()) return
     Text(
         "ALSO TODAY", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
         letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
@@ -1228,7 +1214,6 @@ private fun AlsoToday(onRoutine: (String) -> Unit, onHabit: (String) -> Unit, on
                 )
             }
         }
-        AddHabitRow("Add a habit", onAddHabit)
     }
 }
 
@@ -1267,32 +1252,4 @@ private fun Figure(value: String, label: String) {
         Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
         Text(" $label", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-}
-
-/** Two pickers and a Done: today's own start and end, left alone tomorrow. */
-@Composable
-private fun JustTodayDialog(s: Settings, onDismiss: () -> Unit) {
-    var start by remember { mutableIntStateOf(s.workStart) }
-    var end by remember { mutableIntStateOf(s.workEnd) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Just today") },
-        text = {
-            Column {
-                Text(
-                    "Today's hours only. Tomorrow goes back to ${clockMin(Timer.settings.value.workStart)} — ${clockMin(Timer.settings.value.workEnd)}.",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                TimeRow("Starts", start) { start = it }
-                TimeRow("Ends", end) { end = it }
-                Text(
-                    "${cyclesFor(start, end, s.workMin, s.breakMin)} cycles fit",
-                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        confirmButton = { TextButton({ Timer.setTodayHours(start to end); onDismiss() }) { Text("Use today") } },
-        dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
-    )
 }
