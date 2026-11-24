@@ -63,3 +63,11 @@ fun planFor(e: CatalogEntry, level: Level): List<Stage> =
             note = e.notes.getOrNull(week).orEmpty(), demo = e.demos.getOrElse(week) { e.demos.last() },
         )
     }
+
+/**
+ * The catalog plans [habits] has never started, by name: a habit made from one is titled after it
+ * ("Calf raises · Beginner"), so the level it was started at doesn't hide it. Ended plans count as
+ * tried — the shelf offers what is new to you, not what you gave up on.
+ */
+fun untriedPlans(habits: List<Habit>): List<CatalogEntry> =
+    CATALOG.filter { e -> habits.none { it.title == e.name || it.title.startsWith(e.name + " ·") } }

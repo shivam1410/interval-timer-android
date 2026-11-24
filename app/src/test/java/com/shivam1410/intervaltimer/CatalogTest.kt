@@ -45,4 +45,14 @@ class CatalogTest {
         CATALOG.flatMap { e -> planFor(e, Level.BEGINNER).map { it.demo } }.toSet().forEach { assertTrue("animation for $it", DEMOS.containsKey(it) || CIRCUITS.containsKey(it)) }
         assertEquals(listOf("tib-raises", "calf-raises", "wall-push", "supraspinatus", "wall-sit", "glute-bridge", "squats"), CATALOG.map { it.id })
     }
+
+    // The shelf offers what is new to you: a plan you started at any level is no longer untried.
+    @Test fun untriedCountsThePlansNoHabitWasEverMadeFrom() {
+        val started = Habit("h", "", java.time.LocalDate.of(2026, 11, 1), emptyList(), null, emptySet(), 0, title = "Calf raises · Beginner")
+        val ended = started.copy(id = "h2", title = "Squats", ended = true)
+        assertEquals(CATALOG.size, untriedPlans(emptyList()).size)
+        assertEquals(CATALOG.size - 1, untriedPlans(listOf(started)).size)
+        assertTrue(untriedPlans(listOf(started)).none { it.id == "calf-raises" })
+        assertEquals(CATALOG.size - 2, untriedPlans(listOf(started, ended)).size) // giving up still counts as tried
+    }
 }

@@ -337,7 +337,13 @@ fun PlansShelf(onCatalogue: () -> Unit) {
             Text("🤸", fontSize = 20.sp)
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Text(if (running.isEmpty()) "Start a plan" else "Browse the catalogue", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("${CATALOG.size} 30-day plans · make your own", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                // "7 plans" counted the shelf; this counts what is actually new to you.
+                val untried = untriedPlans(habits).size
+                Text(
+                    if (untried > 0) "${CATALOG.size} 30-day plans · $untried you haven't tried"
+                    else "${CATALOG.size} 30-day plans · make your own",
+                    style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                )
             }
             Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
         }

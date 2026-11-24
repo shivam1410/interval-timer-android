@@ -177,6 +177,11 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
                         Text(fmtMinute(at), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurfaceVariant)
                         Box(Modifier.padding(horizontal = 11.dp).size(9.dp).clip(CircleShape).background(cs.primary))
                         Text("${r.name} · ${r.steps.size} steps", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        // The line records how long it took, as the day screen's rows do.
+                        if (tookMs > 30_000L) Text(
+                            fmtDur(tookMs), Modifier.padding(start = 10.dp),
+                            style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
+                        )
                     }
                 }
                 DensityDots(routineDensity(r, today), r.done.keys, long = true)
@@ -319,7 +324,10 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
             }
         }
         Text(
-            "$alreadyDone of ${steps.size} done" + (leftMin?.let { " · about $it minutes left" } ?: ""),
+            // "0 of 6 done" is the printed zero the rest of the app refuses: nothing done is a fact
+            // about today, not a score. Once something is done the count says which.
+            (if (alreadyDone == 0) "None done today" else "$alreadyDone of ${steps.size} done") +
+                (leftMin?.let { if (alreadyDone == 0) " · about $it minutes" else " · about $it minutes left" } ?: ""),
             Modifier.padding(top = 7.dp), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
         )
 
