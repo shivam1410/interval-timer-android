@@ -474,7 +474,10 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
                             s, { v -> steps = steps.mapIndexed { j, x -> if (j == i) v.clip(60) else x } },
                             Modifier.weight(1f), singleLine = true, shape = RoundedCornerShape(12.dp),
                         )
+                        // Up only meant sending the first step to the bottom of six took five taps the
+                        // wrong way round. The arrow you need is the one pointing where you are going.
                         if (i > 0) IconButton({ steps = steps.toMutableList().apply { add(i - 1, removeAt(i)) }.toList() }) { Text("↑") }
+                        if (i < steps.lastIndex) IconButton({ steps = steps.toMutableList().apply { add(i + 1, removeAt(i)) }.toList() }) { Text("↓") }
                         IconButton({ steps = steps.filterIndexed { j, _ -> j != i } }) { Text("×", style = MaterialTheme.typography.titleLarge) }
                     }
                 }
