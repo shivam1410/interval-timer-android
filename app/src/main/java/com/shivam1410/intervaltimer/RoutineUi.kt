@@ -467,7 +467,7 @@ private fun StepPreview(
         is ActivityStep -> (st.minutes ?: act?.quickMin)?.let { "$it min" }.orEmpty()
     }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
             .background(if (done) cs.surfaceContainerLow else cs.surfaceContainer).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),

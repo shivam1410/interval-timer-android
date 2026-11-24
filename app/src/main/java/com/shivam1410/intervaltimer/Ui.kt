@@ -705,7 +705,7 @@ private fun QuickTimers(onQuick: (String) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(cs.surfaceContainerHighest),
+                    Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerHighest),
                     contentAlignment = Alignment.Center,
                 ) { Text(a.emoji, fontSize = 18.sp) }
                 Column(Modifier.weight(1f).padding(start = 11.dp)) {
@@ -835,8 +835,8 @@ internal fun Stepper(label: String, value: Int, unit: String, range: IntRange, n
 private fun StepButton(glyph: String, label: String, enabled: Boolean, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     Box(
-        Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(cs.surfaceContainerHighest)
-            .border(1.dp, cs.outlineVariant, RoundedCornerShape(10.dp))
+        Modifier.size(32.dp).clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerHighest)
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, onClickLabel = label, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -1066,7 +1066,7 @@ private fun EarlierRow(onToday: () -> Unit, modifier: Modifier = Modifier) {
     val doneHabits = liveHabits.count { !it.ended && today in it.done }
     val line = earlierToday(todayRec?.workMs ?: 0L, todayRec?.cycles ?: 0, doneRoutines, doneHabits) ?: return
     Row(
-        modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+        modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
             .clickable(onClickLabel = "How today went", onClick = onToday).padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1215,7 +1215,7 @@ private fun AlsoToday(onRoutine: (String) -> Unit, onHabit: (String) -> Unit, on
                 horizontalArrangement = Arrangement.spacedBy(11.dp),
             ) {
                 Box(
-                    Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(cs.surfaceContainerHighest),
+                    Modifier.size(32.dp).clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerHighest),
                     contentAlignment = Alignment.Center,
                 ) { Text(glyph, fontSize = 15.sp) }
                 Column(Modifier.weight(1f)) {

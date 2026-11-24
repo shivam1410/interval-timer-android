@@ -134,7 +134,7 @@ private fun LibraryCard(item: LibraryItem, onOpen: () -> Unit, onEdit: () -> Uni
             .padding(horizontal = 13.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(cs.surfaceContainerHighest), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerHighest), contentAlignment = Alignment.Center) {
             thumb?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) } ?: Text(item.toActivity().emoji, fontSize = 18.sp)
         }
         Column(Modifier.weight(1f).padding(start = 11.dp)) {

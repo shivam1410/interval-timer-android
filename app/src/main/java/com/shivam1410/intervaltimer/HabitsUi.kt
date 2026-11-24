@@ -181,7 +181,7 @@ fun StretchesPage(open: (String) -> Unit) {
                 ) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(cs.surfaceContainerHighest),
+                            Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerHighest),
                             contentAlignment = Alignment.Center,
                         ) { Text(habitGlyph(h, items), fontSize = 17.sp) }
                         Column(Modifier.weight(1f).padding(start = 11.dp)) {

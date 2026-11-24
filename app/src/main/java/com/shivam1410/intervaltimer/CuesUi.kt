@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -73,7 +74,7 @@ fun CuesSection() {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Cues", Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.Bold)
             if (c.on) Text(
-                "ROTATING", Modifier.clip(RoundedCornerShape(999.dp)).background(cs.secondaryContainer)
+                "ROTATING", Modifier.clip(CircleShape).background(cs.secondaryContainer)
                     .padding(horizontal = 9.dp, vertical = 3.dp),
                 style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = cs.onSecondaryContainer,
             )
@@ -88,7 +89,7 @@ fun CuesSection() {
             Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 preview.forEach { (whenLabel, text) ->
                     Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(cs.surfaceContainerHigh)
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerHigh)
                             .padding(horizontal = 11.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
