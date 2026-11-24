@@ -44,6 +44,8 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -284,6 +286,61 @@ private fun TagField(value: String, choices: List<String>, onChange: (String) ->
         )
         if (shown.isNotEmpty()) ExposedDropdownMenu(open, { open = false }) {
             shown.forEach { t -> DropdownMenuItem({ Text(t) }, { onChange(t); open = false }) }
+        }
+    }
+}
+
+/**
+ * Every 30-day plan you have running, in the Library beside everything else you can start. A row holds the
+ * whole arc — a cell per day, filled where it was done — so a plan you fell off is visible instead of silent.
+ * Tapping opens the same doer the Home card uses, so it can be done from here without going looking.
+ */
+@Composable
+fun PlansShelf() {
+    val habits by Habits.all.collectAsState()
+    val items by Library.items.collectAsState()
+    val running = habits.filter { !it.ended }
+    if (running.isEmpty()) return
+    val cs = MaterialTheme.colorScheme
+    Text("Plans", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 4.dp))
+    Text(
+        "The dose grows over the days, and what you did is kept.",
+        style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp),
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { running.forEach { PlanRow(it, items) } }
+}
+
+@Composable
+private fun PlanRow(h: Habit, items: List<LibraryItem>) {
+    val today = java.time.LocalDate.now()
+    val day = h.dayOf(today)
+    val stage = h.stageOn(day)
+    val cs = MaterialTheme.colorScheme
+    var open by remember(h.id) { mutableStateOf(false) }
+    Card(colors = CardDefaults.cardColors(containerColor = cs.surfaceContainer)) {
+        Column(
+            Modifier.fillMaxWidth().clickable(onClickLabel = if (open) "Close" else "Do it now") { open = !open }.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(habitTitle(h, items), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                // Open, the doer prints the dose in full; printing it twice is just noise.
+                if (!open) Text(
+                    if (today in h.done) "✓ done" else stage?.let { label(it) } ?: "Finished",
+                    style = MaterialTheme.typography.labelLarge, color = cs.primary,
+                )
+            }
+            Text("Day ${day.coerceAtMost(h.totalDays)} of ${h.totalDays}", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                (1..h.totalDays).forEach { d ->
+                    val date = h.start.plusDays(d - 1L)
+                    Box(
+                        Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(2.dp))
+                            .background(if (date in h.done) cs.primary else cs.surfaceContainerHighest),
+                    )
+                }
+            }
+            if (open && stage != null) HabitDoer(h, items, stage, day)
         }
     }
 }

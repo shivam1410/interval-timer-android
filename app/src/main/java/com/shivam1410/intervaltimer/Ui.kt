@@ -635,6 +635,7 @@ private fun LibraryScreen(onQuick: (String) -> Unit, onBack: () -> Unit) {
         Text("Tap any of these to start it now.", color = cs.onSurfaceVariant)
         QuickTimers(onQuick)
         MyLibrary(onQuick)
+        PlansShelf()
         Text(
             "Sound while you work", style = MaterialTheme.typography.titleSmall, color = cs.primary,
             modifier = Modifier.padding(top = 24.dp, bottom = 4.dp),
