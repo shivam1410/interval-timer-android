@@ -42,6 +42,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -128,7 +129,7 @@ private fun SettingsList(open: (String) -> Unit) {
             }
         }
         Entry(open = { open("stretches") }) {
-            Glyph { Text("🤸", fontSize = 22.sp) }
+            Glyph { Text("🤸", fontSize = 25.sp) }
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text("Stretches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text("${CATALOG.size} 30-day plans · make your own", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
@@ -158,7 +159,7 @@ private fun SettingsList(open: (String) -> Unit) {
             }
         }
         Entry(open = { open("toggl") }) {
-            Glyph { Text("⏱", fontSize = 22.sp) }
+            Glyph { Icon(painterResource(R.drawable.ic_toggl), null, Modifier.size(28.dp), tint = Color.Unspecified) }
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text("Toggl Track", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(if (toggl) "Connected" else "Not connected", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
