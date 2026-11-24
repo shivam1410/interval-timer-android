@@ -443,7 +443,7 @@ object Timer {
         // Workday cue on top of the phase text: break n's prompt, or the end-of-day one.
         val cueLine = when {
             done -> endCue(Cues.lists.value).takeIf { s.quick == null }
-            cue == Cue.BREAK -> phaseCue(p, s.quick != null, Cues.lists.value)
+            cue == Cue.BREAK -> phaseCue(p, s.quick != null, Cues.lists.value, epochDay(s.startedAt))
             else -> null
         }
         val body = cueLine?.let { "👉 $it\n$text" } ?: text

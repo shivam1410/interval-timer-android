@@ -22,6 +22,10 @@ fun cyclesFor(startMin: Int, endMin: Int, workMin: Int, breakMin: Int): Int =
 fun minsLeftOfDay(nowMin: Int, startMin: Int, endMin: Int): Int =
     minOf(windowMin(startMin, endMin), ((endMin - nowMin) % (24 * 60) + 24 * 60) % (24 * 60))
 
+/** The local day [at] falls on, as an epoch day. Taken from a session's start, it stays put past midnight. */
+fun epochDay(at: Long, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): Long =
+    java.time.Instant.ofEpochMilli(at).atZone(zone.toZoneId()).toLocalDate().toEpochDay()
+
 /** Where [at] falls in its own day, as minutes after midnight. */
 fun minuteOfDay(at: Long, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): Int =
     java.time.Instant.ofEpochMilli(at).atZone(zone.toZoneId()).let { it.hour * 60 + it.minute }

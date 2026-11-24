@@ -328,6 +328,14 @@ class EngineTest {
         assertEquals(9 * 60, minuteOfDay(5 * 24 * 60 * MIN + 9 * 60 * MIN, utc)) // five days on, same clock time
     }
 
+    @Test fun epochDayStaysPutWhileASessionRunsPastMidnight() {
+        val utc = java.util.TimeZone.getTimeZone("UTC")
+        val startedLateOnDayFive = 5 * 24 * 60 * MIN + 23 * 60 * MIN // 23:00 on day 5
+        assertEquals(5L, epochDay(startedLateOnDayFive, utc))
+        assertEquals(6L, epochDay(startedLateOnDayFive + 2 * 60 * MIN, utc)) // 01:00 is the next day
+        assertEquals(0L, epochDay(0, utc))
+    }
+
     @Test fun nothingIsAheadOnceYourHoursAreOver() {
         assertEquals(0, minsLeftOfDay(17 * 60 + 30, day.workStart, day.workEnd))
         assertEquals(0, cyclesLeftToday(day, 17 * 60 + 30))

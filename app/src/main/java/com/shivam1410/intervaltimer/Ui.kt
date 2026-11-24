@@ -813,7 +813,7 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
         }
 
         val cues by Cues.lists.collectAsState()
-        CueCard(if (isWork) "Start of the day" else "This break", phaseCue(p, quick, cues), key = s.index)
+        CueCard(if (isWork) "Start of the day" else "This break", phaseCue(p, quick, cues, epochDay(s.startedAt)), key = s.index)
         if (isWork) FocusMusic(settings.focusSound) else BreakChoices(p, s, chosen, s.phaseMs - left)
 
         if (!quick) Row(

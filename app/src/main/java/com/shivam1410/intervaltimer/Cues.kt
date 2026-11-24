@@ -18,14 +18,18 @@ data class CueLists(
 )
 
 /**
- * The cue for workday phase [p]: the start list on the first work block, break *n* gets the break list's
- * *n*-th line (wrapping round), nothing on later work blocks, quick timers or when cues are off.
+ * The cue for workday phase [p]: the start list on the first work block, a break line that walks the list
+ * as the day goes on, nothing on later work blocks, quick timers or when cues are off.
+ *
+ * [day] (an epoch day) shifts where the walk begins, so break 1 is not the same line every morning —
+ * a prompt you have already read stops being a prompt.
  */
-fun phaseCue(p: Phase, quick: Boolean, lists: CueLists): String? {
+fun phaseCue(p: Phase, quick: Boolean, lists: CueLists, day: Long = 0): String? {
     if (quick || !lists.on) return null
     return when (p.kind) {
         Kind.WORK -> if (p.cycle == 1) lists.start.filter { it.isNotBlank() }.joinToString(" · ").ifEmpty { null } else null
-        Kind.PREP, Kind.ACTIVITY -> lists.breaks.filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }?.let { it[(p.cycle - 1).mod(it.size)] }
+        Kind.PREP, Kind.ACTIVITY -> lists.breaks.filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }
+            ?.let { it[(p.cycle - 1 + day).mod(it.size.toLong()).toInt()] }
     }
 }
 
