@@ -102,7 +102,9 @@ private fun SlotCard(slot: Slot, habits: List<Habit>, items: List<LibraryItem>, 
                         when {
                             at != null -> "✓ done ${fmtMinute(at)}"
                             inside.isEmpty() -> "Pending · ${r.steps.size} steps"
-                            else -> "Pending · $doneHabits of ${inside.size} done"
+                            // "0 of 1 done" over a list of six read as six steps, one done. It counts
+                            // the stretches inside, so it says so.
+                            else -> "Pending · $doneHabits of ${inside.size} ${if (inside.size == 1) "stretch" else "stretches"} done"
                         },
                         style = MaterialTheme.typography.bodySmall, color = if (at != null) cs.primary else cs.onSurfaceVariant,
                     )
