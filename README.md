@@ -4,14 +4,20 @@ A low-power workday timer for Android (built for the Pixel 10 / Android 16): sta
 morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** on its own.
 
 - **Gong + vibration** at every transition (single gong → break, double → work, long → day done)
-- **Home is quick**: Workday 50:10 · Deep 90:15 · Pomodoro 25:5 · Custom (only Custom shows the
-  schedule controls), plus **quick timers** for one-off sessions — NSDR, Sketch, Stretch, Exercise,
-  Walk, Power nap, Breathing — tapping one counts down 5-4-3-2-1-Start first
+- **Home is today**: your hours (10:00 AM — 6:00 PM) and the cycles they buy, the day drawn as a
+  strip with a mark where the clock already is, what you did earlier, your habits, your routines and
+  the way into the Library. **Change ›** opens **Shape of the day** — the hours, the rhythm (Workday
+  50:10 · Deep 90:15 · Pomodoro 25:5 · Custom) and **what that makes**: focus, breaks and what stays
+  free at the end. Start late and you get two equal offers, **Fit to 6:00 PM** or **Run all 8**
+- **Library** (a row on Home): everything you can start, in one place — **quick timers** for one-off
+  sessions (NSDR, Sketch, Stretch, Exercise, Walk, Power nap, Breathing; tapping one counts down
+  5-4-3-2-1-Start first), **My library**, the 30-day **plans** you have running with the way into the
+  catalogue, and ambient sound
 - **One timer at a time, and it keeps running**: **Back** on a running workday, quick timer or routine puts
   it away and gives you Home back instead of leaving the app — a bar at the bottom shows what is running and
   how long is left, and **Open** returns to it. While something runs, **Start now** is gone, and tapping
   another timer asks first ("End Breathing and start Walk?"), so nothing is ended by a stray tap
-- **My library**: your own quick exercises on home, one card each with a thumbnail (YouTube's, a video
+- **My library** (in the Library): your own quick exercises, one card each with a thumbnail (YouTube's, a video
   frame or the track's cover art), title, tag label and length. Add a YouTube / YouTube Music link or
   pick an audio / video file; title and length fill themselves in and stay editable; the tag is a
   dropdown of your Toggl and used tags. **Tap starts it at once** (no 5-4-3-2-1): its timer runs and it
@@ -34,7 +40,8 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   on the first work block, a rotating break cue (*Drink water*, *Stand up and stretch*, *Look out a window for
   20 s*, …) on each break's notification and screen, and *Write tomorrow's first task · Close the laptop* at
   the end (also when you End and Save early). Edit or turn off the lists there
-- **Routines**: Morning, Leaving the house and Evening as chips on Home; tap one for a single step at a time in
+- **Routines**: Morning, Leaving the house and Evening as rows on Home, each with what is in it, its
+  reminder time and how often you keep it; tap one for a single step at a time in
   big text with a big **✓ Done**. Finishing records the time ("☀️ Morning ✓ 8:14"). Optional daily reminder
   with **Start** (runs the routine's timer and opens its first undone step; a timer already going asks first)
   and **Open** (just takes you there), and a *Still to do* nudge 30 min later if it isn't done; edit, add or delete routines in
@@ -80,20 +87,22 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   once per 30 min per app. Needs Usage access; for YouTube also Notification access, used only to see
   YouTube's player (on a sideloaded install: App info › ⋮ › Allow restricted settings first). No
   background loop: one inexact alarm set for when the limit could next be reached
-- **Start at** a whole hour: the 5th row of the Custom schedule (Now or one of the next four hours);
+- **Start at** a whole hour: the last row of **Shape of the day** (Now or one of the next four hours);
   the big button then reads "Start at 2:00 PM" and tapping it schedules that start ("Scheduled for
   2:00 PM"); the workday starts by itself then, once. Home shows the armed start with Cancel, and
   "Start now" still starts right away (the daily 10:00
   reminder stays a notification; nothing auto-starts every day)
-- **Days this month**: the pill next to your photo counts the days you used the app this month;
-  tap it for History
-- **Settings** (tap your photo): three pages — **Profile** (account, Drive sync, app updates,
-  sign out), **Notifications** (gong / vibration / volume, lock screen, daily reminder, nudges) and
-  **Toggl Track**
+- **How often, never a streak**: the pill next to your photo reads "9 of 14" — the days you showed up,
+  out of the days there were. It says nothing until there are three to count, so a bad week is a gap
+  rather than a number you broke; tap it for History
+- **Settings** (tap your photo): three groups, what you touch daily first — **Your day** (Habits &
+  routines, Stretches), **When it speaks** (gong / vibration / volume, lock screen, daily reminder,
+  cues, nudges) and **Elsewhere** (account and Drive sync, Toggl Track, app icon), with the version
+  at the foot
 - **Breaks start with a 2-min prepare phase**; on the break screen you choose the activity (your
   library is there too, folded under "My library")
   and can make it a **long break** (+10 min each tap, also from the notification); the rest of
-  the day shifts later. Activities have their own cues:
+  the day shifts later. The break screen and its notification both say when you are **back at it**. Activities have their own cues:
   - **NSDR** (20 min): plays Yog Nidra or Huberman's NSDR on YouTube Music, picked at random
   - **Stretch** (20 min): one of four 20-min videos, or a guided step routine
   - **Exercise**, **Eye + neck reset**: guided step-by-step with a timer per step
@@ -120,14 +129,23 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Activities**: every break stretch remembers its activity, so a day lists "😌 NSDR 20 min" and History
   shows time per activity (library items included) over the last 30 days. Ambient sounds played
   from home are logged as their own line, not as break time, and sync across phones via Drive
-- **History & streaks**: current/best streak, last-7-days focus chart, 12-week consistency heatmap (square cells, every weekday labelled),
-  a month calendar, all-time totals. Tap any day for **how the day went**: a
-  work/break wave over the hours (pauses as gaps, overtime in its own colour) and every stretch. Time is what you actually spent (skips and pauses don't inflate it); a day
-  counts toward the streak once one full work block is finished
+- **History**: how often you showed up ("9 of the last 14 days", and nothing at all until three days
+  have been), a last-7-days focus chart, a 12-week consistency heatmap (square cells, every weekday
+  labelled), each habit's own fortnight drawn as a strip, a month calendar whose dots mark the days
+  that hold something, and all-time totals. Tap any day for **how the day went**: a work/break wave
+  over the hours (pauses as gaps, overtime in its own colour) and **what actually happened** — the
+  blocks, the routines and the habits in one list, in the order it happened. Time is what you actually
+  spent (skips and pauses don't inflate it); a day counts once one full work block is finished
 - **Google account + Drive sync** (optional): sign in from the avatar on the home screen; history
   syncs to your Drive's private app folder (`drive.appdata`, invisible to you and other apps) and
   merges across phones. Without sign-in it all stays local; Android's built-in Google backup
   still covers settings and history
+- **A routine learns how long it takes you**: each step is timed as you finish it, so the start card
+  says "Usually takes you about 9 min", or "1 of 3 already done today · about 3 min left". Measured,
+  never guessed — it stays quiet until every remaining step has been timed, and skipping teaches it
+  nothing. Steps are keyed by what they are, so reordering a routine keeps what it learnt
+- **A timer on its own** says when it lands ("ends 5:16 PM") and how often it has come round ("2nd in
+  the last 14 days"). A walk says it starts a GPS recording before it does
 - **Auto-update** from GitHub Releases
 
 ## Screenshots
