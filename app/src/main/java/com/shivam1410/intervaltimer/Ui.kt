@@ -319,7 +319,7 @@ private fun Setup(
             Spacer(Modifier.height(16.dp))
             // What the day has come to so far, before what is left of it: it used to be a line you had
             // to open to see any of.
-            TodaySoFar(now, onToday)
+            TodaySoFar(now)
             HoursCard(s, now, onShape)
             scheduled?.let { ScheduledLine(it) }
             if (scheduled == null) StartCard(s, now, cyclesLeftToday(s, minuteOfDay(now))) { cycles -> Timer.start(cycles ?: s.cycles) }
@@ -1083,7 +1083,7 @@ private fun EarlierRow(onToday: () -> Unit, modifier: Modifier = Modifier) {
  * open to see any of.
  */
 @Composable
-private fun TodaySoFar(now: Long, onToday: () -> Unit) {
+private fun TodaySoFar(now: Long) {
     val cs = MaterialTheme.colorScheme
     val today = History.today()
     val todayRec = History.days.collectAsState().value.firstOrNull { it.date == today }
@@ -1104,20 +1104,11 @@ private fun TodaySoFar(now: Long, onToday: () -> Unit) {
     val cycles = todayRec?.cycles ?: 0
     // No clip on the way round: the block has no background of its own, and a 16dp corner at the top
     // left was taking a bite out of the T.
-    Column(
-        Modifier.fillMaxWidth().padding(bottom = 14.dp)
-            .clickable(onClickLabel = "How today went", onClick = onToday),
-    ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "TODAY SO FAR", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant,
-            )
-            Text(
-                "See it all ›", style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold, color = cs.secondary,
-            )
-        }
+    Column(Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
+        Text(
+            "TODAY SO FAR", Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant,
+        )
         Row(Modifier.fillMaxWidth().padding(top = 9.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             EndTile("FOCUSED", if (work > 0) fmtDur(work) else "—", Modifier.weight(1f))
             EndTile("CYCLES", if (cycles > 0) "$cycles" else "—", Modifier.weight(1f))
