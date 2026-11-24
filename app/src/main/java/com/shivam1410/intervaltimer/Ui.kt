@@ -132,19 +132,22 @@ fun Root(now: Long) {
     var stretchBack by rememberSaveable { mutableStateOf("") }
     var page by rememberSaveable { mutableStateOf("") } // "", "history", "settings", "habits", "stretches", "habit:<id>", "routine:<id>"
     var countdown by rememberSaveable { mutableStateOf<String?>(null) } // quick timer about to start
+    // Where to land if the countdown is cancelled: changing your mind should put you back on the list you
+    // were choosing from, not on Home with the Library closed behind you.
+    var countdownFrom by rememberSaveable { mutableStateOf("") }
     // Minimised: whatever is running keeps running, and you get Home back (like a video in its corner).
     var minimised by rememberSaveable { mutableStateOf(false) }
     val running = session.running(plan)
     BackHandler(page.isNotEmpty()) { page = "" }
-    BackHandler(countdown != null) { countdown = null }
+    BackHandler(countdown != null) { countdown = null; page = countdownFrom }
     // Back on the running screen puts it away instead of closing the app; back on Home still leaves.
     BackHandler(running && !minimised && page.isEmpty() && countdown == null) { minimised = true }
     LaunchedEffect(running) { if (!running) minimised = false }
-    val startQuick = rememberStartGuard { id -> minimised = false; page = ""; countdown = id }
+    val startQuick = rememberStartGuard { id -> minimised = false; countdownFrom = page; page = ""; countdown = id }
     // A nudge's Sketch / Relax button: same 5-4-3-2-1 as tapping the quick timer on home.
     val nudged by Nudges.requestedQuick.collectAsState()
     LaunchedEffect(nudged) {
-        nudged?.let { page = ""; countdown = it; Nudges.requestedQuick.value = null }
+        nudged?.let { countdownFrom = ""; page = ""; countdown = it; Nudges.requestedQuick.value = null }
     }
     // A routine reminder: Open takes you to the routine, Start also runs its timer there and then.
     val routine by Routines.requested.collectAsState()
@@ -188,7 +191,7 @@ fun Root(now: Long) {
             page == "today" -> DayScreen(History.today()) { page = "" }
             page.startsWith("habit:") -> HabitCalendarScreen(page.removePrefix("habit:")) { page = "" }
             page.startsWith("routine:") -> RoutineScreen(page.removePrefix("routine:"), autoStart) { page = ""; autoStart = false }
-            countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null } }
+            countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null; page = countdownFrom } }
             session.idle || minimised -> Setup(
                 settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit:$it" },
                 onAddHabit = { stretchBack = ""; page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = startQuick,
