@@ -406,8 +406,10 @@ object Timer {
         // On a break the phone is face-down and this line is all you see. The hint alone never answered
         // the only question a break raises, which is when it ends.
         // First, not last: a notification line is cut off at the end, and the time is the part worth keeping.
-        val back = if (s.paused) null else untilWork(pl, s.index, s.left(now))
-            ?.let { "Back at " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(now + it)) + " · " }
+        fun at(ms: Long) = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(ms))
+        val back = if (s.paused) null else untilWork(pl, s.index, s.left(now))?.let { "Back at ${at(now + it)} · " }
+            // A quick timer has nothing to go back to, but it still ends somewhere.
+            ?: s.quick?.let { "Ends at ${at(now + s.left(now))} · " }
         return when (p.kind) {
             Kind.PREP -> back.orEmpty() + "Lie down. Put your phone aside. Close your eyes."
             Kind.ACTIVITY -> back.orEmpty() + chosen.hint

@@ -911,8 +911,10 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
                 Text(
                     when {
                         over != null -> "Time's up · counting up"
-                        routine != null -> "Routine"
-                        quick -> "Quick timer"
+                        // A timer on its own has an end too, and "15 minutes" in your head is not the
+                        // same as knowing it lands at 3:55.
+                        routine != null -> "Routine · ends ${clock(now + left)}"
+                        quick -> "Quick timer · ends ${clock(now + left)}"
                         // The plan that is actually running, not the full day: a late start plans fewer.
                         // On a break the cycle alone answers nothing useful — when you are back at it does,
                         // and without it the only way to know is to add the prepare and the activity up.
