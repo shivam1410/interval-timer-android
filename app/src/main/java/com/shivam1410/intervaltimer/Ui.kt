@@ -923,7 +923,12 @@ private fun NowCard(plan: List<Phase>, s: Session, settings: Settings, now: Long
             }
             Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                 val style = MaterialTheme.typography.labelSmall
-                Text("${fmtDur(phaseMs - left)} in", Modifier.weight(1f), style = style, color = cs.onSurfaceVariant)
+                // "0m in" for the first minute of a block is the printed zero again: it has just begun.
+                val gone = phaseMs - left
+                Text(
+                    if (gone >= MIN) "${fmtDur(gone)} in" else "just started",
+                    Modifier.weight(1f), style = style, color = cs.onSurfaceVariant,
+                )
                 Text("${fmtDur(phaseMs)} block", style = style, color = cs.onSurfaceVariant)
             }
         }
