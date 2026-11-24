@@ -162,7 +162,30 @@ fun StretchesPage(open: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
     var custom by remember { mutableStateOf(false) }
     if (custom) HabitStartSheet(null) { custom = false }
+    val habits by Habits.all.collectAsState()
+    val items by Library.items.collectAsState()
+    val today = LocalDate.now()
+    val running = habits.filter { !it.ended }
     Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // The catalogue alone never said which of these you are already doing, so the page you go to for
+        // a new plan was the one page that would not tell you about the ones you have.
+        if (running.isNotEmpty()) {
+            Text("Running now", style = MaterialTheme.typography.titleSmall, color = cs.primary)
+            running.forEach { h ->
+                val day = h.dayOf(today)
+                Row(card().clickable(onClickLabel = "Open the calendar") { open("habit:${h.id}") }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(habitTitle(h, items), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Day ${day.coerceAtMost(h.totalDays)} of ${h.totalDays}" +
+                                (h.stageOn(day)?.let { " · ${label(it)}" } ?: " · finished"),
+                            style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                        )
+                    }
+                    Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
+                }
+            }
+        }
         AddRow("✏️", "Make your own habit", "Any exercise, your own numbers") { custom = true }
         Text("30-day plans", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 8.dp))
         CATALOG.forEach { e ->

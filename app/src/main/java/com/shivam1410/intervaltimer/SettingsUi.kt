@@ -52,10 +52,13 @@ import java.util.Date
  */
 @Composable
 fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
+    // Where a habit's calendar goes back to: it opens from Habits & routines and from Stretches, and
+    // landing on the other one is a small, repeated disorientation.
+    var habitBack by rememberSaveable { mutableStateOf("habits") }
     var sub by rememberSaveable { mutableStateOf(start) } // "", "profile", "notifications", "toggl", "habits", "stretches", "plan:<id>", "habit:<id>"
     fun back() = when {
         sub.startsWith("plan:") -> sub = "stretches"
-        sub.startsWith("habit:") || sub.startsWith("routine-cal:") -> sub = "habits"
+        sub.startsWith("habit:") || sub.startsWith("routine-cal:") -> sub = habitBack
         sub.isEmpty() || sub == start -> onBack()
         else -> sub = ""
     }
@@ -78,8 +81,8 @@ fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
                 "profile" -> ProfilePage()
                 "notifications" -> NotificationsPage(s)
                 "toggl" -> TogglSection()
-                "habits" -> HabitsPage { sub = it }
-                "stretches" -> StretchesPage { sub = it }
+                "habits" -> HabitsPage { habitBack = "habits"; sub = it }
+                "stretches" -> StretchesPage { habitBack = "stretches"; sub = it }
                 "icon" -> AppIconPage()
                 else -> SettingsList { sub = it }
             }
