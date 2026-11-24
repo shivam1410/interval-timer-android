@@ -51,7 +51,14 @@ fun CuesSection() {
         Toggle(R.drawable.ic_gong, "A short prompt at the start of the day, each break and the end", c.on) { Cues.save(c.copy(on = it)) }
         if (c.on) {
             CueListEditor("Start of the day", c.start) { Cues.save(c.copy(start = it)) }
-            CueListEditor("Breaks (one each break, in turn)", c.breaks) { Cues.save(c.copy(breaks = it)) }
+            // The walk shifts by a day each morning, which is invisible unless it says so — and a rotation
+            // you cannot see looks like a bug the first time break 1 is not the line at the top of the list.
+            val first = c.breaks.filter { it.isNotBlank() }
+                .takeIf { it.isNotEmpty() }?.let { it[epochDay(System.currentTimeMillis()).mod(it.size.toLong()).toInt()] }
+            CueListEditor(
+                "Breaks · one each break, in turn" + (first?.let { "\nToday starts at \"$it\"" } ?: ""),
+                c.breaks,
+            ) { Cues.save(c.copy(breaks = it)) }
             CueListEditor("End of the day", c.end) { Cues.save(c.copy(end = it)) }
         }
     }
