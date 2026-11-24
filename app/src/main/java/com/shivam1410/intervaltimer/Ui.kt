@@ -63,6 +63,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -245,6 +252,26 @@ private fun Setup(
     // "Start at" only picks a time; the big button arms it. Dropped once that hour passes or Custom is left.
     val ctx = LocalContext.current
 
+    // A day under way is a different page from a day not yet started: what is on now, what is next,
+    // and the tail of the day — the C+ "Day" board, rather than the setup screen with a bar stuck to it.
+    if (mini != null) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                Spacer(Modifier.height(16.dp))
+                DayHeader(onHistory)
+                EarlierRow(onToday, Modifier.padding(top = 10.dp))
+                NowCard(Timer.plan, mini, s, now, onRestore)
+                NextCards(Timer.plan, mini, s, now)
+                Spacer(Modifier.height(16.dp))
+            }
+            Button(
+                onLibrary, Modifier.fillMaxWidth().padding(vertical = 14.dp).height(72.dp),
+                shape = RoundedCornerShape(20.dp),
+            ) { Text("+  Start something", fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+        }
+        return
+    }
+
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -280,33 +307,7 @@ private fun Setup(
                 from = mini?.startedAt,
                 to = mini?.let { m -> now + m.left(now).coerceAtLeast(0) + Timer.plan.drop(m.index + 1).sumOf { it.ms } },
             )
-            // What today already holds. Absent entirely on a morning that hasn't started — the day ahead
-            // is the point of this screen, and an empty "Earlier" row would just be furniture.
-            val today = History.today()
-            val todayRec = History.days.collectAsState().value.firstOrNull { it.date == today }
-            val liveHabits by Habits.all.collectAsState()
-            // The raw fact that it finished, not routineDoneToday — that asks whether it is still on your
-            // list (a stretch falling due again reopens it), which is a different question from what happened.
-            val doneRoutines = Routines.all.collectAsState().value
-                .filterNot { it.deleted }.filter { doneToday(it, today) != null }.map { it.name }
-            val doneHabits = liveHabits.count { !it.ended && today in it.done }
-            earlierToday(todayRec?.workMs ?: 0L, todayRec?.cycles ?: 0, doneRoutines, doneHabits)?.let {
-                // The summary is the collapsed form; the day's own record is what it opens into. That screen
-                // lists routines and habits too, so whatever is summarised here is there to be looked at.
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(10.dp))
-                        .clickable(onClickLabel = "How today went", onClick = onToday).padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Earlier · $it",
-                        Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text("›", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            EarlierRow(onToday, Modifier.padding(top = 8.dp))
             mini?.let { UpNext(Timer.plan, it, s, now) }
             // Starting late costs you cycles, never a scolding: say what fits and let the full day stand beside it.
             if (mini == null && fits in 1 until s.cycles && scheduled == null) Text(
@@ -776,5 +777,211 @@ fun Toggle(icon: Int, label: String, value: Boolean, onChange: (Boolean) -> Unit
         Icon(painterResource(icon), null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
         Text(label, Modifier.weight(1f).padding(start = 14.dp))
         Switch(value, onChange)
+    }
+}
+
+// ---------- Home while a workday runs (C+ "Day" board) ----------
+
+/** The day's name and how often you showed up, as dots: the board's header. */
+@Composable
+private fun DayHeader(onHistory: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val days by History.days.collectAsState()
+    val today = History.today()
+    val d = density(days, today)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            today.format(java.time.format.DateTimeFormatter.ofPattern("EEEE")),
+            Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+        )
+        if (!d.worthShowing) HistoryPill(onHistory) else Row(
+            Modifier.clip(CircleShape).background(cs.surface).border(1.dp, cs.outlineVariant, CircleShape)
+                .clickable(onClickLabel = "History", onClick = onHistory).padding(horizontal = 11.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                (d.of - 1 downTo 0).forEach { i ->
+                    val on = days.any { it.date == today.minusDays(i.toLong()) && it.active }
+                    Box(
+                        Modifier.size(5.dp).clip(RoundedCornerShape(1.5.dp))
+                            .background(if (on) cs.primary else cs.surfaceContainerHighest),
+                    )
+                }
+            }
+            Text(
+                "${d.done} of ${d.of}", Modifier.padding(start = 7.dp),
+                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+/** What is on right now: the phase, its clock, and how far through the block you are. */
+@Composable
+private fun NowCard(plan: List<Phase>, s: Session, settings: Settings, now: Long, onOpen: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val p = plan.getOrNull(s.index) ?: return
+    val left = s.left(now)
+    val phaseMs = (s.phaseMs.takeIf { it > 0 } ?: p.ms).coerceAtLeast(1)
+    val work = p.kind == Kind.WORK
+    val done = ((phaseMs - left).toFloat() / phaseMs).coerceIn(0f, 1f)
+    Card(
+        Modifier.fillMaxWidth().clickable(onClickLabel = "Back to the timer", onClick = onOpen),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cs.surface),
+        border = BorderStroke(1.5.dp, cs.primary),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(Modifier.fillMaxWidth()) {
+                Text(
+                    "NOW · ${clock(now)}", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.primary,
+                )
+                Text(
+                    "CYCLE ${p.cycle} OF ${cyclesIn(plan)}", style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant,
+                )
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.Bottom) {
+                Text(
+                    if (work) "Work" else "Break · ${activity(s.quick ?: settings.activity).name}",
+                    Modifier.weight(1f), fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(fmt(left), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
+            }
+            Box(
+                Modifier.fillMaxWidth().padding(top = 11.dp).height(18.dp)
+                    .clip(RoundedCornerShape(6.dp)).background(cs.surfaceContainerHighest),
+            ) {
+                Box(
+                    Modifier.fillMaxWidth(done).fillMaxHeight().clip(RoundedCornerShape(6.dp))
+                        .background(if (work) cs.primary else cs.tertiary),
+                )
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                val style = MaterialTheme.typography.labelSmall
+                Text("${fmtDur(phaseMs - left)} in", Modifier.weight(1f), style = style, color = cs.onSurfaceVariant)
+                Text("${fmtDur(phaseMs)} block", style = style, color = cs.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** What comes after this block: a card each, the bar beside it as long as the block it stands for. */
+@Composable
+private fun NextCards(plan: List<Phase>, s: Session, settings: Settings, now: Long) {
+    val cs = MaterialTheme.colorScheme
+    val next = upNext(plan, s, now)
+    if (next.isEmpty()) return
+    val breakName = activity(settings.activity).name
+    val longest = next.maxOf { it.ms }.coerceAtLeast(1)
+    Text(
+        "NEXT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+        letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 14.dp, bottom = 7.dp),
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        next.forEach { u ->
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(cs.surface)
+                    .border(1.dp, cs.outlineVariant, RoundedCornerShape(12.dp)).padding(horizontal = 13.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(11.dp),
+            ) {
+                // Proportional, so a 10-minute break really is a fifth of a 50-minute block.
+                Box(
+                    Modifier.width(5.dp).height((14 + 46 * (u.ms.toFloat() / longest)).dp)
+                        .clip(RoundedCornerShape(3.dp)).background(if (u.work) cs.primary else cs.tertiary),
+                )
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (u.work) "Cycle ${u.cycle} · work" else "Break · $breakName",
+                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                    )
+                    // The board spells it out — "10 minutes", not "10m" — because this list is read at a
+                    // glance to decide whether a thing fits, not scanned for totals.
+                    val mins = ((u.ms + 30_000) / 60_000L).toInt().coerceAtLeast(1)
+                    Text(
+                        "$mins ${if (mins == 1) "minute" else "minutes"}",
+                        style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    clock(u.at), style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold, color = cs.onSurfaceVariant,
+                )
+            }
+        }
+        TailCard(plan, s, now, next)
+    }
+}
+
+/** The rest of the day in one dashed line, so the list does not run on past what you can act on. */
+@Composable
+private fun TailCard(plan: List<Phase>, s: Session, now: Long, shown: List<Upcoming>) {
+    val cs = MaterialTheme.colorScheme
+    val after = cyclesAfter(plan, shown)
+    if (after <= 0) return
+    val endsAt = now + s.left(now).coerceAtLeast(0) + plan.drop(s.index + 1).sumOf { it.ms }
+    val nextRoutine = Routines.all.collectAsState().value
+        .filterNot { it.deleted }.mapNotNull { r -> r.remindMin?.let { it to r } }
+        .filter { it.first > minuteOfDay(now) }.minByOrNull { it.first }
+    val dash = PathEffect.dashPathEffect(floatArrayOf(8f, 6f))
+    Row(
+        Modifier.fillMaxWidth().drawBehind {
+            drawRoundRect(
+                cs.outlineVariant, style = Stroke(1.dp.toPx(), pathEffect = dash),
+                cornerRadius = CornerRadius(12.dp.toPx()),
+            )
+        }.padding(horizontal = 13.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(11.dp),
+    ) {
+        Row(Modifier.height(22.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
+            repeat(10) { i ->
+                Box(
+                    Modifier.width(4.dp).height(if (i % 2 == 0) 22.dp else 8.dp)
+                        .clip(RoundedCornerShape(2.dp)).background(cs.outlineVariant),
+                )
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                "$after more ${if (after == 1) "cycle" else "cycles"} after that",
+                style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "Runs to ${clock(endsAt)}" + (nextRoutine?.let { " · ${it.second.name} at ${fmtMinute(it.first)}" } ?: ""),
+                style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/**
+ * What today already holds, as one line that opens the day's own record. Absent entirely on a morning
+ * that hasn't started — the day ahead is the point of this screen, and an empty "Earlier" row would
+ * just be furniture.
+ */
+@Composable
+private fun EarlierRow(onToday: () -> Unit, modifier: Modifier = Modifier) {
+    val cs = MaterialTheme.colorScheme
+    val today = History.today()
+    val todayRec = History.days.collectAsState().value.firstOrNull { it.date == today }
+    val liveHabits by Habits.all.collectAsState()
+    // The raw fact that it finished, not routineDoneToday — that asks whether it is still on your list
+    // (a stretch falling due again reopens it), which is a different question from what happened.
+    val doneRoutines = Routines.all.collectAsState().value
+        .filterNot { it.deleted }.filter { doneToday(it, today) != null }.map { it.name }
+    val doneHabits = liveHabits.count { !it.ended && today in it.done }
+    val line = earlierToday(todayRec?.workMs ?: 0L, todayRec?.cycles ?: 0, doneRoutines, doneHabits) ?: return
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+            .clickable(onClickLabel = "How today went", onClick = onToday).padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("⌄", Modifier.padding(end = 9.dp), style = MaterialTheme.typography.titleMedium, color = cs.onSurfaceVariant)
+        Text("Earlier · $line", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
     }
 }
