@@ -37,6 +37,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -101,13 +102,26 @@ private fun SettingsList(open: (String) -> Unit) {
     val s by Timer.settings.collectAsState()
     val cs = MaterialTheme.colorScheme
     Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Entry(open = { open("profile") }) {
-            Avatar(p, 48.dp)
+        // Grouped, and what you touch daily first: the flat list opened on Google sign-in, which is the
+        // one row most days never need.
+        Group("Your day")
+        val habits by Habits.all.collectAsState()
+        Entry(open = { open("habits") }) {
+            Icon(painterResource(R.drawable.ic_calendar), null, Modifier.size(28.dp), tint = cs.primary)
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
-                Text(p?.displayName?.ifEmpty { null } ?: if (p == null) "Not signed in" else "Google account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(syncLine(p), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                Text("Habits & routines", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                val n = habits.count { !it.ended }
+                Text("Your day by time" + if (n > 0) " · $n habits" else "", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
         }
+        Entry(open = { open("stretches") }) {
+            Text("🤸", fontSize = 26.sp)
+            Column(Modifier.weight(1f).padding(start = 16.dp)) {
+                Text("Stretches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("${CATALOG.size} 30-day plans · make your own", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+            }
+        }
+        Group("When it speaks")
         Entry(open = { open("notifications") }) {
             Icon(painterResource(R.drawable.ic_gong), null, Modifier.size(28.dp), tint = cs.primary)
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
@@ -119,20 +133,19 @@ private fun SettingsList(open: (String) -> Unit) {
                 )
             }
         }
+        Group("Elsewhere")
+        Entry(open = { open("profile") }) {
+            Avatar(p, 48.dp)
+            Column(Modifier.weight(1f).padding(start = 16.dp)) {
+                Text(p?.displayName?.ifEmpty { null } ?: if (p == null) "Not signed in" else "Google account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(syncLine(p), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+            }
+        }
         Entry(open = { open("toggl") }) {
             Text("⏱", fontSize = 26.sp)
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text("Toggl Track", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(if (toggl) "Connected" else "Not connected", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
-            }
-        }
-        val habits by Habits.all.collectAsState()
-        Entry(open = { open("habits") }) {
-            Icon(painterResource(R.drawable.ic_calendar), null, Modifier.size(28.dp), tint = cs.primary)
-            Column(Modifier.weight(1f).padding(start = 16.dp)) {
-                Text("Habits & routines", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                val n = habits.count { !it.ended }
-                Text("Your day by time" + if (n > 0) " · $n habits" else "", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
         }
         val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -143,14 +156,21 @@ private fun SettingsList(open: (String) -> Unit) {
                 Text(APP_ICONS.firstOrNull { it.id == AppIcons.current(ctx) }?.label.orEmpty(), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
         }
-        Entry(open = { open("stretches") }) {
-            Text("🤸", fontSize = 26.sp)
-            Column(Modifier.weight(1f).padding(start = 16.dp)) {
-                Text("Stretches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("${CATALOG.size} 30-day plans · make your own", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
-            }
-        }
+        Text(
+            "Interval Timer ${BuildConfig.VERSION_NAME}",
+            Modifier.fillMaxWidth().padding(top = 16.dp),
+            style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, textAlign = TextAlign.Center,
+        )
     }
+}
+
+/** A small label over a run of [Entry] rows. */
+@Composable
+private fun Group(label: String) {
+    Text(
+        label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 8.dp, start = 4.dp),
+    )
 }
 
 /** A tappable card row with a › at the end. */
