@@ -252,7 +252,10 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
         // Measured, not guessed: how long these steps have actually taken you, and only once every one
         // of them has been timed. A timer you set says what you meant to spend; this says what it costs.
         val typical by Routines.typical.collectAsState()
-        val leftMin = stepsLeftMs(r.steps.filterIndexed { i, _ -> !stepDone(i) }, typical)?.let { (it / 60_000L).toInt().coerceAtLeast(1) }
+        // To the nearest minute, not down to it: for "can I fit this in?", under-promising is the one
+        // direction that costs you.
+        val leftMin = stepsLeftMs(r.steps.filterIndexed { i, _ -> !stepDone(i) }, typical)
+            ?.let { ((it + 30_000L) / 60_000L).toInt().coerceAtLeast(1) }
         if (alreadyDone > 0) Text(
             "$alreadyDone of ${steps.size} already done today" + (leftMin?.let { " · about $it min left" } ?: ""),
             style = MaterialTheme.typography.bodyMedium, color = cs.primary, modifier = Modifier.padding(top = 2.dp),
