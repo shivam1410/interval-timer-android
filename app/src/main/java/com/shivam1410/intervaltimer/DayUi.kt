@@ -110,26 +110,20 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
             }
         }
 
-        if (segs.isNotEmpty()) {
-            Panel("Stretches") {
-                segs.forEach { s -> Line("${clock(s.start)} – ${clock(s.end)}", "${kindLabel(s)} · ${fmtDur(s.ms)}") }
-            }
-        }
-
-        // A day is not only its work blocks. Without these, a day of nothing but routines and habits
-        // reported "Nothing recorded on this day" while Home was listing what you had done.
+        // One list, in the order it happened: the work blocks, the routines and the habits together.
+        // They used to be two panels — the blocks under a heading that said "Stretches", and everything
+        // else below them — so a day you had actually lived read as two unrelated days.
         val items by Library.items.collectAsState()
         val habitTimes by Habits.times.collectAsState()
+        val blocks = segs.map { Triple(minuteOfDay(it.start), "${clock(it.start)} – ${clock(it.end)}", "${kindLabel(it)} · ${fmtDur(it.ms)}") }
         val routinesDone = Routines.all.collectAsState().value
-            .filterNot { it.deleted }.mapNotNull { r -> r.done[date]?.let { min -> min to "${r.emoji} ${r.name}" } }
+            .filterNot { it.deleted }.mapNotNull { r -> r.done[date]?.let { min -> Triple(min, clockOfDay(min), "${r.emoji} ${r.name}") } }
+        // A habit ticked off in the calendar long afterwards has no minute to show, and goes last.
         val habitsDone = Habits.all.collectAsState().value.filter { date in it.done }
-            .map { habitTimes[date]?.get(it.id) to habitTitle(it, items) }
-        // One list in the order it happened. Routines always carried their minute and habits never did,
-        // so the two sat in separate heaps and the day read as two days. A habit ticked off in the
-        // calendar long afterwards still has no minute, and sits at the end saying so.
-        val events = (routinesDone + habitsDone).sortedWith(compareBy(nullsLast()) { it.first })
-        if (events.isNotEmpty()) Panel("Routines and habits") {
-            events.forEach { (min, label) -> Line(label, min?.let(::clockOfDay) ?: "done") }
+            .map { h -> habitTimes[date]?.get(h.id).let { Triple(it, it?.let(::clockOfDay) ?: "—", habitTitle(h, items)) } }
+        val lines = (blocks + routinesDone + habitsDone).sortedWith(compareBy(nullsLast()) { it.first })
+        if (lines.isNotEmpty()) Panel("What actually happened") {
+            lines.forEach { (_, at, what) -> Line(at, what) }
         }
         Box(Modifier.height(24.dp))
     }
