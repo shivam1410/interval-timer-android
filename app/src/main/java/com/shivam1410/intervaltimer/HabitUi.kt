@@ -186,7 +186,7 @@ fun HabitRunScreen(id: String, onBack: () -> Unit) {
     val stage = h.stageOn(day)
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            RoundIcon(R.drawable.ic_chevron_down, "Back to the day", onBack)
+            RoundIcon(R.drawable.ic_chevron_down, "Back to the day", onClick = onBack)
             Text(
                 "${habitTitle(h, items).uppercase()} · DAY ${day.coerceAtMost(h.totalDays)} OF ${h.totalDays}",
                 Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,

@@ -137,7 +137,7 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            RoundIcon(R.drawable.ic_chevron_down, "Leave the routine", onBack)
+            RoundIcon(R.drawable.ic_chevron_down, "Leave the routine", onClick = onBack)
             Text(
                 "${r.emoji} ${r.name.uppercase()}", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp, color = cs.onSurfaceVariant,
@@ -294,7 +294,7 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
             Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            RoundIcon(R.drawable.ic_chevron_down, "Back to the day", onBack)
+            RoundIcon(R.drawable.ic_chevron_down, "Back to the day", onClick = onBack)
             Box(
                 Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(cs.secondaryContainer),
                 contentAlignment = Alignment.Center,

@@ -412,7 +412,7 @@ internal fun Done(s: Session, settings: Settings, onDay: () -> Unit) {
 
 /** One of the end-of-day figures: a small label over a big number. */
 @Composable
-private fun EndTile(label: String, value: String, modifier: Modifier) {
+internal fun EndTile(label: String, value: String, modifier: Modifier) {
     val cs = MaterialTheme.colorScheme
     Column(
         modifier.clip(RoundedCornerShape(16.dp)).background(cs.surface)
@@ -434,20 +434,20 @@ private fun EndTile(label: String, value: String, modifier: Modifier) {
 private fun RunBar(title: String, onMinimise: () -> Unit, onMore: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        RoundIcon(R.drawable.ic_chevron_down, "Back to the day", onMinimise)
+        RoundIcon(R.drawable.ic_chevron_down, "Back to the day", onClick = onMinimise)
         Text(
             title, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
             letterSpacing = 1.1.sp, color = cs.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 1,
         )
-        RoundIcon(R.drawable.ic_more, "More", onMore)
+        RoundIcon(R.drawable.ic_more, "More", onClick = onMore)
     }
 }
 
 @Composable
-internal fun RoundIcon(icon: Int, label: String, onClick: () -> Unit) {
+internal fun RoundIcon(icon: Int, label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     Box(
-        Modifier.size(34.dp).clip(CircleShape).background(cs.surface).border(1.dp, cs.outlineVariant, CircleShape)
+        modifier.size(34.dp).clip(CircleShape).background(cs.surface).border(1.dp, cs.outlineVariant, CircleShape)
             .clickable(onClickLabel = label, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(painterResource(icon), label, Modifier.size(17.dp), tint = cs.onSurfaceVariant) }

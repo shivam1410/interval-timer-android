@@ -2,6 +2,7 @@ package com.shivam1410.intervaltimer
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,7 +58,7 @@ fun HistoryScreen(onBack: () -> Unit) {
     BackHandler(day != null || calendar) { if (day != null) day = null else calendar = false }
     val open = day
     when {
-        open != null -> DayScreen(LocalDate.parse(open)) { day = null }
+        open != null -> DayScreen(LocalDate.parse(open), onDate = { day = it.toString() }) { day = null }
         calendar -> CalendarScreen(onPick = { day = it.toString() }) { calendar = false }
         else -> Overview(onBack, onDay = { day = it.toString() }, onCalendar = { calendar = true })
     }
@@ -71,20 +74,26 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
         ScreenBar("Progress", onBack = onBack) {
-            RoundIcon(R.drawable.ic_calendar, "Calendar", onCalendar)
+            RoundIcon(R.drawable.ic_calendar, "Calendar", onClick = onCalendar)
         }
 
         // Density, not a streak: a number that can be destroyed by one bad Tuesday earns avoidance, not effort.
-        Text(
-            if (dense.worthShowing) "${dense.done} of the last ${dense.of} days" else "Nothing here yet",
-            style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-        Text(
-            if (dense.worthShowing) "You showed up on ${dense.done}. Missing one costs nothing — there is no streak to break."
-            else "Finish a work block and it lands here. A day counts once one full block is done.",
-            style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp),
-        )
+        // The board gives it a card of its own, so the measure the screen is built around reads as the answer
+        // and not as a heading over the panels below it.
+        Column(
+            Modifier.padding(top = 16.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(cs.surface)
+                .border(1.dp, cs.outlineVariant, RoundedCornerShape(20.dp)).padding(18.dp),
+        ) {
+            Text(
+                if (dense.worthShowing) "${dense.done} of the last ${dense.of} days" else "Nothing here yet",
+                fontSize = 40.sp, lineHeight = 42.sp, letterSpacing = (-1.4).sp, fontWeight = FontWeight.Bold,
+            )
+            Text(
+                if (dense.worthShowing) "You showed up on ${dense.done}. Missing one costs nothing — there is no streak to break."
+                else "Finish a work block and it lands here. A day counts once one full block is done.",
+                style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 7.dp),
+            )
+        }
 
         val week = (6 downTo 0).map { today.minusDays(it.toLong()) }
         Panel("LAST 7 DAYS · ${fmtDur(week.sumOf { byDate[it]?.workMs ?: 0 })} focused") { WeekBars(week, byDate) }
@@ -95,16 +104,37 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
         val items by Library.items.collectAsState()
         val habitRows = Habits.all.collectAsState().value
             .filterNot { it.ended }.map { it to habitDensity(it, today) }.filter { it.second.worthShowing }
-        if (habitRows.isNotEmpty()) Panel("BY HABIT") {
+        // A card each, as the board has them: one habit's fortnight shouldn't have to be picked out of a list.
+        if (habitRows.isNotEmpty()) {
+            Text(
+                "BY HABIT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp, color = cs.onSurfaceVariant,
+                modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
+            )
             habitRows.forEach { (h, d) ->
-                Line(habitTitle(h, items), "${d.done} of ${d.of}")
-                // The count says how often, the strip says which days — the gaps are the useful part.
-                Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    habitDays(h, today).forEach { done ->
-                        Box(
-                            Modifier.weight(1f).height(8.dp).clip(RoundedCornerShape(3.dp))
-                                .background(if (done) cs.primary else cs.surfaceContainerHighest),
+                Column(
+                    Modifier.padding(bottom = 9.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                        .background(cs.surface).border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 13.dp, vertical = 12.dp),
+                ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            habitTitle(h, items), Modifier.weight(1f), fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
+                        Text(
+                            "${d.done} of ${d.of}", Modifier.padding(start = 10.dp), fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold, color = cs.secondary,
+                        )
+                    }
+                    // The count says how often, the strip says which days — the gaps are the useful part.
+                    Row(Modifier.fillMaxWidth().padding(top = 9.dp), horizontalArrangement = Arrangement.spacedBy(2.5.dp)) {
+                        habitDays(h, today).forEach { done ->
+                            Box(
+                                Modifier.weight(1f).height(16.dp).clip(RoundedCornerShape(2.5.dp))
+                                    .background(if (done) cs.primary else cs.surfaceContainerHighest),
+                            )
+                        }
                     }
                 }
             }
@@ -115,8 +145,6 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
         // Four zeros under a headline that already says "Nothing here yet" is the printed zero the rest
         // of this screen is careful to avoid. The panel arrives with the first day worth counting.
         if (days.isNotEmpty()) Panel("ALL TIME") {
-            Line("Focused", fmtDur(total))
-            Line("Cycles completed", "${days.sumOf { it.cycles }}")
             Line("Active days", "${active.size}")
             Line("Average per active day", if (active.isEmpty()) "—" else fmtDur(active.sumOf { it.workMs } / active.size))
         }
@@ -125,7 +153,10 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
         val timelines by History.timelines.collectAsState()
         val ambient by History.ambient.collectAsState()
         val since = today.minusDays(29)
-        val perActivity = activityTotals(timelines.filterKeys { !it.isBefore(since) }.values.flatten()).entries.sortedByDescending { it.value }
+        // An activity you haven't done in a month is a zero printed under a heading — the one thing
+        // the rest of this screen refuses to do. It comes back the first minute it's used again.
+        val perActivity = activityTotals(timelines.filterKeys { !it.isBefore(since) }.values.flatten())
+            .entries.filter { it.value > 0 }.sortedByDescending { it.value }
         val ambientMs = ambient.filterKeys { !it.isBefore(since) }.values.sum()
         Panel("ACTIVITIES · last 30 days") {
             if (perActivity.isEmpty() && ambientMs == 0L) Text("Breaks and quick timers show here by activity.", color = cs.onSurfaceVariant)
@@ -141,6 +172,16 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
                     if (d.date == today) "Today" else d.date.format(fmt), "${fmtDur(d.workMs)} · ${d.cycles} ${if (d.cycles == 1) "cycle" else "cycles"}",
                     Modifier.clickable { onDay(d.date) },
                 )
+            }
+        }
+        // The board closes on the three numbers worth carrying away, under a rule.
+        if (days.isNotEmpty()) {
+            HorizontalDivider(Modifier.padding(top = 24.dp), color = cs.outlineVariant)
+            val routineRuns = Routines.all.collectAsState().value.sumOf { it.done.size }
+            Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                EndTile("FOCUSED", fmtDur(total), Modifier.weight(1f))
+                EndTile("CYCLES", "${days.sumOf { it.cycles }}", Modifier.weight(1f))
+                EndTile("ROUTINES", "$routineRuns", Modifier.weight(1f))
             }
         }
         Box(Modifier.height(24.dp))

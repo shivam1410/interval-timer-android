@@ -27,6 +27,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -53,7 +59,7 @@ private const val HOUR = 60 * MIN
 
 /** One day: totals, a work/break wave over the hours, and every stretch. Today includes the running session. */
 @Composable
-fun DayScreen(date: LocalDate, onBack: () -> Unit) {
+fun DayScreen(date: LocalDate, onDate: (LocalDate) -> Unit, onBack: () -> Unit) {
     val days by History.days.collectAsState()
     val stored by History.timelines.collectAsState()
     val session by Timer.session.collectAsState()
@@ -74,13 +80,23 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
     val cs = MaterialTheme.colorScheme
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+        // Arrows either side of the title, as the board has them: a day you want to compare with is the one
+        // next to it, and going back to the list to pick it loses your place every time.
         ScreenBar(
             if (date == History.today()) "Today" else date.format(DateTimeFormatter.ofPattern("EEEE d MMM")),
             "What actually happened", onBack,
-        )
-        Row(Modifier.fillMaxWidth().padding(top = 12.dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Big("🎯 Focused", fmtDur(work), Modifier.weight(1f).fillMaxHeight(), cs.primaryContainer, cs.onPrimaryContainer)
-            Big("🌿 Break", fmtDur(rest), Modifier.weight(1f).fillMaxHeight(), cs.secondaryContainer, cs.onSecondaryContainer)
+        ) {
+            RoundIcon(R.drawable.ic_chevron_down, "Previous day", Modifier.rotate(90f)) { onDate(date.minusDays(1)) }
+            if (date < History.today()) RoundIcon(R.drawable.ic_chevron_down, "Next day", Modifier.rotate(-90f)) { onDate(date.plusDays(1)) }
+        }
+        val routines = Routines.all.collectAsState().value.filterNot { it.deleted }
+        Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            // A day you didn't work prints three zeros under three headings if you let it; a dash says
+            // the same thing without scoring it.
+            val routinesDone = routines.count { date in it.done }
+            EndTile("FOCUSED", if (work > 0) fmtDur(work) else "—", Modifier.weight(1f))
+            EndTile("CYCLES", if (cycles > 0) "$cycles" else "—", Modifier.weight(1f))
+            EndTile("ROUTINES", if (routinesDone > 0) "$routinesDone of ${routines.size}" else "—", Modifier.weight(1f))
         }
 
         Panel("HOW THE DAY WENT") {
@@ -97,7 +113,7 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
 
         if (segs.isNotEmpty() || work + rest > 0) {
             Panel("SUMMARY") {
-                Line("Cycles completed", "$cycles")
+                if (rest > 0) Line("Break", fmtDur(rest))
                 val ambientMs = History.ambient.collectAsState().value[date] ?: 0
                 if (ambientMs > 0) Line("🎧 Ambient sounds (not break)", fmtDur(ambientMs))
                 if (segs.isNotEmpty()) {
@@ -114,20 +130,73 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
         // else below them — so a day you had actually lived read as two unrelated days.
         val items by Library.items.collectAsState()
         val habitTimes by Habits.times.collectAsState()
-        val blocks = segs.map { Triple(minuteOfDay(it.start), "${clock(it.start)} – ${clock(it.end)}", "${kindLabel(it)} · ${fmtDur(it.ms)}") }
-        val routinesDone = Routines.all.collectAsState().value
-            .filterNot { it.deleted }.mapNotNull { r -> r.done[date]?.let { min -> Triple(min, clockOfDay(min), "${r.emoji} ${r.name}") } }
+        val blocks = segs.map {
+            Happening(minuteOfDay(it.start), clock(it.start), kindLabel(it), fmtDur(it.ms), "ends ${clock(it.end)}", if (it.work) 0 else 1)
+        }
+        val routineLines = routines.mapNotNull { r ->
+            r.done[date]?.let { min -> Happening(min, clockOfDay(min), "${r.emoji} ${r.name}", "", "${r.steps.size} steps", 2) }
+        }
         // A habit ticked off in the calendar long afterwards has no minute to show, and goes last.
-        val habitsDone = Habits.all.collectAsState().value.filter { date in it.done }
-            .map { h -> habitTimes[date]?.get(h.id).let { Triple(it, it?.let(::clockOfDay) ?: "—", habitTitle(h, items)) } }
-        val lines = (blocks + routinesDone + habitsDone).sortedWith(compareBy(nullsLast()) { it.first })
-        if (lines.isNotEmpty()) Panel("WHAT ACTUALLY HAPPENED") {
-            lines.forEach { (_, at, what) -> Line(at, what) }
+        val habitsDone = Habits.all.collectAsState().value.filter { date in it.done }.map { h ->
+            habitTimes[date]?.get(h.id).let { Happening(it, it?.let(::clockOfDay) ?: "—", habitTitle(h, items), "", "Done", 3) }
+        }
+        val lines = (blocks + routineLines + habitsDone).sortedWith(compareBy(nullsLast()) { it.at })
+        // The day as a line you read downwards, not a two-column table: a dot per thing, the thread between
+        // them, and what it was in a card of its own.
+        if (lines.isNotEmpty()) {
+            Text(
+                "WHAT ACTUALLY HAPPENED", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp, color = cs.onSurfaceVariant,
+                modifier = Modifier.padding(top = 24.dp, bottom = 10.dp),
+            )
+            lines.forEachIndexed { i, h -> Happened(h, last = i == lines.lastIndex) }
         }
         Box(Modifier.height(24.dp))
     }
 }
 
+
+/** One thing that happened: [at] is its minute of day (null = no time recorded, so it goes last). */
+private data class Happening(val at: Int?, val time: String, val name: String, val len: String, val meta: String, val kind: Int)
+
+/** One row of the day's thread: the time, the dot and its line, and the thing itself in a card. */
+@Composable
+private fun Happened(h: Happening, last: Boolean) {
+    val cs = MaterialTheme.colorScheme
+    val tint = when (h.kind) {
+        0 -> cs.primary
+        1 -> cs.secondary
+        2 -> cs.secondary
+        else -> cs.tertiary
+    }
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+        Text(
+            h.time, Modifier.width(46.dp).padding(top = 10.dp), style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold, color = cs.onSurfaceVariant, textAlign = TextAlign.End,
+        )
+        Column(Modifier.width(11.dp).fillMaxHeight().padding(start = 1.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.padding(top = 13.dp).size(9.dp).clip(RoundedCornerShape(5.dp)).background(tint))
+            if (!last) Box(Modifier.width(2.dp).weight(1f).background(cs.outlineVariant))
+        }
+        Column(
+            Modifier.weight(1f).padding(start = 11.dp, top = 3.dp, bottom = 9.dp).clip(RoundedCornerShape(12.dp))
+                .background(cs.surface).border(1.dp, cs.outlineVariant, RoundedCornerShape(12.dp))
+                .padding(horizontal = 11.dp, vertical = 9.dp),
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(h.name, Modifier.weight(1f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                if (h.len.isNotEmpty()) Text(
+                    h.len, Modifier.padding(start = 8.dp), style = MaterialTheme.typography.labelMedium,
+                    color = cs.onSurfaceVariant,
+                )
+            }
+            Text(
+                h.meta, Modifier.padding(top = 2.dp), style = MaterialTheme.typography.labelMedium,
+                color = cs.onSurfaceVariant,
+            )
+        }
+    }
+}
 
 /** The same clock, for a time of day with no date behind it (a routine records the minute it finished). */
 private fun clockOfDay(minuteOfDay: Int): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(

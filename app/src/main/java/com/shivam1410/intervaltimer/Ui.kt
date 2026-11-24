@@ -209,7 +209,7 @@ fun Root(now: Long) {
             page == "stretches" -> SettingsScreen(settings, start = "stretches") { page = stretchBack }
             page == "library" -> LibraryScreen(startQuick, onStretches = { stretchBack = "library"; page = "stretches" }) { page = "" }
             page == "shape" -> ShapeScreen(settings, now) { page = "" }
-            page == "today" -> DayScreen(History.today()) { page = "" }
+            page == "today" -> DayScreen(History.today(), onDate = {}) { page = "" }
             page.startsWith("habitrun:") -> HabitRunScreen(page.removePrefix("habitrun:")) { page = "" }
             page.startsWith("habit:") -> HabitCalendarScreen(page.removePrefix("habit:")) { page = "" }
             page.startsWith("routine:") -> RoutineScreen(page.removePrefix("routine:"), autoStart) { page = ""; autoStart = false }
@@ -1136,7 +1136,7 @@ internal fun ScreenBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        RoundIcon(R.drawable.ic_chevron_down, "Back", onBack)
+        RoundIcon(R.drawable.ic_chevron_down, "Back", onClick = onBack)
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 21.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             subtitle?.let {
