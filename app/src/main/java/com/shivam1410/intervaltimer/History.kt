@@ -20,24 +20,21 @@ data class Day(val date: LocalDate, val workMs: Long, val breakMs: Long, val cyc
     }
 }
 
-/** Current streak (today not being done yet doesn't break it) and best streak, in days. */
-fun streaks(days: List<Day>, today: LocalDate): Pair<Int, Int> {
-    val active = days.filter { it.active }.map { it.date }.toSortedSet()
-    var current = 0
-    var d = if (today in active) today else today.minusDays(1)
-    while (d in active) {
-        current++
-        d = d.minusDays(1)
-    }
-    var best = 0
-    var run = 0
-    var prev: LocalDate? = null
-    for (date in active) {
-        run = if (prev != null && prev.plusDays(1) == date) run + 1 else 1
-        best = maxOf(best, run)
-        prev = date
-    }
-    return current to best
+/**
+ * How often you showed up lately: [done] active days out of the [of] you have had the app.
+ * Density rather than a streak, because one missed Tuesday should cost nothing.
+ */
+data class Density(val done: Int, val of: Int) {
+    /** Two finishes are a tally, not a pattern — below that there is nothing worth printing. */
+    val worthShowing get() = done >= 3
+}
+
+/** [window] days back from [today], or the whole life of the record when that is shorter. */
+fun density(all: List<Day>, today: LocalDate, window: Int = 14): Density {
+    val first = all.map { it.date }.minOrNull() ?: return Density(0, 0)
+    val of = (java.time.temporal.ChronoUnit.DAYS.between(first, today).toInt() + 1).coerceIn(1, window)
+    val from = today.minusDays((of - 1).toLong())
+    return Density(all.count { it.active && !it.date.isBefore(from) && !it.date.isAfter(today) }, of)
 }
 
 /** Two devices may log the same day; keep the fuller record per day instead of double-counting. */
@@ -45,10 +42,6 @@ fun merge(a: List<Day>, b: List<Day>): List<Day> =
     (a + b).groupBy { it.date }.values
         .map { same -> same.maxWith(compareBy({ it.workMs }, { it.cycles })) }
         .sortedBy { it.date }
-
-/** Days in [today]'s month with any time spent in the app (workday or quick timer), shown on home. */
-fun daysUsedInMonth(days: List<Day>, today: LocalDate): Int =
-    days.count { it.date.year == today.year && it.date.month == today.month && it.workMs + it.breakMs > 0 }
 
 /** Ambient listening is logged per phone ("2026-10-18|<phoneId>" -> ms), so merging two copies takes the larger value per key. */
 fun mergeAmbient(a: Map<String, Long>, b: Map<String, Long>): Map<String, Long> =

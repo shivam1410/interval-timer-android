@@ -65,7 +65,7 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
     val days by History.days.collectAsState()
     val today = History.today()
     val byDate = days.associateBy { it.date }
-    val (current, best) = streaks(days, today)
+    val dense = density(days, today)
     val cs = MaterialTheme.colorScheme
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
@@ -75,13 +75,16 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
             IconButton(onCalendar, Modifier.offset(x = 24.dp)) { Icon(painterResource(R.drawable.ic_calendar), "Calendar", tint = cs.onSurface) }
         }
 
-        Row(Modifier.fillMaxWidth().padding(top = 12.dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Big("🔥 Current streak", "$current ${if (current == 1) "day" else "days"}", Modifier.weight(1f).fillMaxHeight(), cs.primaryContainer, cs.onPrimaryContainer)
-            Big("🏆 Best streak", "$best ${if (best == 1) "day" else "days"}", Modifier.weight(1f).fillMaxHeight(), cs.tertiaryContainer, cs.onTertiaryContainer)
-        }
+        // Density, not a streak: a number that can be destroyed by one bad Tuesday earns avoidance, not effort.
         Text(
-            "A day counts when at least one full work block is finished.",
-            style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp),
+            if (dense.worthShowing) "${dense.done} of the last ${dense.of} days" else "Nothing here yet",
+            style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        Text(
+            if (dense.worthShowing) "You showed up on ${dense.done}. Missing one costs nothing — there is no streak to break."
+            else "Finish a work block and it lands here. A day counts once one full block is done.",
+            style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp),
         )
 
         val week = (6 downTo 0).map { today.minusDays(it.toLong()) }

@@ -5,11 +5,48 @@ package com.shivam1410.intervaltimer
 
 const val MIN = 60_000L
 
+/**
+ * Minutes in a working window. A window that ends before it starts runs past midnight,
+ * so 22:00–06:00 is eight hours, not minus sixteen.
+ */
+fun windowMin(startMin: Int, endMin: Int): Int = (endMin - startMin).let { if (it > 0) it else it + 24 * 60 }
+
+/** Whole work+break cycles that fit between [startMin] and [endMin]. */
+fun cyclesFor(startMin: Int, endMin: Int, workMin: Int, breakMin: Int): Int =
+    (workMin + breakMin).let { each -> if (each <= 0) 0 else windowMin(startMin, endMin) / each }
+
+/**
+ * Minutes of your hours still ahead at [nowMin]: the whole window before they start, 0 once they are over.
+ * Starting at 11:40 against 09:00–17:30 leaves 350, not a deficit of 160.
+ */
+fun minsLeftOfDay(nowMin: Int, startMin: Int, endMin: Int): Int =
+    minOf(windowMin(startMin, endMin), ((endMin - nowMin) % (24 * 60) + 24 * 60) % (24 * 60))
+
+/** Where [at] falls in its own day, as minutes after midnight. */
+fun minuteOfDay(at: Long, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): Int =
+    java.time.Instant.ofEpochMilli(at).atZone(zone.toZoneId()).let { it.hour * 60 + it.minute }
+
+/** Whole cycles that still fit before your hours end. */
+fun cyclesLeftToday(s: Settings, nowMin: Int): Int =
+    (s.workMin + s.breakMin).let { each -> if (each <= 0) 0 else minsLeftOfDay(nowMin, s.workStart, s.workEnd) / each }
+
+/** The end time a stored cycle count used to imply, so an upgrade keeps the day the same length. */
+fun oldEnd(startMin: Int, cycles: Int, workMin: Int, breakMin: Int): Int =
+    (startMin + cycles * (workMin + breakMin)) % (24 * 60)
+
+/** Minutes left over after the whole cycles: they stay free rather than being padded out. */
+fun spareMin(startMin: Int, endMin: Int, workMin: Int, breakMin: Int): Int =
+    (workMin + breakMin).let { each ->
+        if (each <= 0) windowMin(startMin, endMin) else windowMin(startMin, endMin) % each
+    }
+
 data class Settings(
     val workMin: Int = 50,
     val breakMin: Int = 10,
     val prepMin: Int = 2,
-    val cycles: Int = 8,
+    // You set your hours; the cycle count follows. 10:00–18:00 at 50:10 is the old default of 8.
+    val workStart: Int = 10 * 60,
+    val workEnd: Int = 18 * 60,
     // Picked during the session, remembered as the default for the next break / work block.
     val activity: String = "breathing",
     val focusSound: String = "", // "" = off
@@ -19,15 +56,25 @@ data class Settings(
     val custom: Boolean = false, // "Custom" preset chosen: the schedule steppers are shown
     val lockPage: Boolean = true, // wake the screen with the black-and-white page at phase changes
     val reminder: Boolean = true, // daily nudge to start the workday
-    val reminderMin: Int = 10 * 60, // its time, as minutes after midnight
-)
+    val reminderMin: Int? = null, // its time; null = follow [workStart]
+) {
+    /** How many cycles fit in your hours. Derived, never stored. */
+    val cycles: Int get() = cyclesFor(workStart, workEnd, workMin, breakMin)
 
-data class Preset(val name: String, val work: Int, val brk: Int, val cycles: Int)
+    /** Minutes at the end of the day too short for another cycle. */
+    val spare: Int get() = spareMin(workStart, workEnd, workMin, breakMin)
+
+    /** When the daily nudge fires: your own time if you set one, otherwise the start of your hours. */
+    val nudgeMin: Int get() = reminderMin ?: workStart
+}
+
+/** A rhythm, not a length: how many of these fit is decided by your hours. */
+data class Preset(val name: String, val work: Int, val brk: Int)
 
 val PRESETS = listOf(
-    Preset("Workday", 50, 10, 8),
-    Preset("Deep work", 90, 15, 4),
-    Preset("Pomodoro", 25, 5, 12),
+    Preset("Workday", 50, 10),
+    Preset("Deep work", 90, 15),
+    Preset("Pomodoro", 25, 5),
 )
 
 /** A guided step; [demo] is a built-in figure ([DEMOS]) shown while it runs. */
@@ -163,9 +210,47 @@ val QUICK = listOf("nsdr", "sketch", "stretch", "exercise", "walk", "nap", "brea
 /** A one-off quick timer is a single activity phase. */
 fun quickPlan(id: String): List<Phase> = listOf(Phase(Kind.ACTIVITY, 1, (activity(id).quickMin ?: 10) * MIN))
 
-/** Flattens the workday into phases: WORK, then a break split into PREP + ACTIVITY, per cycle. */
-fun plan(s: Settings): List<Phase> = buildList {
-    for (c in 1..s.cycles) {
+/**
+ * One block of the day drawn to scale: work or break, how long it lasts, and how much of it is behind you.
+ * A break's prepare and its activity are one block to the eye, so a 50:10 cycle is two blocks, not three.
+ */
+data class DayBlock(val work: Boolean, val ms: Long, val done: Float)
+
+/**
+ * The planned day as blocks, sized by real length so a 10-minute break is a fifth of a 50-minute block.
+ * Idle fills nothing, a finished day fills everything, and the phase in progress is part-filled.
+ */
+fun dayBlocks(plan: List<Phase>, s: Session, now: Long): List<DayBlock> {
+    val out = mutableListOf<DayBlock>()
+    plan.forEachIndexed { i, p ->
+        val done = when {
+            s.idle -> 0f
+            i < s.index -> 1f
+            i > s.index -> 0f
+            s.phaseMs <= 0L -> 0f
+            else -> ((s.phaseMs - s.left(now)).toFloat() / s.phaseMs).coerceIn(0f, 1f)
+        }
+        val work = p.kind == Kind.WORK
+        val last = out.lastOrNull()
+        if (last != null && !last.work && !work) {
+            val ms = last.ms + p.ms
+            out[out.lastIndex] = DayBlock(false, ms, (last.done * last.ms + done * p.ms) / ms)
+        } else {
+            out += DayBlock(work, p.ms, done)
+        }
+    }
+    return out
+}
+
+/** Cycles a built plan actually holds — the truth while one is running, since a late start can shorten it. */
+fun cyclesIn(plan: List<Phase>): Int = plan.count { it.kind == Kind.WORK }
+
+/**
+ * Flattens the workday into phases: WORK, then a break split into PREP + ACTIVITY, per cycle.
+ * [cycles] defaults to everything your hours hold; a late start passes the smaller count that still fits.
+ */
+fun plan(s: Settings, cycles: Int = s.cycles): List<Phase> = buildList {
+    for (c in 1..cycles) {
         add(Phase(Kind.WORK, c, s.workMin * MIN))
         val prep = s.prepMin.coerceIn(0, s.breakMin)
         if (prep > 0) add(Phase(Kind.PREP, c, prep * MIN))

@@ -252,17 +252,19 @@ private fun NotificationsPage(s: Settings) {
         }
 
         Section("Daily reminder") {
-            val p0 = PRESETS[0]
-            Toggle(R.drawable.ic_gong, "Remind me to start the ${p0.cycles * (p0.work + p0.brk) / 60}-hour ${p0.work}:${p0.brk}", s.reminder) { v -> set { copy(reminder = v) } }
+            Toggle(R.drawable.ic_gong, "Remind me to start the ${s.cycles} × ${s.workMin}:${s.breakMin}", s.reminder) { v -> set { copy(reminder = v) } }
             if (s.reminder) Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Every day at", Modifier.weight(1f))
+                Text(
+                    if (s.reminderMin == null) "Every day at the start of your hours" else "Every day at",
+                    Modifier.weight(1f),
+                )
                 val cal = java.util.Calendar.getInstance().apply {
-                    set(java.util.Calendar.HOUR_OF_DAY, s.reminderMin / 60); set(java.util.Calendar.MINUTE, s.reminderMin % 60)
+                    set(java.util.Calendar.HOUR_OF_DAY, s.nudgeMin / 60); set(java.util.Calendar.MINUTE, s.nudgeMin % 60)
                 }
                 FilledTonalButton({
                     android.app.TimePickerDialog(
-                        ctx, { _, h, m -> set { copy(reminderMin = h * 60 + m) } },
-                        s.reminderMin / 60, s.reminderMin % 60, android.text.format.DateFormat.is24HourFormat(ctx),
+                        ctx, { _, h, m -> set { copy(reminderMin = (h * 60 + m).takeIf { it != workStart }) } },
+                        s.nudgeMin / 60, s.nudgeMin % 60, android.text.format.DateFormat.is24HourFormat(ctx),
                     ).show()
                 }) { Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(cal.time)) }
             }

@@ -38,7 +38,12 @@ object Timer {
     val ambient = MutableStateFlow<String?>(null)
     /** One-off scheduled start of the workday (epoch ms), or null. Fires once, then clears itself. */
     val scheduledAt = MutableStateFlow<Long?>(null)
-    val plan get() = session.value.quick?.let(::quickPlan) ?: plan(settings.value)
+    /** Cycles chosen for the run in progress; null = everything your hours hold. A late start fits fewer. */
+    private var dayCycles: Int? = null
+
+    /** The shortened count belongs to the run that chose it: once nothing is running, the whole day is back. */
+    private val planCycles get() = (if (session.value.idle) null else dayCycles) ?: settings.value.cycles
+    val plan get() = session.value.quick?.let(::quickPlan) ?: plan(settings.value, planCycles)
 
     private lateinit var app: Context
     private val prefs get() = app.getSharedPreferences("state", Context.MODE_PRIVATE)
@@ -46,6 +51,7 @@ object Timer {
     fun init(ctx: Context) {
         app = ctx.applicationContext
         settings.value = loadSettings()
+        dayCycles = prefs.getInt("dayCycles", -1).takeIf { it > 0 }
         session.value = prefs.run {
             Session(getInt("index", -1), getLong("endsAt", 0), getLong("pausedLeft", 0), getLong("startedAt", 0), getLong("finishedAt", 0),
                 getLong("phaseMs", 0), getLong("bonus", 0),
@@ -91,7 +97,7 @@ object Timer {
         val pi = PendingIntent.getBroadcast(app, 1, Intent(app, Receiver::class.java).setAction(Receiver.REMINDER), PendingIntent.FLAG_IMMUTABLE)
         val am = app.getSystemService(AlarmManager::class.java)
         val s = settings.value
-        if (s.reminder) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextDaily(now(), s.reminderMin), pi) else am.cancel(pi)
+        if (s.reminder) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextDaily(now(), s.nudgeMin), pi) else am.cancel(pi)
     }
 
     private fun scheduledIntent() =
@@ -121,13 +127,13 @@ object Timer {
     fun remind() {
         armReminder()
         if (!settings.value.reminder || !session.value.idle || scheduledAt.value != null) return
-        val p = PRESETS[0]
+        val st = settings.value
         app.getSystemService(NotificationManager::class.java).notify(
             REMINDER_ID,
             Notification.Builder(app, CH_REMINDER)
                 .setSmallIcon(R.drawable.ic_gong)
                 .setContentTitle("Time to start your workday")
-                .setContentText("${p.cycles * (p.work + p.brk) / 60} hours · ${p.cycles} × ${p.work}:${p.brk}")
+                .setContentText("${fmtMinute(st.workStart)} — ${fmtMinute(st.workEnd)} · ${st.cycles} × ${st.workMin}:${st.breakMin}")
                 .setContentIntent(openApp)
                 .setAutoCancel(true)
                 .addAction(action(Receiver.START_DAY, "Start"))
@@ -138,7 +144,7 @@ object Timer {
     /** Reminder's Start button: switch to the Workday preset and go. */
     fun startWorkday() {
         val p = PRESETS[0]
-        saveSettings(settings.value.copy(workMin = p.work, breakMin = p.brk, cycles = p.cycles, custom = false))
+        saveSettings(settings.value.copy(workMin = p.work, breakMin = p.brk, custom = false))
         start()
     }
 
@@ -168,34 +174,49 @@ object Timer {
         settings.value = s
         prefs.edit().apply {
             putInt("workMin", s.workMin); putInt("breakMin", s.breakMin); putInt("prepMin", s.prepMin)
-            putInt("cycles", s.cycles); putString("activity", s.activity); putString("focusSound", s.focusSound)
+            putInt("workStart", s.workStart); putInt("workEnd", s.workEnd)
+            putString("activity", s.activity); putString("focusSound", s.focusSound)
             putBoolean("gong", s.gong); putBoolean("vibrate", s.vibrate); putInt("volume", s.volume)
             putBoolean("custom", s.custom); putBoolean("lockPage", s.lockPage)
-            putBoolean("reminder", s.reminder); putInt("reminderMin", s.reminderMin)
+            putBoolean("reminder", s.reminder); putInt("reminderMin", s.reminderMin ?: -1)
         }.apply()
-        if (s.reminder != old.reminder || s.reminderMin != old.reminderMin) armReminder()
+        if (s.reminder != old.reminder || s.nudgeMin != old.nudgeMin) armReminder()
     }
 
     private fun loadSettings() = Settings().let { d ->
         prefs.run {
             Settings(
-                getInt("workMin", d.workMin), getInt("breakMin", d.breakMin), getInt("prepMin", d.prepMin),
-                getInt("cycles", d.cycles), (getString("activity", d.activity) ?: d.activity), (getString("focusSound", d.focusSound) ?: d.focusSound),
-                getBoolean("gong", d.gong), getBoolean("vibrate", d.vibrate), getInt("volume", d.volume),
-                getBoolean("custom", d.custom), getBoolean("lockPage", d.lockPage),
-                getBoolean("reminder", d.reminder), getInt("reminderMin", d.reminderMin),
+                workMin = getInt("workMin", d.workMin),
+                breakMin = getInt("breakMin", d.breakMin),
+                prepMin = getInt("prepMin", d.prepMin),
+                // Upgrading from a stored cycle count: keep the day the same length it was.
+                workStart = getInt("workStart", d.workStart),
+                workEnd = getInt("workEnd", -1).takeIf { it >= 0 }
+                    ?: oldEnd(getInt("workStart", d.workStart), getInt("cycles", 8), getInt("workMin", d.workMin), getInt("breakMin", d.breakMin)),
+                activity = (getString("activity", d.activity) ?: d.activity),
+                focusSound = (getString("focusSound", d.focusSound) ?: d.focusSound),
+                gong = getBoolean("gong", d.gong),
+                vibrate = getBoolean("vibrate", d.vibrate),
+                volume = getInt("volume", d.volume),
+                custom = getBoolean("custom", d.custom),
+                lockPage = getBoolean("lockPage", d.lockPage),
+                reminder = getBoolean("reminder", d.reminder),
+                reminderMin = getInt("reminderMin", -1).takeIf { it >= 0 },
             )
         }
     }
 
     private fun now() = System.currentTimeMillis()
 
-    fun start() {
+    /** [cycles] shortens the run to what still fits before your hours end; null runs the whole day. */
+    fun start(cycles: Int? = null) {
         if (scheduledAt.value != null) scheduleStart(null)
         resetFixedActivity()
         setAmbient(null)
         app.getSystemService(NotificationManager::class.java).cancel(REMINDER_ID)
-        commit(start(plan(settings.value), now()), Cue.WORK)
+        dayCycles = cycles
+        prefs.edit().putInt("dayCycles", cycles ?: -1).apply()
+        commit(start(plan(settings.value, cycles ?: settings.value.cycles), now()), Cue.WORK)
     }
 
     /**
@@ -303,7 +324,7 @@ object Timer {
 
     /** The break activity running in [s] (labels its stretches in History), or "". */
     private fun actFor(s: Session): String {
-        val pl = s.quick?.let(::quickPlan) ?: plan(settings.value)
+        val pl = s.quick?.let(::quickPlan) ?: plan(settings.value, planCycles)
         return if (s.running(pl) && pl[s.index].kind == Kind.ACTIVITY) activity(s.quick ?: settings.value.activity).id else ""
     }
 
@@ -365,7 +386,7 @@ object Timer {
         if (s.done(pl)) return if (s.quick != null) "${activity(s.quick).name} complete" else "Workday complete"
         val p = pl[s.index]
         val head = when (p.kind) {
-            Kind.WORK -> "Work · cycle ${p.cycle}/${settings.value.cycles}"
+            Kind.WORK -> "Work · cycle ${p.cycle}/${cyclesIn(plan)}"
             Kind.PREP -> "Break · prepare"
             Kind.ACTIVITY -> "${chosen.emoji} ${chosen.name}"
         }
@@ -413,7 +434,7 @@ object Timer {
             Cue.SOFT -> "${chosen.name} started" to chosen.hint
             Cue.OVER -> (if (p.kind == Kind.WORK) "Work time's up" else "${chosen.name} is over") to
                 "Still going? It's counting up now. Tap Next when you're done, or +10 min."
-            Cue.WORK -> "Break complete" to "Work cycle ${p.cycle}/${settings.value.cycles} · ${fmtDur(p.ms)}" +
+            Cue.WORK -> "Break complete" to "Work cycle ${p.cycle}/${cyclesIn(plan)} · ${fmtDur(p.ms)}" +
                 if (s.paused) " · tap Start when ready" else " started"
             else -> "Work session complete" to "${fmtDur(settings.value.workMin * MIN)} focused → ${fmtDur(breakMs)} recovery. " +
                 "Lie down and get comfortable. Open to choose your recovery."

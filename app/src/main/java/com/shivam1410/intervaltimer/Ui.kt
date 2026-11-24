@@ -114,6 +114,13 @@ fun AppTheme(content: @Composable () -> Unit) {
 
 private fun clock(ms: Long): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(ms))
 
+/** Same clock, for a time of day that has no date: minutes after midnight. */
+private fun clockMin(minuteOfDay: Int): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(
+    Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, minuteOfDay / 60); set(Calendar.MINUTE, minuteOfDay % 60)
+    }.time,
+)
+
 @Composable
 fun Root(now: Long) {
     val session by Timer.session.collectAsState()
@@ -226,6 +233,8 @@ private fun Setup(
     onRoutine: (String) -> Unit, onQuick: (String) -> Unit, mini: Session? = null, onRestore: () -> Unit = {},
 ) {
     val total = plan(s).sumOf { it.ms }
+    // How much of your day is still ahead. Fewer than the full count means you started late.
+    val fits = cyclesLeftToday(s, minuteOfDay(now))
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val first = Drive.profile.collectAsState().value?.displayName?.substringBefore(' ').orEmpty()
     val greeting = when (hour) { in 4..11 -> "Good morning"; in 12..16 -> "Good afternoon"; else -> "Good evening" } +
@@ -246,21 +255,30 @@ private fun Setup(
                 Spacer(Modifier.width(8.dp))
                 ProfileChip(onSettings)
             }
-            Text("Your workday", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 20.dp))
+            Text("Your hours", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 20.dp))
             Text(
-                "${clock(from)} — ${clock(from + total)}",
+                "${clockMin(s.workStart)} — ${clockMin(s.workEnd)}",
                 style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
             )
             Text(
-                "${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"} · ${s.workMin} min work · ${s.breakMin} min break",
+                "${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"} · ${s.workMin} min work · ${s.breakMin} min break" +
+                    if (s.spare > 0) " · ${s.spare} min free" else "",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            DayStrip(dayBlocks(Timer.plan, mini ?: Session(), now), Modifier.fillMaxWidth().padding(top = 14.dp))
+            // Starting late costs you cycles, never a scolding: say what fits and let the full day stand beside it.
+            if (mini == null && fits in 1 until s.cycles && pick == null && scheduled == null) Text(
+                "Start now and ${fits} ${if (fits == 1) "cycle fits" else "cycles fit"} before ${clockMin(s.workEnd)}. Running all ${s.cycles} would end at ${clock(now + total)}. Both are fine.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp),
             )
 
             // Four equal quick picks; only Custom reveals the schedule steppers.
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 PRESETS.forEach { p ->
-                    PresetChip(p.name.substringBefore(' '), "${p.work}:${p.brk}", !s.custom && s.workMin == p.work && s.breakMin == p.brk && s.cycles == p.cycles) {
-                        set { copy(workMin = p.work, breakMin = p.brk, cycles = p.cycles, custom = false) }
+                    PresetChip(p.name.substringBefore(' '), "${p.work}:${p.brk}", !s.custom && s.workMin == p.work && s.breakMin == p.brk) {
+                        set { copy(workMin = p.work, breakMin = p.brk, custom = false) }
                     }
                 }
                 PresetChip("Custom", if (s.custom) "${s.workMin}:${s.breakMin}" else "···", s.custom) { set { copy(custom = true) } }
@@ -271,7 +289,15 @@ private fun Setup(
                     Stepper("Work", s.workMin, "min", 1..180) { v -> set { copy(workMin = v) } }
                     Stepper("Break", s.breakMin, "min", 1..60) { v -> set { copy(breakMin = v) } }
                     Stepper("Prepare (in break)", s.prepMin, "min", 0..10) { v -> set { copy(prepMin = v) } }
-                    Stepper("Cycles", s.cycles, "", 1..16) { v -> set { copy(cycles = v) } }
+                    TimeRow("Day starts", s.workStart) { v -> set { copy(workStart = v) } }
+                    TimeRow("Day ends", s.workEnd) { v -> set { copy(workEnd = v) } }
+                    Text(
+                        "${s.cycles} ${if (s.cycles == 1) "cycle" else "cycles"} fit" +
+                            if (s.spare > 0) " · ${s.spare} min stays free at the end" else "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                     StartAt(pick, now) { picked = it }
                 }
             }
@@ -290,6 +316,22 @@ private fun Setup(
         scheduled?.let { ScheduledLine(it) }
         // Something already running: its bar takes the place of Start now, because only one timer runs at a time.
         if (mini != null) MiniTimer(mini, now, onRestore)
+        // Started late: two equal offers, never a deficit. Fit what's left, or run the whole day anyway.
+        else if (fits in 1 until s.cycles && pick == null && scheduled == null) Row(
+            Modifier.fillMaxWidth().padding(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Button(
+                { Timer.start(fits) },
+                Modifier.weight(1f).height(64.dp),
+                shape = RoundedCornerShape(32.dp),
+            ) { Text("Fit to ${clockMin(s.workEnd)}", fontSize = 16.sp) }
+            OutlinedButton(
+                { Timer.start() },
+                Modifier.weight(1f).height(64.dp),
+                shape = RoundedCornerShape(32.dp),
+            ) { Text("Run all ${s.cycles}", fontSize = 16.sp) }
+        }
         // Says exactly what a tap does: start now (dropping any armed start), or arm the picked hour.
         else Button(
             onClick = {
@@ -303,6 +345,57 @@ private fun Setup(
             modifier = Modifier.fillMaxWidth().padding(20.dp).height(64.dp),
             shape = RoundedCornerShape(32.dp),
         ) { Text(pick?.let { "Start at ${clock(it)}" } ?: "Start now", fontSize = 20.sp) }
+    }
+}
+
+/**
+ * The day drawn to scale: a tall bar per work block, a short one per break, filled as you get through it.
+ * The point is to read the shape of what's left from across the room, without doing arithmetic.
+ */
+@Composable
+private fun DayStrip(blocks: List<DayBlock>, modifier: Modifier = Modifier) {
+    if (blocks.isEmpty()) return
+    val cs = MaterialTheme.colorScheme
+    val total = blocks.sumOf { it.ms }.toFloat().coerceAtLeast(1f)
+    val elapsed = blocks.sumOf { (it.done * it.ms).toDouble() }.toFloat() / total
+    Box(modifier.height(34.dp)) {
+        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
+            blocks.forEach { b ->
+                Box(
+                    Modifier.weight(b.ms.toFloat().coerceAtLeast(1f))
+                        .fillMaxHeight(if (b.work) 1f else 0.42f)
+                        .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                        .background(cs.surfaceVariant),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    if (b.done > 0f) Box(
+                        Modifier.fillMaxWidth().fillMaxHeight(b.done.coerceIn(0f, 1f))
+                            .background(if (b.work) cs.primary else cs.tertiary),
+                    )
+                }
+            }
+        }
+        // Where you are in the day, drawn where it actually falls rather than described in words.
+        if (elapsed > 0.001f && elapsed < 0.999f) Row(Modifier.matchParentSize()) {
+            Spacer(Modifier.weight(elapsed))
+            Box(Modifier.width(2.dp).fillMaxHeight().background(cs.error))
+            Spacer(Modifier.weight(1f - elapsed))
+        }
+    }
+}
+
+/** One end of your working hours, as minutes after midnight. The cycle count follows from the pair. */
+@Composable
+private fun TimeRow(label: String, minuteOfDay: Int, onPick: (Int) -> Unit) {
+    val ctx = LocalContext.current
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1f))
+        FilledTonalButton({
+            android.app.TimePickerDialog(
+                ctx, { _, h, m -> onPick(h * 60 + m) },
+                minuteOfDay / 60, minuteOfDay % 60, android.text.format.DateFormat.is24HourFormat(ctx),
+            ).show()
+        }) { Text(fmtMinute(minuteOfDay), fontWeight = FontWeight.SemiBold) }
     }
 }
 
@@ -383,14 +476,18 @@ fun rememberStartGuard(start: (String) -> Unit): (String) -> Unit {
 @Composable
 private fun HistoryPill(onClick: () -> Unit) {
     val days by History.days.collectAsState()
-    val used = daysUsedInMonth(days, History.today())
+    val dense = density(days, History.today())
     val cs = MaterialTheme.colorScheme
     Row(
         Modifier.height(44.dp).clip(CircleShape).background(cs.secondaryContainer).clickable(onClickLabel = "History", onClick = onClick)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("$used ${if (used == 1) "day" else "days"}", style = MaterialTheme.typography.labelLarge, color = cs.onSecondaryContainer)
+        // Too early to mean anything? Say nothing rather than "0 of 14" — but keep the way in to History.
+        Text(
+            if (dense.worthShowing) "${dense.done} of ${dense.of}" else "History",
+            style = MaterialTheme.typography.labelLarge, color = cs.onSecondaryContainer,
+        )
     }
 }
 
@@ -599,7 +696,8 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
                         over != null -> "Time's up · counting up"
                         routine != null -> "Routine"
                         quick -> "Quick timer"
-                        else -> "Cycle ${p.cycle} / ${settings.cycles}"
+                        // The plan that is actually running, not the full day: a late start plans fewer.
+                        else -> "Cycle ${p.cycle} / ${cyclesIn(Timer.plan)}"
                     },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

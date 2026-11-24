@@ -61,7 +61,7 @@ class TransitionActivity : ComponentActivity() {
         val plan = Timer.plan
         if (s.done(plan)) {
             return if (s.quick != null) listOf("DONE", "${activity(s.quick).name} complete", "", "")
-            else listOf("DONE", "Workday complete", "${fmtDur(s.workMs)} focused", "${s.cycles} of ${st.cycles} cycles")
+            else listOf("DONE", "Workday complete", "${fmtDur(s.workMs)} focused", "${s.cycles} of ${cyclesIn(Timer.plan)} cycles")
         }
         if (!s.running(plan)) return listOf("", "", "", "")
         val p = plan[s.index]
@@ -71,9 +71,9 @@ class TransitionActivity : ComponentActivity() {
             return listOf("TIME'S UP", if (p.kind == Kind.WORK) "Work · ${fmtDur(s.phaseMs)} done" else "${a.name} is over", "Counting up · Next when you're ready", "")
         }
         return when (p.kind) {
-            Kind.WORK -> listOf("WORK", "${fmtDur(s.phaseMs)} focus", until, "Cycle ${p.cycle} of ${st.cycles}")
+            Kind.WORK -> listOf("WORK", "${fmtDur(s.phaseMs)} focus", until, "Cycle ${p.cycle} of ${cyclesIn(Timer.plan)}")
             Kind.PREP -> listOf("BREAK", "Prepare, then ${a.name}", until, "Lie down · put the phone aside")
-            Kind.ACTIVITY -> listOf("BREAK", "${a.name} · ${fmtDur(s.phaseMs)}", until, if (s.quick == null) "Cycle ${p.cycle} of ${st.cycles}" else "")
+            Kind.ACTIVITY -> listOf("BREAK", "${a.name} · ${fmtDur(s.phaseMs)}", until, if (s.quick == null) "Cycle ${p.cycle} of ${cyclesIn(Timer.plan)}" else "")
         }
     }
 

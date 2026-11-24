@@ -237,4 +237,124 @@ class EngineTest {
         val workClosed = close(p, start(p, 0).copy(act = "nsdr"), 10 * MIN)
         assertEquals("", workClosed.log.last().label) // work is never labelled
     }
+
+    // You set your hours; the cycle count follows from them.
+
+    @Test fun theDefaultHoursStillGiveEightCycles() {
+        assertEquals(10 * 60, s.workStart) // 10:00
+        assertEquals(18 * 60, s.workEnd) // 18:00
+        assertEquals(8, s.cycles)
+        assertEquals(0, s.spare)
+    }
+
+    @Test fun hoursThatDoNotDivideLeaveTheRemainderFree() {
+        val short = s.copy(workStart = 9 * 60, workEnd = 17 * 60 + 30) // 510 min at 60 per cycle
+        assertEquals(8, short.cycles)
+        assertEquals(30, short.spare)
+        assertEquals(8 * 60 * MIN, plan(short).sumOf { it.ms }) // the spare 30 is not padded out
+    }
+
+    @Test fun aWindowTooShortForOneCycleHasNoCycles() {
+        val tiny = s.copy(workStart = 9 * 60, workEnd = 9 * 60 + 30)
+        assertEquals(0, tiny.cycles)
+        assertEquals(30, tiny.spare)
+        assertTrue(plan(tiny).isEmpty())
+    }
+
+    @Test fun hoursThatRunPastMidnightWrapToTheNextDay() {
+        val night = s.copy(workStart = 22 * 60, workEnd = 6 * 60) // 8 hours over midnight
+        assertEquals(480, windowMin(night.workStart, night.workEnd))
+        assertEquals(8, night.cycles)
+    }
+
+    @Test fun aLongerRhythmFitsFewerCyclesInTheSameHours() {
+        val deep = s.copy(workMin = 90, breakMin = 15) // 105 per cycle in a 480 min day
+        assertEquals(4, deep.cycles)
+        assertEquals(60, deep.spare)
+    }
+
+    // The day drawn to scale.
+
+    @Test fun theDayIsTwoBlocksPerCycleSizedByRealLength() {
+        val b = dayBlocks(p, Session(), 0)
+        assertEquals(16, b.size) // 8 cycles, work + break
+        assertTrue(b[0].work)
+        assertFalse(b[1].work)
+        assertEquals(50 * MIN, b[0].ms)
+        assertEquals(10 * MIN, b[1].ms) // prepare and its activity joined into one break
+        assertEquals(8 * 60 * MIN, b.sumOf { it.ms })
+    }
+
+    @Test fun anIdleDayIsAllEmptyAndAFinishedOneAllFull() {
+        assertTrue(dayBlocks(p, Session(), 0).all { it.done == 0f })
+        val ended = Session(index = p.size, phaseMs = 1)
+        assertTrue(dayBlocks(p, ended, 0).all { it.done == 1f })
+    }
+
+    @Test fun theBlockInProgressIsPartFilled() {
+        val mid = catchUp(p, start(p, 0), 20 * MIN) // 20 min into the first 50 min block
+        val b = dayBlocks(p, mid, 20 * MIN)
+        assertEquals(0.4f, b[0].done, 0.01f)
+        assertEquals(0f, b[1].done)
+    }
+
+    @Test fun finishedBlocksStayFullAsTheDayGoesOn() {
+        val cycle2 = skip(p, start(p, 0), 50 * MIN) // straight into the first break
+        val b = dayBlocks(p, cycle2, 50 * MIN)
+        assertEquals(1f, b[0].done) // the work block is behind you
+        assertTrue(b[1].done < 1f) // the break has only just begun
+        assertEquals(0f, b[2].done)
+    }
+
+    // Starting late: how much of your day is still ahead.
+
+    private val day = s.copy(workStart = 9 * 60, workEnd = 17 * 60 + 30) // 510 min, 8 cycles, 30 spare
+
+    @Test fun theWholeDayIsAheadWhenItHasNotStarted() {
+        assertEquals(510, minsLeftOfDay(9 * 60, day.workStart, day.workEnd))
+        assertEquals(510, minsLeftOfDay(7 * 60, day.workStart, day.workEnd)) // before your hours
+        assertEquals(8, cyclesLeftToday(day, 7 * 60))
+    }
+
+    @Test fun lessIsAheadOnceTheDayIsUnderway() {
+        assertEquals(350, minsLeftOfDay(11 * 60 + 40, day.workStart, day.workEnd))
+        assertEquals(5, cyclesLeftToday(day, 11 * 60 + 40)) // 350 / 60
+    }
+
+    @Test fun minuteOfDayReadsTheClockNotTheEpoch() {
+        val utc = java.util.TimeZone.getTimeZone("UTC")
+        assertEquals(0, minuteOfDay(0, utc))
+        assertEquals(11 * 60 + 40, minuteOfDay((11 * 60 + 40) * MIN, utc))
+        assertEquals(9 * 60, minuteOfDay(5 * 24 * 60 * MIN + 9 * 60 * MIN, utc)) // five days on, same clock time
+    }
+
+    @Test fun nothingIsAheadOnceYourHoursAreOver() {
+        assertEquals(0, minsLeftOfDay(17 * 60 + 30, day.workStart, day.workEnd))
+        assertEquals(0, cyclesLeftToday(day, 17 * 60 + 30))
+    }
+
+    @Test fun aShortenedRunPlansFewerCycles() {
+        val five = plan(day, 5)
+        assertEquals(5 * 3, five.size)
+        assertEquals(5, cyclesIn(five))
+        assertEquals(5 * 60 * MIN, five.sumOf { it.ms })
+        assertEquals(8, cyclesIn(plan(day))) // the default is still the whole day
+    }
+
+    @Test fun upgradingFromAStoredCycleCountKeepsTheDayLength() {
+        assertEquals(18 * 60, oldEnd(10 * 60, 8, 50, 10)) // the old default lands on the new one
+        assertEquals(6 * 60, oldEnd(22 * 60, 8, 50, 10)) // and wraps past midnight
+    }
+
+    @Test fun theNudgeFollowsYourStartUnlessYouSetOne() {
+        assertEquals(s.workStart, s.nudgeMin)
+        assertEquals(7 * 60, s.copy(reminderMin = 7 * 60).nudgeMin)
+        assertEquals(9 * 60, s.copy(workStart = 9 * 60).nudgeMin)
+    }
+
+    @Test fun movingTheEndTimeChangesThePlanLength() {
+        val sixHours = s.copy(workEnd = 16 * 60) // 10:00-16:00
+        assertEquals(6, sixHours.cycles)
+        assertEquals(6 * 3, plan(sixHours).size) // WORK, PREP, ACTIVITY per cycle
+    }
 }
