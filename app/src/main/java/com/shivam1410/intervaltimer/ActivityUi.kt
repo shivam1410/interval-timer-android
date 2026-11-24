@@ -314,6 +314,14 @@ fun Countdown(id: String, onDone: () -> Unit) {
         Text(a.emoji, fontSize = 48.sp)
         Text(a.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp))
         Text("${a.quickMin} min", color = cs.onSurfaceVariant)
+        // A walk quietly starts a GPS recording on your phone. Say so before it does, not after.
+        Strava.sportFor(id)?.let {
+            Text(
+                "Starts a GPS recording in Strava",
+                style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
         Box(Modifier.padding(vertical = 32.dp).size(220.dp).clip(CircleShape).background(cs.tertiaryContainer), contentAlignment = Alignment.Center) {
             Text(
                 if (n > 0) "$n" else "Start",
