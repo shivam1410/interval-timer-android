@@ -28,6 +28,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -51,79 +58,7 @@ import java.time.LocalDate
 private const val REST_MS = 30_000
 private const val MOVE_REST_MS = 10_000
 
-/** Home's Habit section: a deck of running habits (only the top card shows, done ones go under), then a row to add one (opens Settings › Habits). */
-@Composable
-fun HabitsSection(onCalendar: (String) -> Unit, onAdd: () -> Unit) {
-    val habits by Habits.all.collectAsState()
-    val items by Library.items.collectAsState()
-    val running = habits.filter { !it.ended }
-    val today = LocalDate.now()
-    val routines by Routines.all.collectAsState()
-    val deck = habitDeck(running, today, hidden = habitsInRoutines(routines))
-    if (deck.isEmpty()) return // no habits of their own (none, or all in routines): no section; start one from Settings › Stretches
-    Text("Habits", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
-    val left = deck.count { today !in it.done }
-    // habitDeck puts what is still to do first, so the top card is already the useful one. Next › turns
-    // through everything, including today's finished ones: ticking Completed by mistake used to put a
-    // habit out of reach from here entirely, with no way back to untick it.
-    var turn by remember { mutableIntStateOf(0) }
-    val pool = deck
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (pool.isNotEmpty()) {
-            val top = pool[turn % pool.size]
-            val under = (deck.size - 1).coerceAtMost(2)
-            // A stacked deck: the top card, with the edges of up to two more peeking out below it.
-            Box(Modifier.padding(bottom = (under * 8).dp)) {
-                (under downTo 1).forEach { i ->
-                    Box(
-                        Modifier.matchParentSize().offset(y = (i * 8).dp).padding(horizontal = (i * 12).dp)
-                            .clip(RoundedCornerShape(12.dp)).background(if (i == 1) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerHighest),
-                    )
-                }
-                key(top.id) { HabitCard(top, items) { onCalendar(top.id) } }
-            }
-            if (deck.size > 1) Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    if (left == 0) "✓ All ${deck.size} done today" else "$left to do · ${deck.size - left} done today",
-                    Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (pool.size > 1) TextButton({ turn = (turn + 1) % pool.size }) { Text("Next ›") }
-            }
-        }
-        AddHabitRow("Add a habit", onAdd)
-    }
-}
 
-/** One running habit: 📅 day (opens its calendar), today's sets × reps, the stage note, Completed and Start. */
-@Composable
-private fun HabitCard(h: Habit, items: List<LibraryItem>, onCalendar: () -> Unit) {
-    val title = habitTitle(h, items)
-    val today = LocalDate.now()
-    val day = h.dayOf(today)
-    val cs = MaterialTheme.colorScheme
-    Card(colors = CardDefaults.cardColors(containerColor = cs.surfaceContainer)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                Row(
-                    Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "Open calendar", onClick = onCalendar).padding(horizontal = 6.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(painterResource(R.drawable.ic_calendar), null, Modifier.size(18.dp), tint = cs.primary)
-                    Text("Day ${day.coerceAtMost(h.totalDays)}/${h.totalDays}", Modifier.padding(start = 6.dp), style = MaterialTheme.typography.labelLarge, color = cs.primary)
-                }
-            }
-            val stage = h.stageOn(day)
-            if (stage == null) {
-                Text("Finished ${h.totalDays} days · ${h.doneCount} done")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button({ Habits.repeat(h.id) }) { Text("Repeat") }
-                    OutlinedButton({ Habits.end(h.id) }) { Text("End") }
-                }
-            } else HabitDoer(h, items, stage, day)
-        }
-    }
-}
 
 /**
  * Doing [h] today ([stage] of [day]): the figure or your clip, sets × reps and the note, Completed and Start
@@ -204,5 +139,39 @@ internal fun AddHabitRow(label: String, onStart: () -> Unit) {
     ) {
         Text("📅", fontSize = 20.sp)
         Text(label, Modifier.padding(start = 12.dp), color = cs.onSurface)
+    }
+}
+
+/**
+ * Doing one stretch, on its own page (the C+ "Habit run" board). It used to be a card wedged into Home,
+ * which is why Home could only ever show one of them at a time.
+ */
+@Composable
+fun HabitRunScreen(id: String, onBack: () -> Unit) {
+    val habits by Habits.all.collectAsState()
+    val items by Library.items.collectAsState()
+    val cs = MaterialTheme.colorScheme
+    val h = habits.firstOrNull { it.id == id } ?: return onBack()
+    val today = LocalDate.now()
+    val day = h.dayOf(today)
+    val stage = h.stageOn(day)
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            RoundIcon(R.drawable.ic_chevron_down, "Back to the day", onBack)
+            Text(
+                "${habitTitle(h, items).uppercase()} · DAY ${day.coerceAtMost(h.totalDays)} OF ${h.totalDays}",
+                Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                letterSpacing = 1.1.sp, color = cs.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 2,
+            )
+            Spacer(Modifier.width(34.dp))
+        }
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 18.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            if (stage == null) Text("This plan has finished.", style = MaterialTheme.typography.titleMedium)
+            else key(h.id) { HabitDoer(h, items, stage, day, onDone = onBack) }
+        }
+        Spacer(Modifier.height(16.dp))
     }
 }

@@ -441,7 +441,7 @@ private fun RunBar(title: String, onMinimise: () -> Unit, onMore: () -> Unit) {
 }
 
 @Composable
-private fun RoundIcon(icon: Int, label: String, onClick: () -> Unit) {
+internal fun RoundIcon(icon: Int, label: String, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     Box(
         Modifier.size(34.dp).clip(CircleShape).background(cs.surface).border(1.dp, cs.outlineVariant, CircleShape)

@@ -186,11 +186,12 @@ fun Root(now: Long) {
             page == "library" -> LibraryScreen(startQuick, onStretches = { stretchBack = "library"; page = "stretches" }) { page = "" }
             page == "shape" -> ShapeScreen(settings, now) { page = "" }
             page == "today" -> DayScreen(History.today()) { page = "" }
+            page.startsWith("habitrun:") -> HabitRunScreen(page.removePrefix("habitrun:")) { page = "" }
             page.startsWith("habit:") -> HabitCalendarScreen(page.removePrefix("habit:")) { page = "" }
             page.startsWith("routine:") -> RoutineScreen(page.removePrefix("routine:"), autoStart) { page = ""; autoStart = false }
             countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null; page = countdownFrom } }
             session.idle || minimised -> Setup(
-                settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit:$it" },
+                settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habitrun:$it" },
                 onAddHabit = { stretchBack = ""; page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = startQuick,
                 onLibrary = { page = "library" }, onShape = { page = "shape" }, onToday = { page = "today" },
                 mini = session.takeIf { minimised }, onRestore = { minimised = false },
