@@ -72,10 +72,7 @@ fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
 
     val signedIn = Drive.profile.collectAsState().value != null
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
-            IconButton({ back() }) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
-            Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
-        }
+        ScreenBar(title, onBack = { back() })
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             when (sub) {
                 "profile" -> ProfilePage()
@@ -203,7 +200,7 @@ private fun ProfilePage() {
     val activity = ctx as? MainActivity
     val cs = MaterialTheme.colorScheme
 
-    Section("Account") {
+    Section("ACCOUNT") {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Avatar(p, 56.dp)
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
@@ -213,12 +210,12 @@ private fun ProfilePage() {
         }
         if (p == null) Button({ activity?.signIn() }) { Text("Sign in with Google") }
     }
-    if (p != null) Section("Sync") {
+    if (p != null) Section("SYNC") {
         Text(syncLine(p), style = MaterialTheme.typography.bodyMedium)
         if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
         Button({ Drive.sync() }) { Text("Sync now") }
     }
-    Section("App updates") {
+    Section("APP UPDATES") {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Interval Timer", style = MaterialTheme.typography.titleMedium)
@@ -246,14 +243,14 @@ private fun NotificationsPage(s: Settings) {
     val cs = MaterialTheme.colorScheme
     fun set(f: Settings.() -> Settings) = Timer.saveSettings(s.f())
 
-        Section("Alerts") {
+        Section("ALERTS") {
             Toggle(R.drawable.ic_gong, "Gong", s.gong) { v -> set { copy(gong = v) } }
             Toggle(R.drawable.ic_vibrate, "Vibration", s.vibrate) { v -> set { copy(vibrate = v) } }
             Text("Volume ${s.volume}%", style = MaterialTheme.typography.bodyMedium)
             Slider(s.volume.toFloat(), { v -> set { copy(volume = v.toInt()) } }, valueRange = 10f..100f)
         }
 
-        Section("Lock screen") {
+        Section("LOCK SCREEN") {
             val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
             val allowed = nm.canUseFullScreenIntent()
             Toggle(R.drawable.ic_lock, "Show phase changes on the lock screen", s.lockPage) { v -> set { copy(lockPage = v) } }
@@ -274,7 +271,7 @@ private fun NotificationsPage(s: Settings) {
             }
         }
 
-        Section("Daily reminder") {
+        Section("DAILY REMINDER") {
             Toggle(R.drawable.ic_gong, "Remind me to start the ${s.cycles} × ${s.workMin}:${s.breakMin}", s.reminder) { v -> set { copy(reminder = v) } }
             if (s.reminder) Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(

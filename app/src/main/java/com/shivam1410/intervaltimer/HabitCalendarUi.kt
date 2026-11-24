@@ -60,10 +60,7 @@ fun HabitCalendarScreen(habitId: String, onBack: () -> Unit) {
     val title = h?.let { habitTitle(it, items) } ?: "Habit"
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
-            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
-            Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
-        }
+        ScreenBar(title, onBack = onBack)
         if (h == null) {
             Text("This habit has ended.", color = cs.onSurfaceVariant)
             return@Column

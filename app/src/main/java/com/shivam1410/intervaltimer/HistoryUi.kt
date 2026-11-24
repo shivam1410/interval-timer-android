@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -69,10 +70,8 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
     val cs = MaterialTheme.colorScheme
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
-            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
-            Text("History", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp).weight(1f))
-            IconButton(onCalendar, Modifier.offset(x = 24.dp)) { Icon(painterResource(R.drawable.ic_calendar), "Calendar", tint = cs.onSurface) }
+        ScreenBar("Progress", onBack = onBack) {
+            RoundIcon(R.drawable.ic_calendar, "Calendar", onCalendar)
         }
 
         // Density, not a streak: a number that can be destroyed by one bad Tuesday earns avoidance, not effort.
@@ -88,15 +87,15 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
         )
 
         val week = (6 downTo 0).map { today.minusDays(it.toLong()) }
-        Panel("Last 7 days · ${fmtDur(week.sumOf { byDate[it]?.workMs ?: 0 })} focused") { WeekBars(week, byDate) }
-        Panel("Consistency · last 12 weeks · tap a day") { Heatmap(today, byDate, onDay) }
+        Panel("LAST 7 DAYS · ${fmtDur(week.sumOf { byDate[it]?.workMs ?: 0 })} focused") { WeekBars(week, byDate) }
+        Panel("LAST 12 WEEKS · tap a day") { Heatmap(today, byDate, onDay) }
 
         // Per habit, the same forgiving measure as the day's: how often, out of how long it has existed.
         // A habit with fewer than three finishes is left out rather than shown as a near-zero.
         val items by Library.items.collectAsState()
         val habitRows = Habits.all.collectAsState().value
             .filterNot { it.ended }.map { it to habitDensity(it, today) }.filter { it.second.worthShowing }
-        if (habitRows.isNotEmpty()) Panel("By habit") {
+        if (habitRows.isNotEmpty()) Panel("BY HABIT") {
             habitRows.forEach { (h, d) ->
                 Line(habitTitle(h, items), "${d.done} of ${d.of}")
                 // The count says how often, the strip says which days — the gaps are the useful part.
@@ -115,7 +114,7 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
         val total = days.sumOf { it.workMs }
         // Four zeros under a headline that already says "Nothing here yet" is the printed zero the rest
         // of this screen is careful to avoid. The panel arrives with the first day worth counting.
-        if (days.isNotEmpty()) Panel("All time") {
+        if (days.isNotEmpty()) Panel("ALL TIME") {
             Line("Focused", fmtDur(total))
             Line("Cycles completed", "${days.sumOf { it.cycles }}")
             Line("Active days", "${active.size}")
@@ -128,14 +127,14 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
         val since = today.minusDays(29)
         val perActivity = activityTotals(timelines.filterKeys { !it.isBefore(since) }.values.flatten()).entries.sortedByDescending { it.value }
         val ambientMs = ambient.filterKeys { !it.isBefore(since) }.values.sum()
-        Panel("Activities · last 30 days") {
+        Panel("ACTIVITIES · last 30 days") {
             if (perActivity.isEmpty() && ambientMs == 0L) Text("Breaks and quick timers show here by activity.", color = cs.onSurfaceVariant)
             perActivity.forEach { (id, ms) -> Line(activityLabel(id), fmtDur(ms)) }
             if (ambientMs > 0) Line("🎧 Ambient sounds (not break)", fmtDur(ambientMs))
         }
 
         // Its own "nothing yet" said the headline's line over again, in smaller type.
-        if (days.isNotEmpty()) Panel("Recent days") {
+        if (days.isNotEmpty()) Panel("RECENT DAYS") {
             val fmt = DateTimeFormatter.ofPattern("EEE, MMM d")
             days.sortedByDescending { it.date }.take(10).forEach { d ->
                 Line(
@@ -160,8 +159,17 @@ internal fun Big(label: String, value: String, modifier: Modifier, bg: Color, fg
 
 @Composable
 internal fun Panel(title: String, content: @Composable () -> Unit) {
-    Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+    // The boards label a section in small caps with air between the letters, not a coloured heading.
+    Text(
+        title, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+        letterSpacing = 1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
+    )
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shape = RoundedCornerShape(16.dp),
+    ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
     }
 }

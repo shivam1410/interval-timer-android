@@ -59,10 +59,7 @@ fun CalendarScreen(onPick: (LocalDate) -> Unit, onBack: () -> Unit) {
     val cs = MaterialTheme.colorScheme
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
-            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
-            Text("Calendar", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
-        }
+        ScreenBar("Calendar", onBack = onBack)
 
         Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton({ month = ym.minusMonths(1).toString() }) {
@@ -106,7 +103,7 @@ fun CalendarScreen(onPick: (LocalDate) -> Unit, onBack: () -> Unit) {
         }
 
         val inMonth = days.filter { YearMonth.from(it.date) == ym }
-        Panel("This month") {
+        Panel("THIS MONTH") {
             Line("Focused", fmtDur(inMonth.sumOf { it.workMs }))
             Line("Cycles completed", "${inMonth.sumOf { it.cycles }}")
             Line("Active days", "${inMonth.count { it.active }}")

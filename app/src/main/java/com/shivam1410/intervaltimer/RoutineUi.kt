@@ -591,10 +591,7 @@ fun RoutineCalendarScreen(id: String, onBack: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val today = LocalDate.now()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
-            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
-            Text("${r.emoji} ${r.name}", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
-        }
+        ScreenBar("${r.emoji} ${r.name}", onBack = onBack)
         // How often, not how unbroken: a run of days is a number one missed Tuesday destroys, and a
         // number like that earns avoidance rather than effort. The count stays; the streak goes.
         Text(

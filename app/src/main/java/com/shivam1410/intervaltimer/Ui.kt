@@ -500,12 +500,9 @@ private fun ShapeScreen(s: Settings, now: Long, onBack: () -> Unit) {
     val scheduled by Timer.scheduledAt.collectAsState()
     fun set(f: Settings.() -> Settings) = Timer.saveSettings(s.f())
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
-            Text("Shape of the day", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
-        }
+        ScreenBar("Shape of the day", "Hours in, cycles out", onBack)
 
-        Section("Your hours") {
+        Section("YOUR HOURS") {
             TimeRow("Day starts", s.workStart) { v -> set { copy(workStart = v) } }
             TimeRow("Day ends", s.workEnd) { v -> set { copy(workEnd = v) } }
             // The cycle count is worked out from the hours, never typed in.
@@ -517,7 +514,7 @@ private fun ShapeScreen(s: Settings, now: Long, onBack: () -> Unit) {
             )
         }
 
-        Text("Rhythm", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+        Text("RHYTHM", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             PRESETS.forEach { p ->
                 PresetChip(p.name.substringBefore(' '), "${p.work}:${p.brk}", !s.custom && s.workMin == p.work && s.breakMin == p.brk) {
@@ -534,13 +531,13 @@ private fun ShapeScreen(s: Settings, now: Long, onBack: () -> Unit) {
 
         // Hours in, cycles out — and this is what the cycles actually buy. The count alone never said
         // whether eight cycles meant a long day or a short one.
-        Section("That makes") {
+        Section("THAT MAKES") {
             Line("Focus", fmtDur(s.cycles * s.workMin * MIN))
             Line("Breaks", fmtDur(s.cycles * s.breakMin * MIN))
             Line("Spare at the end", if (s.spare > 0) fmtDur(s.spare * MIN) else "none")
         }
 
-        Section("Start it later") {
+        Section("START IT LATER") {
             // Picking an hour arms it there and then, rather than leaving it for a button on another screen.
             StartAt(scheduled, now) { at ->
                 Timer.scheduleStart(at)
@@ -557,16 +554,12 @@ private fun LibraryScreen(onQuick: (String) -> Unit, onStretches: () -> Unit, on
     val cs = MaterialTheme.colorScheme
     val ambient by Timer.ambient.collectAsState()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
-            Text("Library", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
-        }
-        Text("Tap any of these to start it now.", color = cs.onSurfaceVariant)
+        ScreenBar("Your things", "Tap any of them to start it now", onBack)
         QuickTimers(onQuick)
         MyLibrary(onQuick)
         PlansShelf(onStretches)
         Text(
-            "Sound while you work", style = MaterialTheme.typography.titleSmall, color = cs.primary,
+            "SOUND WHILE YOU WORK", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant,
             modifier = Modifier.padding(top = 24.dp, bottom = 4.dp),
         )
         Text(
@@ -583,7 +576,7 @@ private fun LibraryScreen(onQuick: (String) -> Unit, onStretches: () -> Unit, on
 @Composable
 private fun QuickTimers(onQuick: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
-    Text("Quick timers", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+    Text("BUILT IN", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     TileGrid(QUICK.map(::activity)) { a ->
         ActivityTile(a, "${a.quickMin} min", cs.surfaceContainer, cs.onSurface, cs.onSurfaceVariant, "Start ${a.name}") { onQuick(a.id) }
     }
@@ -625,8 +618,17 @@ internal fun RowScope.Tile(
 
 @Composable
 fun Section(title: String, content: @Composable () -> Unit) {
-    Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+    // The boards label a section in small caps with air between the letters, not a coloured heading.
+    Text(
+        title, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+        letterSpacing = 1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
+    )
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shape = RoundedCornerShape(16.dp),
+    ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
     }
 }
@@ -1044,5 +1046,33 @@ private fun AlsoToday(onRoutine: (String) -> Unit, onHabit: (String) -> Unit, on
             }
         }
         AddHabitRow("Add a habit", onAddHabit)
+    }
+}
+
+/**
+ * The header every secondary screen wears on the boards: a round chevron that closes the screen, the
+ * title beside it, and a quiet line under it. Not a back arrow with a headline — the boards never
+ * draw one, and the chevron says "this came up over the day" rather than "you have gone somewhere".
+ */
+@Composable
+internal fun ScreenBar(
+    title: String,
+    subtitle: String? = null,
+    onBack: () -> Unit,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        RoundIcon(R.drawable.ic_chevron_down, "Back", onBack)
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 21.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            subtitle?.let {
+                Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            }
+        }
+        trailing?.invoke()
     }
 }

@@ -81,7 +81,7 @@ fun MyLibrary(onQuick: (String) -> Unit = {}) {
     val cs = MaterialTheme.colorScheme
     val tags = items.map { it.tag }.filter { it.isNotBlank() }.distinct()
 
-    Text("My library", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+    Text("YOUR OWN FILES", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Guarded: one timer at a time, so a workday or another quick timer is ended only after you say so.
         val start = rememberStartGuard { id -> items.firstOrNull { "lib:${it.id}" == id }?.let { startLibraryItem(ctx, it) } }
@@ -302,7 +302,7 @@ fun PlansShelf(onCatalogue: () -> Unit) {
     val items by Library.items.collectAsState()
     val running = habits.filter { !it.ended }
     val cs = MaterialTheme.colorScheme
-    Text("Plans", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 4.dp))
+    Text("PLANS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 24.dp, bottom = 4.dp))
     Text(
         if (running.isEmpty()) "A 30-day plan: the dose grows over the days, and what you did is kept."
         else "The dose grows over the days, and what you did is kept.",

@@ -172,7 +172,7 @@ fun StretchesPage(open: (String) -> Unit) {
         // The catalogue alone never said which of these you are already doing, so the page you go to for
         // a new plan was the one page that would not tell you about the ones you have.
         if (running.isNotEmpty()) {
-            Text("Running now", style = MaterialTheme.typography.titleSmall, color = cs.primary)
+            Text("RUNNING NOW", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant)
             running.forEach { h ->
                 val day = h.dayOf(today)
                 Row(card().clickable(onClickLabel = "Open the calendar") { open("habit:${h.id}") }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -189,7 +189,7 @@ fun StretchesPage(open: (String) -> Unit) {
             }
         }
         AddRow("✏️", "Make your own habit", "Any exercise, your own numbers") { custom = true }
-        Text("30-day plans", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 8.dp))
+        Text("THE CATALOGUE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
         CATALOG.forEach { e ->
             Row(card().clickable(onClickLabel = "See the plan") { open("plan:${e.id}") }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.width(72.dp)) { MovementDemo(e.demos.first(), 72.dp) }
@@ -239,7 +239,7 @@ fun PlanScreen(entryId: String, onBack: () -> Unit, onStarted: () -> Unit) {
             if (e.grow) "Week 1: ${label(stages.first())} · then one more set each week" else "Every day: ${label(stages.first())}",
             style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
         )
-        Text("Your 30 days, from today", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(bottom = 4.dp))
+        Text("YOUR 30 DAYS, FROM TODAY", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
         PlanGrid(draft, todayN = 1) { editing = it }
         Text("Tap a day to change it before you start.", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
         Spacer(Modifier.height(12.dp))
@@ -247,7 +247,7 @@ fun PlanScreen(entryId: String, onBack: () -> Unit, onStarted: () -> Unit) {
         val routines by Routines.all.collectAsState()
         val choices = routines.filterNot { it.deleted }
         if (choices.isNotEmpty()) {
-            Text("Do it in", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 4.dp, bottom = 4.dp))
+            Text("DO IT IN", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp, bottom = 4.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(inRoutine == null, { inRoutine = null }, { Text("On its own") })
                 choices.forEach { r ->

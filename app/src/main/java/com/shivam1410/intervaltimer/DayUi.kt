@@ -74,17 +74,16 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
     val cs = MaterialTheme.colorScheme
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).offset(x = (-12).dp)) {
-            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
-            val title = if (date == History.today()) "Today" else date.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
-            Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
-        }
+        ScreenBar(
+            if (date == History.today()) "Today" else date.format(DateTimeFormatter.ofPattern("EEEE d MMM")),
+            "What actually happened", onBack,
+        )
         Row(Modifier.fillMaxWidth().padding(top = 12.dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Big("🎯 Focused", fmtDur(work), Modifier.weight(1f).fillMaxHeight(), cs.primaryContainer, cs.onPrimaryContainer)
             Big("🌿 Break", fmtDur(rest), Modifier.weight(1f).fillMaxHeight(), cs.secondaryContainer, cs.onSecondaryContainer)
         }
 
-        Panel("How the day went") {
+        Panel("HOW THE DAY WENT") {
             if (segs.isEmpty()) {
                 // "Nothing recorded" was a lie on a day of routines and habits: this panel is the workday only.
                 val msg = if (work + rest > 0) "This day only has totals: the timeline is recorded from v1.8.0 on."
@@ -97,7 +96,7 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
         }
 
         if (segs.isNotEmpty() || work + rest > 0) {
-            Panel("Summary") {
+            Panel("SUMMARY") {
                 Line("Cycles completed", "$cycles")
                 val ambientMs = History.ambient.collectAsState().value[date] ?: 0
                 if (ambientMs > 0) Line("🎧 Ambient sounds (not break)", fmtDur(ambientMs))
@@ -122,7 +121,7 @@ fun DayScreen(date: LocalDate, onBack: () -> Unit) {
         val habitsDone = Habits.all.collectAsState().value.filter { date in it.done }
             .map { h -> habitTimes[date]?.get(h.id).let { Triple(it, it?.let(::clockOfDay) ?: "—", habitTitle(h, items)) } }
         val lines = (blocks + routinesDone + habitsDone).sortedWith(compareBy(nullsLast()) { it.first })
-        if (lines.isNotEmpty()) Panel("What actually happened") {
+        if (lines.isNotEmpty()) Panel("WHAT ACTUALLY HAPPENED") {
             lines.forEach { (_, at, what) -> Line(at, what) }
         }
         Box(Modifier.height(24.dp))
