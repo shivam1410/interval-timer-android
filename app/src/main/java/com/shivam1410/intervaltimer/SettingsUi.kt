@@ -72,12 +72,20 @@ fun SettingsScreen(s: Settings, start: String = "", onBack: () -> Unit) {
     if (sub.startsWith("plan:")) return PlanScreen(sub.removePrefix("plan:"), onBack = { back() }) { if (start == "stretches") onBack() else sub = "habits" }
     if (sub.startsWith("habit:")) return HabitCalendarScreen(sub.removePrefix("habit:")) { back() }
     if (sub.startsWith("routine-cal:")) return RoutineCalendarScreen(sub.removePrefix("routine-cal:")) { back() }
-    val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Notifications"; "toggl" -> "Toggl Track"; "habits" -> "Habits & routines"; "stretches" -> "Stretches"; "icon" -> "App icon"; else -> "Settings" }
+    val title = when (sub) { "profile" -> "Profile"; "notifications" -> "Alerts and cues"; "toggl" -> "Toggl Track"; "habits" -> "Habits & routines"; "stretches" -> "Stretches"; "icon" -> "App icon"; else -> "Settings" }
+    // The boards give each page a quiet line saying what is on it, not just its name.
+    val running = Habits.all.collectAsState().value.count { !it.ended }
+    val subtitle = when (sub) {
+        "stretches" -> "${CATALOG.size} 30-day plans · $running running"
+        "habits" -> "Your day by time"
+        "notifications" -> "Gong, lock screen, reminder, cues"
+        else -> null
+    }
     val cs = MaterialTheme.colorScheme
 
     val signedIn = Drive.profile.collectAsState().value != null
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        ScreenBar(title, onBack = { back() })
+        ScreenBar(title, subtitle, onBack = { back() })
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             when (sub) {
                 "profile" -> ProfilePage()

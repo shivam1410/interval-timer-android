@@ -524,18 +524,52 @@ private fun ShapeScreen(s: Settings, now: Long, onBack: () -> Unit) {
             PresetChip("Custom", if (s.custom) "${s.workMin}:${s.breakMin}" else "···", s.custom) { set { copy(custom = true) } }
         }
         Section("") {
-            Stepper("Work", s.workMin, "min", 1..180) { v -> set { copy(workMin = v, custom = true) } }
-            Stepper("Break", s.breakMin, "min", 1..60) { v -> set { copy(breakMin = v, custom = true) } }
-            Stepper("Prepare (in break)", s.prepMin, "min", 0..10) { v -> set { copy(prepMin = v) } }
+            Stepper("Work", s.workMin, "min", 1..180, "One block of focus") { v -> set { copy(workMin = v, custom = true) } }
+            Stepper("Break", s.breakMin, "min", 1..60, "Between blocks") { v -> set { copy(breakMin = v, custom = true) } }
+            Stepper("Prepare (in break)", s.prepMin, "min", 0..10, "Lie down before the activity") { v -> set { copy(prepMin = v) } }
         }
 
-        // Hours in, cycles out — and this is what the cycles actually buy. The count alone never said
-        // whether eight cycles meant a long day or a short one.
-        Section("THAT MAKES") {
-            Line("Focus", fmtDur(s.cycles * s.workMin * MIN))
-            Line("Breaks", fmtDur(s.cycles * s.breakMin * MIN))
-            Line("Spare at the end", if (s.spare > 0) fmtDur(s.spare * MIN) else "none")
+        // Hours in, cycles out, and what the cycles buy — the count alone never said whether eight
+        // cycles meant a long day or a short one. Worked out, never typed in.
+        Column(
+            Modifier.fillMaxWidth().padding(top = 24.dp).clip(RoundedCornerShape(16.dp)).background(cs.surface)
+                .border(1.5.dp, cs.primary, RoundedCornerShape(16.dp)).padding(15.dp),
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "THAT MAKES", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.primary,
+                )
+                Text(
+                    "worked out for you", style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold, color = cs.onSurfaceVariant,
+                )
+            }
+            Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.Bottom) {
+                Text("${s.cycles}", fontSize = 44.sp, fontWeight = FontWeight.Bold, lineHeight = 46.sp)
+                Text(
+                    if (s.cycles == 1) "  cycle fits" else "  cycles fit", Modifier.padding(bottom = 4.dp),
+                    fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Figure(fmtDur(s.cycles * s.workMin * MIN), "focus")
+                Figure(fmtDur(s.cycles * s.breakMin * MIN), "breaks")
+                Figure(if (s.spare > 0) fmtDur(s.spare * MIN) else "none", "spare")
+            }
         }
+
+        Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "The daily nudge follows your start time", Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+            )
+            Text(clockMin(s.nudgeMin), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        }
+
+        Button(
+            onBack, Modifier.fillMaxWidth().padding(top = 12.dp).height(72.dp), shape = RoundedCornerShape(20.dp),
+        ) { Text("Use this shape", fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
 
         Section("START IT LATER") {
             // Picking an hour arms it there and then, rather than leaving it for a button on another screen.
@@ -664,9 +698,15 @@ private fun NumberDialog(label: String, value: Int, unit: String, range: IntRang
 }
 
 @Composable
-internal fun Stepper(label: String, value: Int, unit: String, range: IntRange, onChange: (Int) -> Unit) {
+internal fun Stepper(label: String, value: Int, unit: String, range: IntRange, note: String? = null, onChange: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f))
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            // The board names what each number is for: "work" alone never said which minutes it meant.
+            note?.let {
+                Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         IconButton({ onChange((value - 1).coerceIn(range)) }, enabled = value > range.first) { Text("−", fontSize = 22.sp) }
         // Tap the number to type it; −/+ stay for small nudges.
         var editing by remember { mutableStateOf(false) }
@@ -1076,5 +1116,14 @@ internal fun ScreenBar(
             }
         }
         trailing?.invoke()
+    }
+}
+
+/** One of the "that makes" figures: the number in full strength, what it is in grey beside it. */
+@Composable
+private fun Figure(value: String, label: String) {
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+        Text(" $label", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
