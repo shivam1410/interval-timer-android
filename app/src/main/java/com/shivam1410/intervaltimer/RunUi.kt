@@ -55,6 +55,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -181,8 +184,21 @@ internal fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Lon
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         val outline = MaterialTheme.colorScheme.outlineVariant
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            if (isWork) WorkScreen(plan, s, now, over, onMinimise, { more = true })
+        // A timer on its own is one thing in the middle of the screen, as the board draws it; a workday
+        // has a cue and cards to stack from the top. Short content centres, tall content still scrolls.
+        RunBar(
+            (if (isWork) "WORK · CYCLE ${p.cycle} OF ${cyclesIn(plan)}"
+            else if (quick) chosen.name.uppercase() + " · ON ITS OWN"
+            else "BREAK · CYCLE ${p.cycle} OF ${cyclesIn(plan)}") + if (over != null) " · OVERTIME" else "",
+            onMinimise, { more = true },
+        )
+        BoxWithConstraints(Modifier.weight(1f)) {
+        val tall = maxHeight
+        Column(
+            Modifier.verticalScroll(rememberScrollState()).heightIn(min = tall),
+            verticalArrangement = if (quick) Arrangement.Center else Arrangement.Top,
+        ) {
+            if (isWork) WorkScreen(plan, s, now, over)
             else BreakScreen(plan, s, settings, now, over, chosen, onMinimise, { more = true })
             routine?.let { id ->
                 TextButton({ onRoutine(id) }, Modifier.padding(top = 8.dp)) { Text("\u2039  Back to the steps") }
@@ -191,7 +207,8 @@ internal fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Lon
             if (!quick && isWork) NextBreakCard(plan, s, settings, now)
             if (!isWork && !quick && p.kind == Kind.PREP) TwoChoices(chosen) { more = true }
             if (!isWork && p.kind == Kind.ACTIVITY) ActivityCue(chosen, s.phaseMs - left, s.paused)
-            Spacer(Modifier.weight(1f))
+            // Pushes the break's prompt down to the buttons. The work screen does its own spacing.
+            if (!quick && !isWork) Spacer(Modifier.weight(1f))
             // The board pins the break's prompt above the buttons, under a line: it is the last thing
             // you read before deciding, not a card competing with the choice itself.
             if (!isWork && !quick) {
@@ -212,15 +229,21 @@ internal fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Lon
                 }
             }
         }
+        }
+        // How often this has happened lately — the dots say which days, the line says where this one lands.
+        if (quick) s.quick?.let { QuickTally(it, chosen) }
         // Pause · the big one · End — the board's row, square buttons flanking what you actually press.
         Row(
             Modifier.fillMaxWidth().padding(vertical = 13.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (over == null) SquareButton(if (s.paused) "Resume" else "Pause", accent) {
+            // The work board flanks the main action with Pause and End; the break board offers only
+            // +10 and the way back. What a board leaves off is in the ⋯ sheet, not gone.
+            if (over == null && (isWork || quick)) SquareButton(if (s.paused) "Resume" else "Pause", accent) {
                 if (s.paused) Timer.resume() else Timer.pause()
             }
+            if (quick || !isWork) SquareButton("+10 min", accent) { Timer.extendBreak() }
             Button(
                 { if (over != null) Timer.skip() else if (quick) Timer.stop() else Timer.skip() },
                 Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp),
@@ -236,12 +259,13 @@ internal fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Lon
                     fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                 )
             }
-            if (!isWork || over != null) SquareButton("+10 min", accent) { Timer.extendBreak() }
-            SquareButton("End", MaterialTheme.colorScheme.error) { confirmEnd = true }
+            if (isWork && over != null) SquareButton("+10 min", accent) { Timer.extendBreak() }
+            // Ending lives on the work screen, where the board has it, and in the sheet everywhere else.
+            if (isWork) SquareButton("End", MaterialTheme.colorScheme.error) { confirmEnd = true }
         }
     }
 
-    if (more) MoreSheet(s, settings, plan, now, isWork, quick, chosen) { more = false }
+    if (more) MoreSheet(s, settings, plan, now, isWork, quick, chosen, onDiscard = { confirmEnd = true }) { more = false }
 
     if (confirmEnd) {
         AlertDialog(
@@ -458,20 +482,20 @@ internal fun RoundIcon(icon: Int, label: String, modifier: Modifier = Modifier, 
  * enough to read from across the room. A ring says "a timer is running"; this says how much is left.
  */
 @Composable
-private fun WorkScreen(plan: List<Phase>, s: Session, now: Long, over: Long?, onMinimise: () -> Unit, onMore: () -> Unit) {
+private fun ColumnScope.WorkScreen(plan: List<Phase>, s: Session, now: Long, over: Long?) {
     val cs = MaterialTheme.colorScheme
     val p = plan[s.index]
     val left = s.left(now)
     val phaseMs = (s.phaseMs.takeIf { it > 0 } ?: p.ms).coerceAtLeast(1)
     val fill = if (over != null) 1f else (left.toFloat() / phaseMs).coerceIn(0f, 1f)
-    Column(Modifier.fillMaxWidth()) {
-        RunBar("WORK · CYCLE ${p.cycle} OF ${cyclesIn(plan)}" + if (over != null) " · OVERTIME" else "", onMinimise, onMore)
+    apply {
         DayStrip(
             dayBlocks(plan, s, now), Modifier.fillMaxWidth().padding(top = 16.dp),
             from = s.startedAt, to = now + left.coerceAtLeast(0) + plan.drop(s.index + 1).sumOf { it.ms },
         )
+        Spacer(Modifier.weight(1f))
         Text(
-            "THIS BLOCK", Modifier.fillMaxWidth().padding(top = 22.dp), style = MaterialTheme.typography.labelMedium,
+            "THIS BLOCK", Modifier.fillMaxWidth().padding(top = 10.dp), style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp, color = cs.onSurfaceVariant, textAlign = TextAlign.Center,
         )
         Box(
@@ -496,6 +520,7 @@ private fun WorkScreen(plan: List<Phase>, s: Session, now: Long, over: Long?, on
                 )
             }
         }
+        Spacer(Modifier.weight(1f))
     }
 }
 
@@ -511,25 +536,24 @@ private fun BreakScreen(
     val phaseMs = (s.phaseMs.takeIf { it > 0 } ?: p.ms).coerceAtLeast(1)
     val quick = s.quick != null
     val done = if (over != null) 1f else ((phaseMs - left).toFloat() / phaseMs).coerceIn(0f, 1f)
-    val title = when {
-        quick -> chosen.name.uppercase() + " · ON ITS OWN"
-        else -> "BREAK · CYCLE ${p.cycle} OF ${cyclesIn(plan)}"
-    } + if (over != null) " · OVERTIME" else ""
     Column(Modifier.fillMaxWidth()) {
-        RunBar(title, onMinimise, onMore)
         Box(
             Modifier.fillMaxWidth().padding(top = 20.dp).height(16.dp).clip(RoundedCornerShape(5.dp))
                 .background(cs.surfaceContainerHighest),
         ) { Box(Modifier.fillMaxWidth(done).fillMaxHeight().clip(RoundedCornerShape(5.dp)).background(cs.tertiary)) }
         Text(
-            if (over != null) "+" + fmt(over) else fmt(left), Modifier.fillMaxWidth().padding(top = 14.dp),
-            fontSize = 52.sp, fontWeight = FontWeight.Bold, letterSpacing = (-2).sp, textAlign = TextAlign.Center,
+            if (over != null) "+" + fmt(over) else fmt(left),
+            Modifier.fillMaxWidth().padding(top = if (quick) 24.dp else 14.dp),
+            fontSize = if (quick) 76.sp else 52.sp, fontWeight = FontWeight.Bold,
+            letterSpacing = if (quick) (-3.5).sp else (-2).sp, textAlign = TextAlign.Center,
         )
         val back = untilWork(plan, s.index, left)
         Text(
             when {
                 over != null -> "Time's up · tap Next when you're done"
                 back != null -> "Back to work at ${clock(now + back)}"
+                // The clock counts down; without this it never says down from what.
+                quick -> "left of ${spelledMinutes(phaseMs.toLong())} · ends at ${clock(now + left)}"
                 else -> "Ends at ${clock(now + left)}"
             },
             Modifier.fillMaxWidth().padding(top = 4.dp), style = MaterialTheme.typography.bodyMedium,
@@ -569,6 +593,37 @@ private fun BreakScreen(
                 color = cs.onSurfaceVariant,
             )
         }
+    }
+}
+
+/**
+ * "9th walk in 14 days", with a dot per day. Density, not a streak: it counts what happened, and a gap
+ * costs nothing. Hidden until there is something to count.
+ */
+@Composable
+private fun QuickTally(id: String, chosen: Activity) {
+    val timelines by History.timelines.collectAsState()
+    val today = History.today()
+    val before = timesDone(timelines, id, today)
+    if (before < 1) return
+    val cs = MaterialTheme.colorScheme
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 4.dp),
+        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            (13 downTo 0).forEach { d ->
+                val on = timelines[today.minusDays(d.toLong())]?.any { it.label == id } == true
+                Box(
+                    Modifier.size(6.dp).clip(RoundedCornerShape(2.dp))
+                        .background(if (on) cs.tertiary else cs.surfaceContainerHighest),
+                )
+            }
+        }
+        Text(
+            "  ${ordinal(before + 1)} ${chosen.name.lowercase()} in 14 days",
+            style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
+        )
     }
 }
 
@@ -620,15 +675,23 @@ private fun NextBreakCard(plan: List<Phase>, s: Session, settings: Settings, now
 @Composable
 private fun MoreSheet(
     s: Session, settings: Settings, plan: List<Phase>, now: Long, isWork: Boolean, quick: Boolean,
-    chosen: Activity, onDismiss: () -> Unit,
+    chosen: Activity, onDiscard: () -> Unit, onDismiss: () -> Unit,
 ) {
     val cues by Cues.lists.collectAsState()
     val (workDone, breakDone) = totals(plan, s, now)
     ModalBottomSheet(onDismiss) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+        // The picker is as tall as the list of activities, so without this the last thing in the sheet
+        // can sit below the bottom of it, out of reach.
+        Column(
+            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp),
+        ) {
             CueCard(if (isWork) "Start of the day" else "This break", phaseCue(plan[s.index], quick, cues, epochDay(s.startedAt)), key = s.index)
             if (isWork) FocusMusic(settings.focusSound)
             else ActivityPicker(chosen.id, settings.breakMin) { Timer.chooseActivity(it) }
+            TextButton(
+                { onDismiss(); onDiscard() }, Modifier.padding(top = 8.dp),
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) { Text(if (quick) "Throw this timer away" else "End the day") }
             if (!quick) Row(
                 Modifier.fillMaxWidth().padding(top = 16.dp).height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
