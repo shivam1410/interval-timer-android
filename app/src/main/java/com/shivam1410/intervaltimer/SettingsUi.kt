@@ -159,7 +159,7 @@ private fun SettingsList(open: (String) -> Unit) {
             }
         }
         Entry(open = { open("toggl") }) {
-            Glyph { Icon(painterResource(R.drawable.ic_toggl), null, Modifier.size(28.dp), tint = Color.Unspecified) }
+            Glyph { Icon(painterResource(R.drawable.ic_toggl), null, Modifier.size(32.dp), tint = Color.Unspecified) }
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text("Toggl Track", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(if (toggl) "Connected" else "Not connected", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)

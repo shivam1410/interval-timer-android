@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Toggl Track's mark: the power symbol in its pink disc. Its own colours, like the app-icon row's. -->
+<!-- Toggl Track's mark: the power symbol in its pink disc. The disc fills the box, so it sits at the
+     same size as the avatar and the app icon beside it. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -7,15 +8,15 @@
     android:viewportHeight="24">
     <path
         android:fillColor="#E27CD8"
-        android:pathData="M12,1.5 a10.5,10.5 0 1 0 0,21 a10.5,10.5 0 1 0 0,-21 z" />
+        android:pathData="M12,0 a12,12 0 1 0 0,24 a12,12 0 1 0 0,-24 z" />
     <path
-        android:pathData="M8.9,9.3 a4.7,4.7 0 1 0 6.2,0"
+        android:pathData="M8.53,8.86 a5.4,5.4 0 1 0 6.94,0"
         android:strokeColor="#2B1330"
-        android:strokeWidth="1.9"
+        android:strokeWidth="2.2"
         android:strokeLineCap="round" />
     <path
-        android:pathData="M12,5.4 L12,11.7"
+        android:pathData="M12,5.6 L12,12.8"
         android:strokeColor="#2B1330"
-        android:strokeWidth="1.9"
+        android:strokeWidth="2.2"
         android:strokeLineCap="round" />
 </vector>
