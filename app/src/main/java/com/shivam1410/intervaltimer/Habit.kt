@@ -87,6 +87,12 @@ fun habitDensity(h: Habit, today: LocalDate, window: Int = 14): Density {
     return Density(h.done.count { !it.isBefore(from) && !it.isAfter(today) }, of)
 }
 
+/** The same window as [habitDensity], day by day: oldest first, today last. Empty before the habit begins. */
+fun habitDays(h: Habit, today: LocalDate, window: Int = 14): List<Boolean> {
+    val of = habitDensity(h, today, window).of
+    return (of - 1 downTo 0).map { today.minusDays(it.toLong()) in h.done }
+}
+
 /** What to call [h]: its own name, else the linked exercise's, else "Habit". */
 /** Home's deck: habits not done [today] first (in order), then today's done ones; [hidden] (in a routine) left out. */
 fun habitDeck(habits: List<Habit>, today: LocalDate, hidden: Set<String> = emptySet()): List<Habit> =

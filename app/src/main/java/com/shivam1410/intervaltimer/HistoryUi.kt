@@ -97,7 +97,18 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
         val habitRows = Habits.all.collectAsState().value
             .filterNot { it.ended }.map { it to habitDensity(it, today) }.filter { it.second.worthShowing }
         if (habitRows.isNotEmpty()) Panel("By habit") {
-            habitRows.forEach { (h, d) -> Line(habitTitle(h, items), "${d.done} of ${d.of}") }
+            habitRows.forEach { (h, d) ->
+                Line(habitTitle(h, items), "${d.done} of ${d.of}")
+                // The count says how often, the strip says which days — the gaps are the useful part.
+                Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    habitDays(h, today).forEach { done ->
+                        Box(
+                            Modifier.weight(1f).height(8.dp).clip(RoundedCornerShape(3.dp))
+                                .background(if (done) cs.primary else cs.surfaceContainerHighest),
+                        )
+                    }
+                }
+            }
         }
 
         val active = days.filter { it.active }

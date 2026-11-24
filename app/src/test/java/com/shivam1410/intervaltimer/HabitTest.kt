@@ -32,6 +32,17 @@ class HabitTest {
         assertEquals(Density(0, 14), habitDensity(onlyEarly, day(20)))
     }
 
+    // The count says how often; the shape says which days — oldest on the left, today on the right.
+    @Test fun theShapeRunsOldestToTodayAndIsOnlyAsLongAsTheHabitIsOld() {
+        assertEquals(listOf(true, true, false, true), habitDays(habit(done = setOf(day(1), day(2), day(4))), day(4)))
+        // Older than the window: it starts a fortnight back, not at the habit's first day.
+        val old = habit(done = setOf(day(1), day(20)))
+        assertEquals(14, habitDays(old, day(20)).size)
+        assertEquals(List(13) { false } + true, habitDays(old, day(20)))
+        // Before it has begun there is no shape at all.
+        assertEquals(emptyList<Boolean>(), habitDays(habit(), start.minusDays(1)))
+    }
+
     @Test fun aHabitStartingTomorrowHasNothingToMeasure() {
         assertEquals(Density(0, 0), habitDensity(habit(), start.minusDays(1)))
     }
