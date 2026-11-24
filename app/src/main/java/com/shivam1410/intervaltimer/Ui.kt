@@ -281,6 +281,9 @@ private fun Setup(
             DayStrip(
                 dayBlocks(Timer.plan, mini ?: Session(), now), Modifier.fillMaxWidth().padding(top = 14.dp),
                 mark = if (mini == null) dayGone(minuteOfDay(now), s.workStart, (total / 60_000L).toInt()) else null,
+                // Idle, the strip is the hours already printed above it. Running, it is the day you started.
+                from = mini?.startedAt,
+                to = mini?.let { m -> now + m.left(now).coerceAtLeast(0) + Timer.plan.drop(m.index + 1).sumOf { it.ms } },
             )
             // What today already holds. Absent entirely on a morning that hasn't started — the day ahead
             // is the point of this screen, and an empty "Earlier" row would just be furniture.
@@ -396,7 +399,7 @@ private fun UpNext(plan: List<Phase>, s: Session, settings: Settings, now: Long)
  * The point is to read the shape of what's left from across the room, without doing arithmetic.
  */
 @Composable
-private fun DayStrip(blocks: List<DayBlock>, modifier: Modifier = Modifier, mark: Float? = null) {
+private fun DayStrip(blocks: List<DayBlock>, modifier: Modifier = Modifier, mark: Float? = null, from: Long? = null, to: Long? = null) {
     if (blocks.isEmpty()) return
     val cs = MaterialTheme.colorScheme
     val total = blocks.sumOf { it.ms }.toFloat().coerceAtLeast(1f)
@@ -405,31 +408,39 @@ private fun DayStrip(blocks: List<DayBlock>, modifier: Modifier = Modifier, mark
     // used to spend the whole width on spacing and draw nothing at all. Past the point where a gap costs
     // more than a block, they close up and the day reads as one proportional band.
     val gap = if (blocks.size > 48) 0.dp else 2.dp
-    Box(modifier.height(34.dp)) {
-        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.Bottom) {
-            blocks.forEach { b ->
-                Box(
-                    Modifier.weight(b.ms.toFloat().coerceAtLeast(1f))
-                        .fillMaxHeight(if (b.work) 1f else 0.42f)
-                        .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
-                        .background(cs.surfaceVariant),
-                    contentAlignment = Alignment.BottomCenter,
-                ) {
-                    if (b.done > 0f) Box(
-                        Modifier.fillMaxWidth().fillMaxHeight(b.done.coerceIn(0f, 1f))
-                            .background(if (b.work) cs.primary else cs.tertiary),
-                    )
+    Column(modifier) {
+        Box(Modifier.fillMaxWidth().height(34.dp)) {
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.Bottom) {
+                blocks.forEach { b ->
+                    Box(
+                        Modifier.weight(b.ms.toFloat().coerceAtLeast(1f))
+                            .fillMaxHeight(if (b.work) 1f else 0.42f)
+                            .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                            .background(cs.surfaceVariant),
+                        contentAlignment = Alignment.BottomCenter,
+                    ) {
+                        if (b.done > 0f) Box(
+                            Modifier.fillMaxWidth().fillMaxHeight(b.done.coerceIn(0f, 1f))
+                                .background(if (b.work) cs.primary else cs.tertiary),
+                        )
+                    }
                 }
             }
+            // Where you are in the day, drawn where it actually falls rather than described in words. Running,
+            // that is how much you have done; idle, [mark] puts the clock there instead, so a morning you have
+            // not started still shows what is already behind you.
+            val at = if (elapsed > 0.001f && elapsed < 0.999f) elapsed else mark
+            if (at != null) Row(Modifier.matchParentSize()) {
+                Spacer(Modifier.weight(at))
+                Box(Modifier.width(2.dp).fillMaxHeight().background(cs.error))
+                Spacer(Modifier.weight(1f - at))
+            }
         }
-        // Where you are in the day, drawn where it actually falls rather than described in words. Running,
-        // that is how much you have done; idle, [mark] puts the clock there instead, so a morning you have
-        // not started still shows what is already behind you.
-        val at = if (elapsed > 0.001f && elapsed < 0.999f) elapsed else mark
-        if (at != null) Row(Modifier.matchParentSize()) {
-            Spacer(Modifier.weight(at))
-            Box(Modifier.width(2.dp).fillMaxHeight().background(cs.error))
-            Spacer(Modifier.weight(1f - at))
+        // A day under way runs from when you started it, which is not the hours printed above the strip: two
+        // different days on one screen unless the strip says which one it is.
+        if (from != null && to != null) Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Text(clock(from), Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+            Text(clock(to), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
         }
     }
 }
@@ -914,15 +925,10 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
         // The day as it is, not eight identical dots: work and break in proportion, filled as far as you
         // have got, with the clock you started at and the one you are heading for. The same strip Home
         // draws before you begin, so a day running looks like the day you planned.
-        if (!quick) Column(Modifier.fillMaxWidth()) {
-            DayStrip(dayBlocks(plan, s, now), Modifier.fillMaxWidth())
-            Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                val style = MaterialTheme.typography.labelSmall
-                val faint = MaterialTheme.colorScheme.onSurfaceVariant
-                Text(clock(s.startedAt), Modifier.weight(1f), style = style, color = faint)
-                Text(clock(now + left.coerceAtLeast(0) + plan.drop(s.index + 1).sumOf { it.ms }), style = style, color = faint)
-            }
-        }
+        if (!quick) DayStrip(
+            dayBlocks(plan, s, now), Modifier.fillMaxWidth(),
+            from = s.startedAt, to = now + left.coerceAtLeast(0) + plan.drop(s.index + 1).sumOf { it.ms },
+        )
 
         // Overtime: no pause; add 10 more minutes (countdown again) or move on. Right under the ring, where the eye already is.
         if (over != null) Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
