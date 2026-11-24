@@ -129,6 +129,7 @@ fun Root(now: Long) {
     val updateError by Updater.error.collectAsState()
     val plan = remember(settings, session.quick) { session.quick?.let(::quickPlan) ?: plan(settings) }
     val ctx = LocalContext.current
+    var stretchBack by rememberSaveable { mutableStateOf("") }
     var page by rememberSaveable { mutableStateOf("") } // "", "history", "settings", "habits", "stretches", "habit:<id>", "routine:<id>"
     var countdown by rememberSaveable { mutableStateOf<String?>(null) } // quick timer about to start
     // Minimised: whatever is running keeps running, and you get Home back (like a video in its corner).
@@ -180,8 +181,9 @@ fun Root(now: Long) {
             page == "history" -> HistoryScreen { page = "" }
             page == "settings" -> SettingsScreen(settings) { page = "" }
             page == "habits" -> SettingsScreen(settings, start = "habits") { page = "" }
-            page == "stretches" -> SettingsScreen(settings, start = "stretches") { page = "" }
-            page == "library" -> LibraryScreen(startQuick) { page = "" }
+            // The catalogue opens from Home and from the Library; back belongs where you came from.
+            page == "stretches" -> SettingsScreen(settings, start = "stretches") { page = stretchBack }
+            page == "library" -> LibraryScreen(startQuick, onStretches = { stretchBack = "library"; page = "stretches" }) { page = "" }
             page == "shape" -> ShapeScreen(settings, now) { page = "" }
             page == "today" -> DayScreen(History.today()) { page = "" }
             page.startsWith("habit:") -> HabitCalendarScreen(page.removePrefix("habit:")) { page = "" }
@@ -189,7 +191,7 @@ fun Root(now: Long) {
             countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null } }
             session.idle || minimised -> Setup(
                 settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit:$it" },
-                onAddHabit = { page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = startQuick,
+                onAddHabit = { stretchBack = ""; page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = startQuick,
                 onLibrary = { page = "library" }, onShape = { page = "shape" }, onToday = { page = "today" },
                 mini = session.takeIf { minimised }, onRestore = { minimised = false },
             )
@@ -650,7 +652,7 @@ private fun ShapeScreen(s: Settings, now: Long, onBack: () -> Unit) {
 
 /** Everything startable on its own, off Home: one-off timers, your own files, and sound to work to. */
 @Composable
-private fun LibraryScreen(onQuick: (String) -> Unit, onBack: () -> Unit) {
+private fun LibraryScreen(onQuick: (String) -> Unit, onStretches: () -> Unit, onBack: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val ambient by Timer.ambient.collectAsState()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
@@ -661,7 +663,7 @@ private fun LibraryScreen(onQuick: (String) -> Unit, onBack: () -> Unit) {
         Text("Tap any of these to start it now.", color = cs.onSurfaceVariant)
         QuickTimers(onQuick)
         MyLibrary(onQuick)
-        PlansShelf()
+        PlansShelf(onStretches)
         Text(
             "Sound while you work", style = MaterialTheme.typography.titleSmall, color = cs.primary,
             modifier = Modifier.padding(top = 24.dp, bottom = 4.dp),

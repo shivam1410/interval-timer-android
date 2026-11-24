@@ -57,6 +57,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
@@ -296,18 +297,34 @@ private fun TagField(value: String, choices: List<String>, onChange: (String) ->
  * Tapping opens the same doer the Home card uses, so it can be done from here without going looking.
  */
 @Composable
-fun PlansShelf() {
+fun PlansShelf(onCatalogue: () -> Unit) {
     val habits by Habits.all.collectAsState()
     val items by Library.items.collectAsState()
     val running = habits.filter { !it.ended }
-    if (running.isEmpty()) return
     val cs = MaterialTheme.colorScheme
     Text("Plans", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 4.dp))
     Text(
-        "The dose grows over the days, and what you did is kept.",
+        if (running.isEmpty()) "A 30-day plan: the dose grows over the days, and what you did is kept."
+        else "The dose grows over the days, and what you did is kept.",
         style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp),
     )
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { running.forEach { PlanRow(it, items) } }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        running.forEach { PlanRow(it, items) }
+        // The catalogue lived in Settings alone, so "everything you can start, in one place" stopped
+        // short of the one shelf you add to. Starting a plan is not a setting.
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainer)
+                .clickable(onClickLabel = "Browse the catalogue", onClick = onCatalogue).padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("🤸", fontSize = 20.sp)
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(if (running.isEmpty()) "Start a plan" else "Browse the catalogue", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("${CATALOG.size} 30-day plans · make your own", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+            }
+            Text("›", fontSize = 24.sp, color = cs.onSurfaceVariant)
+        }
+    }
 }
 
 @Composable
