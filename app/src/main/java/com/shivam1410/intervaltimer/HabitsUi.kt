@@ -237,7 +237,8 @@ fun PlanScreen(entryId: String, onBack: () -> Unit, onStarted: () -> Unit) {
                 inRoutine?.let { Routines.addHabit(it, id) }
                 onStarted()
             },
-            Modifier.fillMaxWidth().padding(vertical = 16.dp).height(52.dp),
+            Modifier.fillMaxWidth().padding(vertical = 16.dp).height(64.dp),
+            shape = RoundedCornerShape(32.dp),
         ) { Text("Start") }
     }
     editing?.let { d -> DayEditDialog(draft, d, onDismiss = { editing = null }) { stages = it } }

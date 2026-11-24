@@ -171,10 +171,10 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
             }
         }
         if (finished) {
-            Button(onBack, Modifier.fillMaxWidth().padding(bottom = 24.dp).height(64.dp)) { Text("Close", fontSize = 20.sp) }
+            Button(onBack, Modifier.fillMaxWidth().padding(bottom = 24.dp).height(64.dp), shape = RoundedCornerShape(32.dp)) { Text("Close", fontSize = 20.sp) }
         } else {
             // A habit still to do has its own Completed / Start; otherwise the big ✓ moves on.
-            if (!habitToDo) Button(::next, Modifier.fillMaxWidth().height(72.dp)) { Text(if (habit != null) "Next" else "✓  Done", fontSize = 22.sp) }
+            if (!habitToDo) Button(::next, Modifier.fillMaxWidth().height(64.dp), shape = RoundedCornerShape(32.dp)) { Text(if (habit != null) "Next" else "✓  Done", fontSize = 22.sp) }
             Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton({ step-- }, enabled = step > 0) { Text("Back") }
                 TextButton(::next) { Text("Skip") }
@@ -232,6 +232,7 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
         Button(
             { go() },
             Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 24.dp).height(64.dp),
+            shape = RoundedCornerShape(32.dp),
         ) { Text(min?.let { "\u25b6  Start \u00b7 $it min" } ?: "Start", fontSize = 20.sp) }
     }
 }

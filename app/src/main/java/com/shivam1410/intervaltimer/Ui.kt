@@ -181,12 +181,14 @@ fun Root(now: Long) {
             page == "settings" -> SettingsScreen(settings) { page = "" }
             page == "habits" -> SettingsScreen(settings, start = "habits") { page = "" }
             page == "stretches" -> SettingsScreen(settings, start = "stretches") { page = "" }
+            page == "library" -> LibraryScreen(startQuick) { page = "" }
             page.startsWith("habit:") -> HabitCalendarScreen(page.removePrefix("habit:")) { page = "" }
             page.startsWith("routine:") -> RoutineScreen(page.removePrefix("routine:"), autoStart) { page = ""; autoStart = false }
             countdown != null -> countdown?.let { id -> Countdown(id) { countdown = null } }
             session.idle || minimised -> Setup(
                 settings, now, onHistory = { page = "history" }, onSettings = { page = "settings" }, onHabit = { page = "habit:$it" },
                 onAddHabit = { page = "stretches" }, onRoutine = { page = "routine:$it" }, onQuick = startQuick,
+                onLibrary = { page = "library" },
                 mini = session.takeIf { minimised }, onRestore = { minimised = false },
             )
             session.done(plan) -> Done(session, settings) { page = "history" }
@@ -230,7 +232,8 @@ private fun Banner(text: String, action: String, onClick: () -> Unit) {
 @Composable
 private fun Setup(
     s: Settings, now: Long, onHistory: () -> Unit, onSettings: () -> Unit, onHabit: (String) -> Unit, onAddHabit: () -> Unit,
-    onRoutine: (String) -> Unit, onQuick: (String) -> Unit, mini: Session? = null, onRestore: () -> Unit = {},
+    onRoutine: (String) -> Unit, onQuick: (String) -> Unit, onLibrary: () -> Unit,
+    mini: Session? = null, onRestore: () -> Unit = {},
 ) {
     val total = plan(s).sumOf { it.ms }
     // How much of your day is still ahead. Fewer than the full count means you started late.
@@ -304,12 +307,9 @@ private fun Setup(
 
             HabitsSection(onHabit, onAddHabit)
             RoutinesRow(onRoutine)
-            QuickTimers(onQuick)
-            MyLibrary()
-            val ambient by Timer.ambient.collectAsState()
-            Text("Ambient sounds", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
-            // Tap to play, tap again to stop; starting a timer stops it.
-            SoundTiles(ambient.orEmpty(), off = false, MaterialTheme.colorScheme.surfaceContainer, "Ambient") { Timer.playAmbient(it.takeIf { it != ambient }) }
+            // Quick timers, your files and ambient sound used to run on down this same scroll, under a Start
+            // button that had nothing to do with them. They are one tap away instead.
+            LibraryRow(onLibrary)
             Spacer(Modifier.height(16.dp))
         }
         // Set from the Custom schedule; shown (with Cancel) whenever a start is armed, preset picked after or not.
@@ -504,7 +504,55 @@ private fun RowScope.PresetChip(name: String, ratio: String, selected: Boolean, 
     )
 }
 
-/** One-off activity timers on home: tap to start a single NSDR / stretch / walk / … session now. */
+/** Home's one way in to everything you can start on its own. */
+@Composable
+private fun LibraryRow(onLibrary: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val lib = Library.items.collectAsState().value.count { !it.deleted }
+    Row(
+        Modifier.fillMaxWidth().padding(top = 24.dp).clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainer)
+            .clickable(onClickLabel = "Library") { onLibrary() }.padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Library", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "${QUICK.size} quick timers" + (if (lib > 0) " · $lib of your own" else "") + " · ambient sound",
+                style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+            )
+        }
+        Text("›", style = MaterialTheme.typography.headlineSmall, color = cs.onSurfaceVariant)
+    }
+}
+
+/** Everything startable on its own, off Home: one-off timers, your own files, and sound to work to. */
+@Composable
+private fun LibraryScreen(onQuick: (String) -> Unit, onBack: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val ambient by Timer.ambient.collectAsState()
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+            IconButton(onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = cs.onSurface) }
+            Text("Library", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
+        }
+        Text("Tap any of these to start it now.", color = cs.onSurfaceVariant)
+        QuickTimers(onQuick)
+        MyLibrary()
+        Text(
+            "Sound while you work", style = MaterialTheme.typography.titleSmall, color = cs.primary,
+            modifier = Modifier.padding(top = 24.dp, bottom = 4.dp),
+        )
+        Text(
+            "Not something you start — it plays under whatever else is going.",
+            style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp),
+        )
+        // Tap to play, tap again to stop; starting a timer stops it.
+        SoundTiles(ambient.orEmpty(), off = false, cs.surfaceContainer, "Ambient") { Timer.playAmbient(it.takeIf { it != ambient }) }
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+/** One-off activity timers: tap to start a single NSDR / stretch / walk / … session now. */
 @Composable
 private fun QuickTimers(onQuick: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
@@ -979,8 +1027,8 @@ private fun Done(s: Session, settings: Settings, onHistory: () -> Unit) {
             }
         }
         if (q == null) CueCard("Before you stop", endCue(Cues.lists.collectAsState().value), key = s.startedAt)
-        Button({ Timer.stop() }, Modifier.fillMaxWidth().padding(top = 24.dp).height(56.dp)) { Text("Done") }
-        if (s.quick == null) OutlinedButton(onHistory, Modifier.fillMaxWidth().padding(top = 12.dp).height(56.dp)) { Text("View history") }
+        Button({ Timer.stop() }, Modifier.fillMaxWidth().padding(top = 24.dp).height(64.dp), shape = RoundedCornerShape(32.dp)) { Text("Done") }
+        if (s.quick == null) OutlinedButton(onHistory, Modifier.fillMaxWidth().padding(top = 12.dp).height(64.dp), shape = RoundedCornerShape(32.dp)) { Text("View history") }
     }
 }
 
