@@ -123,7 +123,7 @@ private fun DayCell(date: LocalDate?, today: LocalDate, cycles: Int, marked: Boo
         modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp))
             .background(if (usable) shade(cycles) else Color.Transparent)
             .then(if (date == today) Modifier.border(2.dp, cs.primary, RoundedCornerShape(8.dp)) else Modifier)
-            .then(if (usable && date != null) Modifier.clickable { onPick(date) } else Modifier),
+            .then(if (usable) Modifier.clickable { onPick(date) } else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         if (date != null) {
