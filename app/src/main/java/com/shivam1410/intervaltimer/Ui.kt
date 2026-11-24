@@ -812,19 +812,9 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
             ) { Text("Next", fontSize = 18.sp) }
         }
 
-        val cues by Cues.lists.collectAsState()
-        CueCard(if (isWork) "Start of the day" else "This break", phaseCue(p, quick, cues, epochDay(s.startedAt)), key = s.index)
-        if (isWork) FocusMusic(settings.focusSound) else BreakChoices(p, s, chosen, s.phaseMs - left)
-
-        if (!quick) Row(
-            Modifier.fillMaxWidth().padding(top = 16.dp).height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Stat("Today", "${fmtDur(workDone)} work", "${fmtDur(breakDone)} breaks", Modifier.weight(1f).fillMaxHeight())
-            Stat("Next", Timer.subtitle(s, now).removePrefix("Next: ").takeIf { isWork && over == null } ?: nextLabel(plan, s, at = over == null), "", Modifier.weight(1f).fillMaxHeight())
-        }
-
-        Row(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Stopping a timer should never need a scroll: these used to sit under the cue, the sound grid
+        // and the day's totals, which on a phone put them a screen and a half below the clock.
+        Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (over == null) Button(
                 { if (s.paused) Timer.resume() else Timer.pause() },
                 Modifier.weight(1f).height(56.dp),
@@ -844,6 +834,19 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = accent),
             ) { Text("End", fontSize = 18.sp) }
         }
+
+        val cues by Cues.lists.collectAsState()
+        CueCard(if (isWork) "Start of the day" else "This break", phaseCue(p, quick, cues, epochDay(s.startedAt)), key = s.index)
+        if (isWork) FocusMusic(settings.focusSound) else BreakChoices(p, s, chosen, s.phaseMs - left)
+
+        if (!quick) Row(
+            Modifier.fillMaxWidth().padding(top = 16.dp).height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Stat("Today", "${fmtDur(workDone)} work", "${fmtDur(breakDone)} breaks", Modifier.weight(1f).fillMaxHeight())
+            Stat("Next", Timer.subtitle(s, now).removePrefix("Next: ").takeIf { isWork && over == null } ?: nextLabel(plan, s, at = over == null), "", Modifier.weight(1f).fillMaxHeight())
+        }
+
     }
 
     if (confirmEnd) {
