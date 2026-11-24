@@ -139,6 +139,11 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
             Timer.ping(Cue.DONE)
         } else Timer.ping(Cue.SOFT)
     }
+    // Every step already done elsewhere — a routine of nothing but stretches, ticked off from the Library
+    // — leaves it finished without ever having been run. Record it, or the screen says "done" while the
+    // day's record, the calendar and Home all go on saying it never happened.
+    LaunchedEffect(finished) { if (finished && doneToday(r, today) == null) Routines.finish(r.id) }
+
     // The start card, until you start: not while its timer runs, and not once the routine is over. It used
     // to be skipped the moment one step had been done today, dropping you into the middle of the list with
     // no sight of what was already behind you — which is exactly when the overview is worth having.
