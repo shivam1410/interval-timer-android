@@ -397,8 +397,12 @@ private fun DayStrip(blocks: List<DayBlock>, modifier: Modifier = Modifier) {
     val cs = MaterialTheme.colorScheme
     val total = blocks.sumOf { it.ms }.toFloat().coerceAtLeast(1f)
     val elapsed = blocks.sumOf { (it.done * it.ms).toDouble() }.toFloat() / total
+    // The gaps are fixed while the blocks share what is left, so a short rhythm (a 1:1 day is 480 blocks)
+    // used to spend the whole width on spacing and draw nothing at all. Past the point where a gap costs
+    // more than a block, they close up and the day reads as one proportional band.
+    val gap = if (blocks.size > 48) 0.dp else 2.dp
     Box(modifier.height(34.dp)) {
-        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
+        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.Bottom) {
             blocks.forEach { b ->
                 Box(
                     Modifier.weight(b.ms.toFloat().coerceAtLeast(1f))
@@ -630,7 +634,7 @@ private fun LibraryScreen(onQuick: (String) -> Unit, onBack: () -> Unit) {
         }
         Text("Tap any of these to start it now.", color = cs.onSurfaceVariant)
         QuickTimers(onQuick)
-        MyLibrary()
+        MyLibrary(onQuick)
         Text(
             "Sound while you work", style = MaterialTheme.typography.titleSmall, color = cs.primary,
             modifier = Modifier.padding(top = 24.dp, bottom = 4.dp),

@@ -13,6 +13,29 @@ class HabitTest {
         Habit("h1", "item1", start, stages, remindMin = null, done = done, updatedAt = at)
     private fun day(n: Int) = start.plusDays(n - 1L)
 
+    // How often a habit has actually been done lately.
+
+    @Test fun aHabitIsJudgedAgainstItsOwnAgeNotAFortnight() {
+        val fourDaysIn = habit(done = setOf(day(1), day(2), day(4)))
+        assertEquals(Density(3, 4), habitDensity(fourDaysIn, day(4)))
+        assertTrue(habitDensity(fourDaysIn, day(4)).worthShowing)
+        // On its very first day there is one day to judge and nothing worth printing.
+        assertEquals(Density(1, 1), habitDensity(habit(done = setOf(day(1))), day(1)))
+        assertFalse(habitDensity(habit(done = setOf(day(1))), day(1)).worthShowing)
+    }
+
+    @Test fun theWindowStopsAtAFortnightAndOlderDaysDropOut() {
+        val done = (1..20).map { day(it) }.toSet()
+        assertEquals(Density(14, 14), habitDensity(habit(done = done), day(20)))
+        // Days before the window are not counted even though the habit is old enough to open it fully.
+        val onlyEarly = habit(done = setOf(day(1), day(2), day(3)))
+        assertEquals(Density(0, 14), habitDensity(onlyEarly, day(20)))
+    }
+
+    @Test fun aHabitStartingTomorrowHasNothingToMeasure() {
+        assertEquals(Density(0, 0), habitDensity(habit(), start.minusDays(1)))
+    }
+
     @Test fun tibRaiseProgramFollowsTheWeeks() {
         val h = habit()
         assertEquals(30, h.totalDays)

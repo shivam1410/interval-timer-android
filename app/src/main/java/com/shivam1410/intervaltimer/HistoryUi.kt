@@ -91,6 +91,15 @@ private fun Overview(onBack: () -> Unit, onDay: (LocalDate) -> Unit, onCalendar:
         Panel("Last 7 days · ${fmtDur(week.sumOf { byDate[it]?.workMs ?: 0 })} focused") { WeekBars(week, byDate) }
         Panel("Consistency · last 12 weeks · tap a day") { Heatmap(today, byDate, onDay) }
 
+        // Per habit, the same forgiving measure as the day's: how often, out of how long it has existed.
+        // A habit with fewer than three finishes is left out rather than shown as a near-zero.
+        val items by Library.items.collectAsState()
+        val habitRows = Habits.all.collectAsState().value
+            .filterNot { it.ended }.map { it to habitDensity(it, today) }.filter { it.second.worthShowing }
+        if (habitRows.isNotEmpty()) Panel("By habit") {
+            habitRows.forEach { (h, d) -> Line(habitTitle(h, items), "${d.done} of ${d.of}") }
+        }
+
         val active = days.filter { it.active }
         val total = days.sumOf { it.workMs }
         Panel("All time") {

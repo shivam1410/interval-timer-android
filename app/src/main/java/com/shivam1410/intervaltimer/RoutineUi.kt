@@ -39,6 +39,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
@@ -62,10 +63,27 @@ fun RoutinesRow(onOpen: (String) -> Unit) {
     // A stretch added after you finished brings it back, because there is something in it to do again.
     val routines = all.filter { !it.deleted && routineDoneToday(it, habits, today) == null }.sortedBy { it.remindMin ?: Int.MAX_VALUE }
     if (routines.isEmpty()) return
-    Text("Routines", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    val cs = MaterialTheme.colorScheme
+    Text("Routines", style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+    // These were chips on a sideways scroll, so "Leaving the house" read as "Leaving the…" and anything
+    // past the third one was off the edge. A routine is a list; a row can say what is in it.
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         routines.forEach { r ->
-            FilterChip(false, { onOpen(r.id) }, { Text((r.remindMin?.let { "${fmtMinute(it)}  " } ?: "") + "${r.emoji} ${r.name}") })
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainer)
+                    .clickable(onClickLabel = "Open ${r.name}") { onOpen(r.id) }.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(r.emoji, fontSize = 20.sp)
+                Column(Modifier.weight(1f)) {
+                    Text(r.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(routineSummary(r, r.minutes), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                }
+                r.remindMin?.let {
+                    Text(fmtMinute(it), style = MaterialTheme.typography.labelLarge, color = cs.onSurfaceVariant)
+                }
+            }
         }
     }
 }

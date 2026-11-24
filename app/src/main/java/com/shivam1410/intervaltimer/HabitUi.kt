@@ -63,9 +63,11 @@ fun HabitsSection(onCalendar: (String) -> Unit, onAdd: () -> Unit) {
     if (deck.isEmpty()) return // no habits of their own (none, or all in routines): no section; start one from Settings › Stretches
     Text("Habits", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
     val left = deck.count { today !in it.done }
-    // Next › turns through the habits still to do (or all of them once everything is done).
+    // habitDeck puts what is still to do first, so the top card is already the useful one. Next › turns
+    // through everything, including today's finished ones: ticking Completed by mistake used to put a
+    // habit out of reach from here entirely, with no way back to untick it.
     var turn by remember { mutableIntStateOf(0) }
-    val pool = if (left > 0) deck.take(left) else deck
+    val pool = deck
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (pool.isNotEmpty()) {
             val top = pool[turn % pool.size]

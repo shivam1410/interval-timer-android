@@ -76,6 +76,17 @@ fun reminderText(h: Habit, today: LocalDate): String? {
     return "${label(stage)} today$change"
 }
 
+/**
+ * How often [h] has actually been done lately: the same forgiving window as the day's density, measured
+ * from the habit's own start so a plan begun on Tuesday is not judged against a fortnight.
+ */
+fun habitDensity(h: Habit, today: LocalDate, window: Int = 14): Density {
+    val of = (ChronoUnit.DAYS.between(h.start, today).toInt() + 1).coerceAtMost(window)
+    if (of <= 0) return Density(0, 0)
+    val from = today.minusDays((of - 1).toLong())
+    return Density(h.done.count { !it.isBefore(from) && !it.isAfter(today) }, of)
+}
+
 /** What to call [h]: its own name, else the linked exercise's, else "Habit". */
 /** Home's deck: habits not done [today] first (in order), then today's done ones; [hidden] (in a routine) left out. */
 fun habitDeck(habits: List<Habit>, today: LocalDate, hidden: Set<String> = emptySet()): List<Habit> =

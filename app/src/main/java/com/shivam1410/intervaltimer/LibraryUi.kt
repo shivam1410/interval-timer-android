@@ -67,9 +67,9 @@ fun startLibraryItem(ctx: android.content.Context, item: LibraryItem) {
     else if (!item.isPlain) openLink(ctx, item.url) // a plain exercise only runs its timer, note on screen
 }
 
-/** Home section with your own quick exercises: one card per row with thumbnail, title, tag and length; + to add. */
+/** Your own quick exercises: one card per row with thumbnail, title, tag and length; + to add. */
 @Composable
-fun MyLibrary() {
+fun MyLibrary(onQuick: (String) -> Unit = {}) {
     val ctx = LocalContext.current
     val all by Library.items.collectAsState()
     val items = all.filterNot { it.deleted }
@@ -82,7 +82,13 @@ fun MyLibrary() {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Guarded: one timer at a time, so a workday or another quick timer is ended only after you say so.
         val start = rememberStartGuard { id -> items.firstOrNull { "lib:${it.id}" == id }?.let { startLibraryItem(ctx, it) } }
-        items.forEach { item -> LibraryCard(item, onOpen = { start("lib:${item.id}") }, onEdit = { editing = item }) }
+        items.forEach { item ->
+            // An item that opens a video or a file starts at once, so the countdown doesn't strand you
+            // mid-count in another app. A plain exercise opens nothing, so it gets the same 5-4-3-2-1
+            // (and the same Cancel) as a quick timer — tapping one to see what it is shouldn't commit you.
+            val open = if (item.isPlain) ({ onQuick("lib:${item.id}") }) else ({ start("lib:${item.id}") })
+            LibraryCard(item, onOpen = open, onEdit = { editing = item })
+        }
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainerHigh).clickable(onClickLabel = "Add to library") { adding = true }.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
