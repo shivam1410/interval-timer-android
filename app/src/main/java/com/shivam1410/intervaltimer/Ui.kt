@@ -900,7 +900,18 @@ private fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long
             }
         }
 
-        if (!quick) Segments(plan, s, accent)
+        // The day as it is, not eight identical dots: work and break in proportion, filled as far as you
+        // have got, with the clock you started at and the one you are heading for. The same strip Home
+        // draws before you begin, so a day running looks like the day you planned.
+        if (!quick) Column(Modifier.fillMaxWidth()) {
+            DayStrip(dayBlocks(plan, s, now), Modifier.fillMaxWidth())
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                val style = MaterialTheme.typography.labelSmall
+                val faint = MaterialTheme.colorScheme.onSurfaceVariant
+                Text(clock(s.startedAt), Modifier.weight(1f), style = style, color = faint)
+                Text(clock(now + left.coerceAtLeast(0) + plan.drop(s.index + 1).sumOf { it.ms }), style = style, color = faint)
+            }
+        }
 
         // Overtime: no pause; add 10 more minutes (countdown again) or move on. Right under the ring, where the eye already is.
         if (over != null) Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1076,21 +1087,6 @@ private fun Stat(title: String, line1: String, line2: String, modifier: Modifier
     }
 }
 
-@Composable
-private fun Segments(plan: List<Phase>, s: Session, accent: Color) {
-    val cycles = plan.last().cycle
-    val current = plan[s.index].cycle
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        repeat(cycles) { i ->
-            val color = when {
-                i + 1 < current -> accent
-                i + 1 == current -> accent.copy(alpha = 0.5f)
-                else -> MaterialTheme.colorScheme.surfaceContainerHighest
-            }
-            Box(Modifier.weight(1f).height(8.dp).clip(CircleShape).background(color))
-        }
-    }
-}
 
 /** Box breathing: inhale 4s, hold 4s, exhale 4s, hold 4s. */
 @Composable
