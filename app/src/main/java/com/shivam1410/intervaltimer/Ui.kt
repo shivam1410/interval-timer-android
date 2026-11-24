@@ -671,8 +671,36 @@ private fun LibraryScreen(onQuick: (String) -> Unit, onStretches: () -> Unit, on
 private fun QuickTimers(onQuick: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
     Text("BUILT IN", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
-    TileGrid(QUICK.map(::activity)) { a ->
-        ActivityTile(a, "${a.quickMin} min", cs.surfaceContainer, cs.onSurface, cs.onSurfaceVariant, "Start ${a.name}") { onQuick(a.id) }
+    // A row each, as the board has them: a grid of four tiles has room for a name and a number, and the
+    // one thing you want before starting something is what it is.
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        QUICK.map(::activity).forEach { a ->
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surface)
+                    .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
+                    .clickable(onClickLabel = "Start ${a.name}") { onQuick(a.id) }
+                    .padding(horizontal = 13.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(cs.surfaceContainerHighest),
+                    contentAlignment = Alignment.Center,
+                ) { Text(a.emoji, fontSize = 18.sp) }
+                Column(Modifier.weight(1f).padding(start = 11.dp)) {
+                    Text(a.name, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    // The hint is written as a sentence or two; the row has space for the first.
+                    Text(
+                        a.hint.substringBefore(". ").trimEnd('.'), Modifier.padding(top = 1.dp),
+                        style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(
+                    "${a.quickMin} min", Modifier.padding(start = 10.dp),
+                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                )
+            }
+        }
     }
 }
 

@@ -56,6 +56,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -92,12 +100,18 @@ fun MyLibrary(onQuick: (String) -> Unit = {}) {
             val open = if (item.isPlain) ({ onQuick("lib:${item.id}") }) else ({ start("lib:${item.id}") })
             LibraryCard(item, onOpen = open, onEdit = { editing = item })
         }
+        // Dashed, as the board draws it: the way in, not another thing in the list.
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainerHigh).clickable(onClickLabel = "Add to library") { adding = true }.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(16.dp))
+                .dashedBorder(cs.outlineVariant)
+                .clickable(onClickLabel = "Add to library") { adding = true },
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
         ) {
-            Text("➕", fontSize = 20.sp)
-            Text("Add an exercise, a YouTube link or a file", Modifier.padding(start = 12.dp), color = cs.onSurface)
+            Text("+", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = cs.secondary)
+            Text(
+                "  Add an exercise, a link or a file", style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold, color = cs.onSurface,
+            )
         }
     }
     if (adding) LibraryDialog(null, existingTags = tags) { adding = false }
@@ -114,24 +128,27 @@ private fun LibraryCard(item: LibraryItem, onOpen: () -> Unit, onEdit: () -> Uni
         value = withContext(Dispatchers.IO) { Thumbs.get(ctx, item) }?.asImageBitmap()
     }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainer)
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surface)
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
             .combinedClickable(onClickLabel = "Start ${item.title}", onLongClickLabel = "Edit", onLongClick = onEdit, onClick = onOpen)
-            .padding(10.dp),
+            .padding(horizontal = 13.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.width(112.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(10.dp)).background(cs.surfaceContainerHighest), contentAlignment = Alignment.Center) {
-            thumb?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) } ?: Text(item.toActivity().emoji, fontSize = 26.sp)
+        Box(Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(cs.surfaceContainerHighest), contentAlignment = Alignment.Center) {
+            thumb?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) } ?: Text(item.toActivity().emoji, fontSize = 18.sp)
         }
-        Column(Modifier.weight(1f).padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(item.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (item.tag.isNotBlank()) Text(
-                    item.tag, Modifier.clip(RoundedCornerShape(8.dp)).background(cs.secondaryContainer).padding(horizontal = 8.dp, vertical = 2.dp),
-                    style = MaterialTheme.typography.labelMedium, color = cs.onSecondaryContainer, maxLines = 1,
-                )
-                Text("${if (item.tag.isNotBlank()) "  " else ""}${item.minutes} min", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
-            }
+        Column(Modifier.weight(1f).padding(start = 11.dp)) {
+            Text(item.title, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                item.tag.ifBlank { if (item.isPlain) "Your own exercise" else "Your own clip" },
+                Modifier.padding(top = 1.dp), style = MaterialTheme.typography.labelMedium,
+                color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
         }
+        Text(
+            "${item.minutes} min", Modifier.padding(start = 10.dp), style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
@@ -360,4 +377,13 @@ private fun PlanRow(h: Habit, items: List<LibraryItem>) {
             if (open && stage != null) HabitDoer(h, items, stage, day)
         }
     }
+}
+
+
+/** A dashed rounded outline, for the one row on a screen that adds rather than starts. */
+internal fun Modifier.dashedBorder(color: Color, radius: Dp = 16.dp) = drawBehind {
+    drawRoundRect(
+        color, style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))),
+        cornerRadius = CornerRadius(radius.toPx()),
+    )
 }
