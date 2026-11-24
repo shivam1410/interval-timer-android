@@ -1122,7 +1122,10 @@ private fun TodaySoFar(now: Long) {
         if (segs.isNotEmpty()) Column(
             Modifier.fillMaxWidth().padding(top = 9.dp).clip(RoundedCornerShape(16.dp)).background(cs.surface)
                 .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)).padding(12.dp),
-        ) { DayWave(segs) }
+        ) {
+            // The same bar height as the hours strip below it: 34dp of day, 20dp of hour labels.
+            DayWave(segs, height = 54.dp)
+        }
     }
 }
 
@@ -1160,28 +1163,44 @@ private fun StartCard(s: Settings, now: Long, fits: Int, onStart: (Int?) -> Unit
     val cs = MaterialTheme.colorScheme
     val total = plan(s).sumOf { it.ms }
     val late = fits in 1 until s.cycles
+    // Past the end of your hours there is no day left to offer. The card stops being the loud thing on
+    // the screen and offers one block, which is the only honest size at that hour.
+    val over = dayIsOver(minuteOfDay(now), s.workStart, s.workEnd)
+    val oneCycle = plan(s, 1).sumOf { it.ms }
+    val early = !over && !late && minuteOfDay(now) < s.workStart
     Column(
         Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(20.dp)).background(cs.surface)
-            .border(1.5.dp, cs.primary, RoundedCornerShape(20.dp)).padding(16.dp),
+            .border(if (over) 1.dp else 1.5.dp, if (over) cs.outlineVariant else cs.primary, RoundedCornerShape(20.dp))
+            .padding(16.dp),
     ) {
         Text(
             // Spelled, and a sentence starts with a capital: "eight cycles, ending at 4:42 AM." read as a
             // fragment someone had cut the front off.
-            if (late) "${fits.spelled().replaceFirstChar { it.uppercase() }} ${if (fits == 1) "cycle fits" else "cycles fit"} before ${clockMin(s.workEnd)}."
-            else "${s.cycles.spelled().replaceFirstChar { it.uppercase() }} ${if (s.cycles == 1) "cycle" else "cycles"}, ending at ${clock(now + total)}.",
+            when {
+                over -> "Your hours ended at ${clockMin(s.workEnd)}."
+                late -> "${fits.spelled().replaceFirstChar { it.uppercase() }} ${if (fits == 1) "cycle fits" else "cycles fit"} before ${clockMin(s.workEnd)}."
+                else -> "${s.cycles.spelled().replaceFirstChar { it.uppercase() }} ${if (s.cycles == 1) "cycle" else "cycles"}, ending at ${clock(now + total)}."
+            },
             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
         )
         Text(
-            if (late) "Or run the full ${s.cycles.spelled()} and finish at ${clock(now + total)}. Both are fine."
-            else "Start when you like — the hours above are only the shape.",
+            when {
+                over -> "Tomorrow starts at ${clockMin(s.workStart)}. You can still run a block if you want one."
+                late -> "Or run the full ${s.cycles.spelled()} and finish at ${clock(now + total)}. Both are fine."
+                // Starting before your hours begin is allowed; it just isn't what the hours said.
+                early -> "Your hours start at ${clockMin(s.workStart)} — starting now just moves the day earlier."
+                else -> "Start when you like — the hours above are only the shape."
+            },
             style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 5.dp),
         )
         Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (late) {
-                TwoLineButton("Fit to ${clockMin(s.workEnd)}", "$fits ${if (fits == 1) "cycle" else "cycles"}", true, Modifier.weight(1f)) { onStart(fits) }
-                TwoLineButton("Run all ${s.cycles.spelled()}", "ends ${clock(now + total)}", false, Modifier.weight(1f)) { onStart(null) }
-            } else {
-                TwoLineButton("Start now", "ends ${clock(now + total)}", true, Modifier.weight(1f)) { onStart(null) }
+            when {
+                over -> TwoLineButton("One cycle", "ends ${clock(now + oneCycle)}", false, Modifier.weight(1f)) { onStart(1) }
+                late -> {
+                    TwoLineButton("Fit to ${clockMin(s.workEnd)}", "$fits ${if (fits == 1) "cycle" else "cycles"}", true, Modifier.weight(1f)) { onStart(fits) }
+                    TwoLineButton("Run all ${s.cycles.spelled()}", "ends ${clock(now + total)}", false, Modifier.weight(1f)) { onStart(null) }
+                }
+                else -> TwoLineButton("Start now", "ends ${clock(now + total)}", true, Modifier.weight(1f)) { onStart(null) }
             }
         }
     }

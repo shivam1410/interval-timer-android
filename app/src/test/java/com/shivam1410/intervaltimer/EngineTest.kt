@@ -437,4 +437,32 @@ class EngineTest {
         // From a work block it measures the break ahead of the next one.
         assertEquals(MIN + 10 * MIN, untilWork(p, 0, MIN))
     }
+
+    // Whether the day is behind you, which the start card asks before it offers anything.
+    @Test fun onlyAnOrdinaryDayCanBeOver() {
+        assertFalse(dayIsOver(9 * 60, 600, 1080))   // before it begins
+        assertFalse(dayIsOver(14 * 60, 600, 1080))  // in the middle of it
+        assertTrue(dayIsOver(1080, 600, 1080))      // the moment it ends
+        assertTrue(dayIsOver(23 * 60, 600, 1080))
+        // Hours across midnight are never over: the gap is tonight's run waiting to begin.
+        assertFalse(dayIsOver(10 * 60, 1320, 360))
+        assertFalse(dayIsOver(23 * 60, 1320, 360))
+        // A window too short for a single cycle is still a day, not an evening.
+        assertFalse(dayIsOver(9 * 60, 540, 560))
+    }
+
+    // The day's remaining minutes, which decide what the start card offers.
+    @Test fun aDayThatIsOverHasNothingLeftOfIt() {
+        // Hours 10:00-18:00.
+        assertEquals(480, minsLeftOfDay(7 * 60, 600, 1080))   // before it begins: all of it
+        assertEquals(480, minsLeftOfDay(600, 600, 1080))      // on the hour it starts
+        assertEquals(240, minsLeftOfDay(14 * 60, 600, 1080))  // part way through
+        assertEquals(0, minsLeftOfDay(1080, 600, 1080))       // the moment it ends
+        assertEquals(0, minsLeftOfDay(23 * 60, 600, 1080))    // and all evening after it
+        // Hours that cross midnight (22:00-06:00) are never "after the end".
+        assertEquals(480, minsLeftOfDay(10 * 60, 1320, 360))  // mid-afternoon: before tonight's start
+        assertEquals(360, minsLeftOfDay(0, 1320, 360))        // midnight, six hours to go
+        assertEquals(420, minsLeftOfDay(23 * 60, 1320, 360))  // an hour in
+        assertEquals(480, minsLeftOfDay(7 * 60, 1320, 360))   // just after it ended: tonight still fits
+    }
 }

@@ -41,8 +41,26 @@ fun dayGone(nowMin: Int, startMin: Int, planMin: Int): Float? {
     return (since.toFloat() / planMin).takeIf { it > 0f && it < 1f }
 }
 
-fun minsLeftOfDay(nowMin: Int, startMin: Int, endMin: Int): Int =
-    minOf(windowMin(startMin, endMin), ((endMin - nowMin) % (24 * 60) + 24 * 60) % (24 * 60))
+/**
+ * Has the day's window closed? Only hours that stay inside one calendar day can be over: hours that
+ * run past midnight are always either in progress or waiting for tonight. Asked of the clock, not of
+ * how many cycles fit, so a window too short for a whole cycle isn't mistaken for an evening.
+ */
+fun dayIsOver(nowMin: Int, startMin: Int, endMin: Int): Boolean = startMin < endMin && nowMin >= endMin
+
+fun minsLeftOfDay(nowMin: Int, startMin: Int, endMin: Int): Int {
+    // Hours that run past midnight have no "after the end" to sit in: the gap between the end and the
+    // next start is simply before tomorrow's day, so the whole window is still ahead.
+    val overnight = startMin >= endMin
+    val inside = if (overnight) nowMin >= startMin || nowMin < endMin else nowMin in startMin until endMin
+    return when {
+        inside -> ((endMin - nowMin) % (24 * 60) + 24 * 60) % (24 * 60)
+        // Past the end of a normal day: nothing of it is left. It used to return the whole window, so
+        // at eleven at night the app would offer a full day finishing after sunrise.
+        !overnight && nowMin >= endMin -> 0
+        else -> windowMin(startMin, endMin) // before it begins: all of it still fits
+    }
+}
 
 /** The local day [at] falls on, as an epoch day. Taken from a session's start, it stays put past midnight. */
 fun epochDay(at: Long, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): Long =

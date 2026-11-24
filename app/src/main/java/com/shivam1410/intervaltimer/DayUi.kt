@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import java.text.DateFormat
@@ -222,7 +223,7 @@ private fun segmentColor(s: Segment): Color {
  * and pauses drop to the baseline. Overtime gets its own colour.
  */
 @Composable
-internal fun DayWave(segs: List<Segment>) {
+internal fun DayWave(segs: List<Segment>, height: Dp = 170.dp) {
     val cs = MaterialTheme.colorScheme
     val (from, to) = hourSpan(segs, ZoneId.systemDefault())
     val measurer = rememberTextMeasurer()
@@ -232,7 +233,7 @@ internal fun DayWave(segs: List<Segment>) {
     val grid = cs.outlineVariant
     val outline = cs.onSurface.copy(alpha = 0.55f)
 
-    Canvas(Modifier.fillMaxWidth().height(170.dp)) {
+    Canvas(Modifier.fillMaxWidth().height(height)) {
         val labelH = 20.dp.toPx()
         val base = size.height - labelH
         val tall = base - 6.dp.toPx()

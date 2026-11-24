@@ -13,7 +13,10 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   the two ends of the day as a pair of tiles, the rhythm (Workday 50:10 · Deep 90:15 · Pomodoro 25:5 ·
   Custom) and **what that makes**: the cycle count, the day's shape under it, focus, breaks, and the
   minutes that don't fill another cycle, left free rather than padded out. Start late and you get two
-  equal offers, **Fit to 6:00 PM** or **Run all 8**
+  equal offers, **Fit to 6:00 PM** or **Run all 8**. Start before your hours begin and it says so.
+  Past the end of them the card steps back: your hours ended, tomorrow starts at 10:00, and one
+  block is there if you want one — hours that run past midnight are never "over", since the gap is
+  tonight's run waiting to begin
 - **Library** (a row on Home): everything you can start, in one place — **quick timers** for one-off
   sessions (NSDR, Sketch, Stretch, Exercise, Walk, Power nap, Breathing; tapping one counts down
   5-4-3-2-1-Start first), **My library**, the 30-day **plans** you have running with the way into the
