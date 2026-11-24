@@ -48,7 +48,11 @@ fun CalendarScreen(onPick: (LocalDate) -> Unit, onBack: () -> Unit) {
     val days by History.days.collectAsState()
     val byDate = days.associateBy { it.date }
     val habits by Habits.all.collectAsState()
-    val habitDone = habits.flatMap { it.done }.toSet() // any habit, ended ones too
+    // The dot means the day holds something, and a day of nothing but routines held plenty: it opened
+    // into a record listing them while the calendar showed it blank.
+    val routines by Routines.all.collectAsState()
+    val marked = habits.flatMap { it.done }.toSet() + // any habit, ended ones too
+        routines.filterNot { it.deleted }.flatMap { it.done.keys }
     val today = History.today()
     var month by rememberSaveable { mutableStateOf(YearMonth.from(today).toString()) }
     val ym = YearMonth.parse(month)
@@ -95,7 +99,7 @@ fun CalendarScreen(onPick: (LocalDate) -> Unit, onBack: () -> Unit) {
                     repeat(7) { col ->
                         val n = week * 7 + col - lead + 1
                         val date = if (n in 1..ym.lengthOfMonth()) ym.atDay(n) else null
-                        DayCell(date, today, byDate[date]?.cycles ?: 0, date in habitDone, Modifier.weight(1f), onPick)
+                        DayCell(date, today, byDate[date]?.cycles ?: 0, date in marked, Modifier.weight(1f), onPick)
                     }
                 }
             }
@@ -112,7 +116,7 @@ fun CalendarScreen(onPick: (LocalDate) -> Unit, onBack: () -> Unit) {
 }
 
 @Composable
-private fun DayCell(date: LocalDate?, today: LocalDate, cycles: Int, habit: Boolean, modifier: Modifier, onPick: (LocalDate) -> Unit) {
+private fun DayCell(date: LocalDate?, today: LocalDate, cycles: Int, marked: Boolean, modifier: Modifier, onPick: (LocalDate) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val usable = date != null && !date.isAfter(today)
     Box(
@@ -128,7 +132,7 @@ private fun DayCell(date: LocalDate?, today: LocalDate, cycles: Int, habit: Bool
                 color = if (usable) onShade(cycles) else cs.onSurface.copy(alpha = 0.3f),
             )
             // Habit done that day: a small dot under the date.
-            if (habit) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 5.dp).size(5.dp).clip(androidx.compose.foundation.shape.CircleShape).background(cs.primary))
+            if (marked) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 5.dp).size(5.dp).clip(androidx.compose.foundation.shape.CircleShape).background(cs.primary))
         }
     }
 }
