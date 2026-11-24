@@ -316,43 +316,6 @@ private fun Setup(
     }
 }
 
-/**
- * What is coming, with the clock times it will actually happen at. "Break at 2:11" is something you can
- * plan around; "in 32 minutes" is arithmetic you have to do while you are trying to work.
- */
-@Composable
-private fun UpNext(plan: List<Phase>, s: Session, settings: Settings, now: Long) {
-    val next = upNext(plan, s, now)
-    if (next.isEmpty()) return
-    val cs = MaterialTheme.colorScheme
-    val breakName = activity(settings.activity).name
-    val endsAt = now + s.left(now) + plan.drop(s.index + 1).sumOf { it.ms }
-    val after = cyclesAfter(plan, next)
-    Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("NEXT", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, letterSpacing = 1.sp)
-        next.forEach { u ->
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    clock(u.at), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant,
-                    modifier = Modifier.width(72.dp),
-                )
-                Box(
-                    Modifier.width(4.dp).height(if (u.work) 20.dp else 10.dp).clip(RoundedCornerShape(2.dp))
-                        .background(if (u.work) cs.primary else cs.tertiary),
-                )
-                Text(
-                    if (u.work) "Cycle ${u.cycle} · work" else "Break · $breakName",
-                    Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(fmtDur(u.ms), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
-            }
-        }
-        if (after > 0) Text(
-            "then $after more · ends ${clock(endsAt)}",
-            style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
-        )
-    }
-}
 
 /**
  * The day drawn to scale: a tall bar per work block, a short one per break, filled as you get through it.
@@ -448,28 +411,6 @@ private fun ScheduledLine(at: Long) {
 }
 
 /** Header shortcut to History: how many days this month the app was used, next to the profile photo. */
-/** What is running, where Start now would be: tap to go back to its screen. */
-@Composable
-private fun MiniTimer(s: Session, now: Long, onRestore: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    val a = s.quick?.let(::activity)
-    val left = s.left(now)
-    Row(
-        Modifier.fillMaxWidth().padding(20.dp).clip(RoundedCornerShape(32.dp)).background(cs.primaryContainer)
-            .clickable(onClickLabel = "Back to the timer", onClick = onRestore).padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(a?.emoji ?: "⏱", style = MaterialTheme.typography.titleLarge)
-        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-            Text(a?.name ?: "Workday", style = MaterialTheme.typography.titleMedium, color = cs.onPrimaryContainer)
-            Text(
-                if (s.paused) "Paused" else if (left == 0L) "Time's up" else "${fmt(left)} left",
-                style = MaterialTheme.typography.bodySmall, color = cs.onPrimaryContainer,
-            )
-        }
-        Text("Open", style = MaterialTheme.typography.labelLarge, color = cs.onPrimaryContainer)
-    }
-}
 
 /**
  * Only one timer runs at a time. Returns the way to start [start]: straight away when nothing is going,
@@ -525,26 +466,6 @@ private fun RowScope.PresetChip(name: String, ratio: String, selected: Boolean, 
     )
 }
 
-/** Home's one way in to everything you can start on its own. */
-@Composable
-private fun LibraryRow(onLibrary: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    val lib = Library.items.collectAsState().value.count { !it.deleted }
-    Row(
-        Modifier.fillMaxWidth().padding(top = 24.dp).clip(RoundedCornerShape(16.dp)).background(cs.surfaceContainer)
-            .clickable(onClickLabel = "Library") { onLibrary() }.padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text("Library", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "${QUICK.size} quick timers" + (if (lib > 0) " · $lib of your own" else "") + " · ambient sound",
-                style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
-            )
-        }
-        Text("›", style = MaterialTheme.typography.headlineSmall, color = cs.onSurfaceVariant)
-    }
-}
 
 /**
  * The day's shape: the hours you keep and the rhythm you work in. Deciding this is a different act from

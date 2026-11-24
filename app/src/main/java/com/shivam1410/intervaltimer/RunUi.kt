@@ -275,57 +275,6 @@ private fun nextLabel(plan: List<Phase>, s: Session, at: Boolean = true): String
     } + if (at) " at ${clock(s.endsAt)}" else ""
 }
 
-/** Chosen during the break itself: what to do, and whether to make it a long one. */
-@Composable
-private fun BreakChoices(p: Phase, s: Session, chosen: Activity, elapsedMs: Long) {
-    val quick = s.quick != null
-    // The catalogue used to open itself at the start of every break — twenty choices at the moment you
-    // have least appetite for choosing. Prepare now offers two, and the rest is one tap away.
-    var changing by remember(s.index) { mutableStateOf(false) }
-    Card(
-        Modifier.fillMaxWidth().padding(top = 20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-    ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (p.kind == Kind.PREP) {
-                Text("Prepare", style = MaterialTheme.typography.titleLarge)
-                Text("Lie down.\nPut your phone aside.\nClose your eyes.", style = MaterialTheme.typography.bodyLarge)
-                Text("Then: ${chosen.emoji} ${chosen.name}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-            } else {
-                Text("${chosen.emoji}  ${chosen.name}", style = MaterialTheme.typography.titleLarge)
-                Text(chosen.hint, style = MaterialTheme.typography.bodyLarge)
-                // Started on its own, this is the one you chose: say how often it has come round lately.
-                // Not on the first — "1st walk in 14 days" when you have never walked says nothing.
-                if (quick) {
-                    val lines by History.timelines.collectAsState()
-                    val nth = timesDone(lines, chosen.id, History.today()) + 1
-                    if (nth >= 2) Text(
-                        "${ordinal(nth)} in the last 14 days",
-                        style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onTertiaryContainer,
-                    )
-                }
-            }
-            // One row of actions: the activity's own button (play / open) + Change + +10 min, equal height.
-            val cs = MaterialTheme.colorScheme
-            val colors = ButtonDefaults.buttonColors(containerColor = cs.surface, contentColor = cs.onSurface)
-            val pad = PaddingValues(horizontal = 10.dp)
-            val primary = p.kind == Kind.ACTIVITY && hasPrimaryAction(chosen)
-            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (primary) PrimaryAction(chosen, Modifier.weight(1.4f).height(44.dp))
-                // In Prepare the two-choice card carries "Something else…", so this would be a second door
-                // to the same room; it comes back as "Done" once the full picker is open.
-                if (!quick && (p.kind != Kind.PREP || changing)) Button({ changing = !changing }, Modifier.weight(1f).height(44.dp), colors = colors, contentPadding = pad) {
-                    // Toggles the tile picker; "Done" closes it so the row never ends up with a lone button.
-                    Text(if (changing) "Done" else if (primary) "Change" else "Change activity", maxLines = 1)
-                }
-                Button({ Timer.extendBreak() }, Modifier.weight(1f).height(44.dp), colors = colors, contentPadding = pad) { Text("+10 min", maxLines = 1) }
-            }
-            if (p.kind == Kind.ACTIVITY) ActivityCue(chosen, elapsedMs, s.paused)
-            if (p.kind == Kind.PREP && !changing && !quick) TwoChoices(chosen) { changing = true }
-            if (changing) ActivityPicker(chosen.id, Timer.settings.value.breakMin) { Timer.chooseActivity(it) }
-        }
-    }
-}
 
 @Composable
 private fun FocusMusic(selected: String) {
@@ -531,6 +480,14 @@ private fun BreakScreen(
             },
             Modifier.fillMaxWidth().padding(top = 4.dp), style = MaterialTheme.typography.bodyMedium,
             color = cs.onSurfaceVariant, textAlign = TextAlign.Center,
+        )
+        // Box breathing lived inside the old ring, and the activity's own Play / Open button inside the
+        // card the board replaces. Neither belongs to a ring — they belong to the activity.
+        if (p.kind == Kind.ACTIVITY && chosen.id == "breathing" && !s.paused) Box(
+            Modifier.fillMaxWidth().padding(top = 20.dp), contentAlignment = Alignment.Center,
+        ) { Breathing(cs.tertiary) }
+        if (p.kind == Kind.ACTIVITY && hasPrimaryAction(chosen)) PrimaryAction(
+            chosen, Modifier.fillMaxWidth().padding(top = 16.dp).height(48.dp),
         )
     }
 }
