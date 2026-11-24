@@ -193,7 +193,8 @@ fun Root(now: Long) {
                 onLibrary = { page = "library" }, onShape = { page = "shape" }, onToday = { page = "today" },
                 mini = session.takeIf { minimised }, onRestore = { minimised = false },
             )
-            session.done(plan) -> Done(session, settings) { page = "history" }
+            // The day's own record, not the all-time list: right after finishing, today is the question.
+            session.done(plan) -> Done(session, settings) { page = "today" }
             else -> Running(plan, session, settings, now) { page = "routine:$it" }
         }
     }
@@ -1103,7 +1104,7 @@ private fun Breathing(color: Color) {
 // ---------- Done ----------
 
 @Composable
-private fun Done(s: Session, settings: Settings, onHistory: () -> Unit) {
+private fun Done(s: Session, settings: Settings, onDay: () -> Unit) {
     val work = s.workMs
     val rest = s.breakMs
     Column(
@@ -1129,7 +1130,7 @@ private fun Done(s: Session, settings: Settings, onHistory: () -> Unit) {
         }
         if (q == null) CueCard("Before you stop", endCue(Cues.lists.collectAsState().value), key = s.startedAt)
         Button({ Timer.stop() }, Modifier.fillMaxWidth().padding(top = 24.dp).height(64.dp), shape = RoundedCornerShape(32.dp)) { Text("Done") }
-        if (s.quick == null) OutlinedButton(onHistory, Modifier.fillMaxWidth().padding(top = 12.dp).height(64.dp), shape = RoundedCornerShape(32.dp)) { Text("View history") }
+        if (s.quick == null) OutlinedButton(onDay, Modifier.fillMaxWidth().padding(top = 12.dp).height(64.dp), shape = RoundedCornerShape(32.dp)) { Text("See the whole day") }
     }
 }
 
