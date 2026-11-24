@@ -6,13 +6,17 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
 - **Gong + vibration** at every transition (single gong → break, double → work, long → day done)
 - **Home is today**: your hours (10:00 AM — 6:00 PM) and the cycles they buy, the day drawn as a
   strip with a mark where the clock already is, what you did earlier, your habits, your routines and
-  the way into the Library. **Change ›** opens **Shape of the day** — the hours, the rhythm (Workday
-  50:10 · Deep 90:15 · Pomodoro 25:5 · Custom) and **what that makes**: focus, breaks and what stays
-  free at the end. Start late and you get two equal offers, **Fit to 6:00 PM** or **Run all 8**
+  the way into the Library. **Just today…** bends the hours for one day without rewriting the ones you
+  keep; the card says **TODAY'S HOURS** while it is set. Tapping the card opens **Shape of the day** —
+  the two ends of the day as a pair of tiles, the rhythm (Workday 50:10 · Deep 90:15 · Pomodoro 25:5 ·
+  Custom) and **what that makes**: the cycle count, the day's shape under it, focus, breaks, and the
+  minutes that don't fill another cycle, left free rather than padded out. Start late and you get two
+  equal offers, **Fit to 6:00 PM** or **Run all 8**
 - **Library** (a row on Home): everything you can start, in one place — **quick timers** for one-off
   sessions (NSDR, Sketch, Stretch, Exercise, Walk, Power nap, Breathing; tapping one counts down
   5-4-3-2-1-Start first), **My library**, the 30-day **plans** you have running with the way into the
-  catalogue, and ambient sound
+  catalogue, and ambient sound. Every startable thing is a row with its name, the first line of what it
+  actually is and its length, rather than a tile with room for a name and a number
 - **One timer at a time, and it keeps running**: **Back** on a running workday, quick timer or routine puts
   it away and gives you Home back instead of leaving the app — a bar at the bottom shows what is running and
   how long is left, and **Open** returns to it. While something runs, **Start now** is gone, and tapping
@@ -26,10 +30,11 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   - **Plain exercises**: leave the link empty for your own exercise (tib raises, stairs, a shoulder
     isometric), with a "How to do it" note and, optionally, a short clip of the movement (video or GIF
     from the photo picker) that loops muted on the timer. Tib raises get a built-in animated figure
-- **Habits** (several at once): Settings › **Stretches** (or Home › **Add a habit**) is a
-  **catalog** of fixed 30-day plans with built-in animated figures: **Tib raises**, **Calf raises**, **Shoulder
+- **Habits** (several at once): **Stretches** (Home › **Add a habit**, or the Library's catalogue row)
+  shows what you already have running — the movement's glyph, today's dose and the whole 30 days as a
+  strip — above a **catalogue** of fixed 30-day plans with built-in animated figures: **Tib raises**, **Calf raises**, **Shoulder
   wall push** (a hold, in seconds), **Supraspinatus · 6 presses** (arm at 90° in / out / up / down, by the wall forward / back; 5 presses of 5 s each, a figure per move), **Wall sit**, **Glute bridge**
-  and **Squats**. Tap one to see the whole plan as day tiles, pick **Beginner** (10 × 1),
+  and **Squats**, with the way to make your own at the foot. Tap one to see the whole plan as day tiles, pick **Beginner** (10 × 1),
   **Intermediate** (15 × 2) or **Advanced** (20 × 3), one more set each week (holds: 20 s / 30 s / 45 s), tap
   any day to tweak it, set a reminder and **Start**. **Make your own** is there too (name chips, templates).
   Home shows the habits as a stacked deck (only the top card; done ones go under, **Next ›** for the rest): the animation, today's sets × reps, the note, **Completed** and **Start**
@@ -119,23 +124,31 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   QPR+ it's a **Live Update** (status-bar chip with the countdown, pinned on the lock screen); on
   Android 17 the countdown is shown **big**, like the Clock app's timer, with the break time beside it
 - **Overtime**: when a work block or break activity hits 0 it doesn't move on — one gong, then it
-  counts up (+00:01…) with the ring filling every minute; **+10 min** for another countdown or
+  counts up (+00:01…) with the block full; **+10 min** for another countdown or
   **Next** when you're done (overtime counts as work). Prepare still flows into the activity
 - **Lock-screen page** at every phase change: black-and-white, display only, closes itself after ~12 s
 - **Restart-proof**: phases are absolute timestamps, rebuilt after reboot; installing an update mid-session
   keeps the session and resumes its music
+- **Each running screen offers what it is for**: a work block has Pause, **Break now** and End; a
+  break has **+10 min** and **Back to work**; a timer on its own has Pause, **+10 min** and **Finish**,
+  with the time centred on the page and, once it has happened a few times, how often lately ("9th walk
+  in 14 days"). Everything a screen leaves off is one tap away under **⋯** — the cue, the activity
+  picker or the focus music, today's totals, and the way to end or throw away what is running
 - **End and Save / Discard**: one row — Discard (left), Keep going, End and Save (right). End and
   Save keeps what you've done in History; Discard throws the session away. Stretches under a minute (from skipping through unused slots) don't show in the day view
 - **Activities**: every break stretch remembers its activity, so a day lists "😌 NSDR 20 min" and History
   shows time per activity (library items included) over the last 30 days. Ambient sounds played
   from home are logged as their own line, not as break time, and sync across phones via Drive
-- **History**: how often you showed up ("9 of the last 14 days", and nothing at all until three days
-  have been), a last-7-days focus chart, a 12-week consistency heatmap (square cells, every weekday
-  labelled), each habit's own fortnight drawn as a strip, a month calendar whose dots mark the days
-  that hold something, and all-time totals. Tap any day for **how the day went**: a work/break wave
-  over the hours (pauses as gaps, overtime in its own colour) and **what actually happened** — the
-  blocks, the routines and the habits in one list, in the order it happened. Time is what you actually
-  spent (skips and pauses don't inflate it); a day counts once one full work block is finished
+- **Progress**: how often you showed up ("9 of the last 14 days", in a card of its own, and nothing at
+  all until three days have been), a last-7-days focus chart, a 12-week consistency heatmap (square
+  cells, every weekday labelled), each habit's own fortnight on a card of its own, a month calendar
+  whose dots mark the days that hold something, and, under a rule at the foot, the three numbers worth
+  carrying away: focused, cycles, routines. Tap any day for **how the day went**: three tiles, a
+  work/break wave over the hours (pauses as gaps, overtime in its own colour) and **what actually
+  happened** — a thread you read downwards, a dot per thing with its length and a line of detail,
+  the blocks, the routines and the habits in the order it happened. Arrows either side of the date
+  step to the day next to it. Time is what you actually spent (skips and pauses don't inflate it);
+  a day counts once one full work block is finished
 - **Google account + Drive sync** (optional): sign in from the avatar on the home screen; history
   syncs to your Drive's private app folder (`drive.appdata`, invisible to you and other apps) and
   merges across phones. Without sign-in it all stays local; Android's built-in Google backup
