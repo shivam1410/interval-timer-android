@@ -197,7 +197,7 @@ fun Root(now: Long) {
             )
             // The day's own record, not the all-time list: right after finishing, today is the question.
             session.done(plan) -> Done(session, settings) { page = "today" }
-            else -> Running(plan, session, settings, now) { page = "routine:$it" }
+            else -> Running(plan, session, settings, now, onMinimise = { minimised = true }) { page = "routine:$it" }
         }
     }
 }
@@ -955,7 +955,10 @@ private fun EarlierRow(onToday: () -> Unit, modifier: Modifier = Modifier) {
             .clickable(onClickLabel = "How today went", onClick = onToday).padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("⌄", Modifier.padding(end = 9.dp), style = MaterialTheme.typography.titleMedium, color = cs.onSurfaceVariant)
+        Icon(
+            painterResource(R.drawable.ic_chevron_down), null,
+            Modifier.padding(end = 9.dp).size(18.dp), tint = cs.onSurfaceVariant,
+        )
         Text("Earlier · $line", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
     }
 }

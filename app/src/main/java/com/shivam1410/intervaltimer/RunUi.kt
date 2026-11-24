@@ -43,6 +43,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.border
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -69,7 +80,10 @@ private fun TwoChoices(usual: Activity, onMore: () -> Unit) {
     val fresh = remember(last, usual.id) { staleChoice(QUICK, last, today, exclude = usual.id)?.let(::activity) }
     val breakMin = Timer.settings.value.breakMin
     Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Pick one", style = MaterialTheme.typography.labelLarge, color = cs.onTertiaryContainer)
+        Text(
+            "PICK ONE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp, color = cs.onSurfaceVariant,
+        )
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ChoiceCard("Your usual", usual, "${usual.minutes ?: breakMin} min", Modifier.weight(1f)) { Timer.chooseActivity(usual.id) }
             fresh?.let { f ->
@@ -90,6 +104,7 @@ private fun ChoiceCard(flag: String, a: Activity, length: String, modifier: Modi
     val cs = MaterialTheme.colorScheme
     Column(
         modifier.clip(RoundedCornerShape(16.dp)).background(cs.surface)
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
             .clickable(onClickLabel = "Choose ${a.name}", onClick = onPick).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -139,7 +154,7 @@ private fun ActivityPicker(selected: String, breakMin: Int, onPick: (String) -> 
 // ---------- Running ----------
 
 @Composable
-internal fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long, onRoutine: (String) -> Unit = {}) {
+internal fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Long, onMinimise: () -> Unit, onRoutine: (String) -> Unit = {}) {
     val p = plan[s.index]
     val left = s.left(now)
     val quick = s.quick != null
@@ -161,101 +176,71 @@ internal fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Lon
         else -> brk
     } + if (over != null) " · OVERTIME" else ""
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(label, style = MaterialTheme.typography.titleMedium, color = accent, letterSpacing = 3.sp, modifier = Modifier.padding(top = 16.dp))
-        routine?.let { id -> TextButton({ onRoutine(id) }) { Text("\u2039  Back to the steps") } }
-        Box(Modifier.padding(vertical = 24.dp).size(300.dp), contentAlignment = Alignment.Center) {
-            val track = MaterialTheme.colorScheme.surfaceContainerHighest
-            Canvas(Modifier.fillMaxSize()) {
-                val stroke = Stroke(14.dp.toPx(), cap = StrokeCap.Round)
-                drawArc(track, 0f, 360f, false, style = stroke)
-                // Countdown: the ring empties. Overtime: it fills once a minute and starts over.
-                val sweep = if (over != null) 360f * (over % MIN) / MIN else 360f * left / phaseMs
-                drawArc(accent, -90f, sweep, false, style = stroke)
+    var more by remember { mutableStateOf(false) }
+
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        val outline = MaterialTheme.colorScheme.outlineVariant
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            if (isWork) WorkScreen(plan, s, now, over, onMinimise, { more = true })
+            else BreakScreen(plan, s, settings, now, over, chosen, onMinimise, { more = true })
+            routine?.let { id ->
+                TextButton({ onRoutine(id) }, Modifier.padding(top = 8.dp)) { Text("\u2039  Back to the steps") }
             }
-            if (p.kind == Kind.ACTIVITY && chosen.id == "breathing" && !s.paused) Breathing(accent)
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(if (over != null) "+" + fmt(over) else fmt(left), fontSize = 64.sp, fontWeight = FontWeight.Light)
+            // What comes next, in the board's one-line card: a dot, when, and what you will choose from.
+            if (!quick && isWork) NextBreakCard(plan, s, settings, now)
+            if (!isWork && !quick && p.kind == Kind.PREP) TwoChoices(chosen) { more = true }
+            if (!isWork && p.kind == Kind.ACTIVITY) ActivityCue(chosen, s.phaseMs - left, s.paused)
+            Spacer(Modifier.weight(1f))
+            // The board pins the break's prompt above the buttons, under a line: it is the last thing
+            // you read before deciding, not a card competing with the choice itself.
+            if (!isWork && !quick) {
+                val cues by Cues.lists.collectAsState()
+                phaseCue(p, false, cues, epochDay(s.startedAt))?.let { cue ->
+                    Column(
+                        Modifier.fillMaxWidth().padding(top = 14.dp)
+                            .drawBehind { drawLine(outline, Offset(0f, 0f), Offset(size.width, 0f), 1.dp.toPx()) }
+                            .padding(top = 14.dp),
+                    ) {
+                        Text(
+                            "A DIFFERENT PROMPT EACH BREAK", style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(cue, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 3.dp))
+                    }
+                }
+            }
+        }
+        // Pause · the big one · End — the board's row, square buttons flanking what you actually press.
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 13.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (over == null) SquareButton(if (s.paused) "Resume" else "Pause", accent) {
+                if (s.paused) Timer.resume() else Timer.pause()
+            }
+            Button(
+                { if (over != null) Timer.skip() else if (quick) Timer.stop() else Timer.skip() },
+                Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accent),
+            ) {
                 Text(
                     when {
-                        over != null -> "Time's up · counting up"
-                        // A timer on its own has an end too, and "15 minutes" in your head is not the
-                        // same as knowing it lands at 3:55.
-                        routine != null -> "Routine · ends ${clock(now + left)}"
-                        quick -> "Quick timer · ends ${clock(now + left)}"
-                        // The plan that is actually running, not the full day: a late start plans fewer.
-                        // On a break the cycle alone answers nothing useful — when you are back at it does,
-                        // and without it the only way to know is to add the prepare and the activity up.
-                        else -> "Cycle ${p.cycle} / ${cyclesIn(Timer.plan)}" +
-                            (untilWork(plan, s.index, left).takeIf { !isWork }?.let { " · back at ${clock(now + it)}" } ?: "")
+                        over != null -> "Next"
+                        quick -> "Finish"
+                        isWork -> "Break now"
+                        else -> "Back to work"
                     },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                 )
             }
+            if (!isWork || over != null) SquareButton("+10 min", accent) { Timer.extendBreak() }
+            SquareButton("End", MaterialTheme.colorScheme.error) { confirmEnd = true }
         }
-
-        // The day as it is, not eight identical dots: work and break in proportion, filled as far as you
-        // have got, with the clock you started at and the one you are heading for. The same strip Home
-        // draws before you begin, so a day running looks like the day you planned.
-        if (!quick) DayStrip(
-            dayBlocks(plan, s, now), Modifier.fillMaxWidth(),
-            from = s.startedAt, to = now + left.coerceAtLeast(0) + plan.drop(s.index + 1).sumOf { it.ms },
-        )
-
-        // Overtime: no pause; add 10 more minutes (countdown again) or move on. Right under the ring, where the eye already is.
-        if (over != null) Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button({ Timer.extendBreak() }, Modifier.weight(1f).height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
-                Text("+10 min", fontSize = 18.sp)
-            }
-            FilledTonalButton(
-                { Timer.skip() }, Modifier.weight(1f).height(56.dp),
-                colors = if (isWork) ButtonDefaults.filledTonalButtonColors()
-                else ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                ),
-            ) { Text("Next", fontSize = 18.sp) }
-        }
-
-        // Stopping a timer should never need a scroll: these used to sit under the cue, the sound grid
-        // and the day's totals, which on a phone put them a screen and a half below the clock.
-        Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (over == null) Button(
-                { if (s.paused) Timer.resume() else Timer.pause() },
-                Modifier.weight(1f).height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = accent),
-            ) { Text(if (s.paused) (if (s.pausedLeft == phaseMs) "Start" else "Resume") else "Pause", fontSize = 18.sp) }
-            if (!quick && over == null) FilledTonalButton(
-                { Timer.skip() }, Modifier.weight(1f).height(56.dp),
-                colors = if (isWork) ButtonDefaults.filledTonalButtonColors()
-                else ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                ),
-            ) { Text("Skip", fontSize = 18.sp) }
-            // End sits in the same row; it asks for confirmation.
-            OutlinedButton(
-                { confirmEnd = true }, Modifier.weight(if (quick) 1f else 0.8f).height(56.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = accent),
-            ) { Text("End", fontSize = 18.sp) }
-        }
-
-        val cues by Cues.lists.collectAsState()
-        CueCard(if (isWork) "Start of the day" else "This break", phaseCue(p, quick, cues, epochDay(s.startedAt)), key = s.index)
-        if (isWork) FocusMusic(settings.focusSound) else BreakChoices(p, s, chosen, s.phaseMs - left)
-
-        if (!quick) Row(
-            Modifier.fillMaxWidth().padding(top = 16.dp).height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Stat("Today", "${fmtDur(workDone)} work", "${fmtDur(breakDone)} breaks", Modifier.weight(1f).fillMaxHeight())
-            Stat("Next", Timer.subtitle(s, now).removePrefix("Next: ").takeIf { isWork && over == null } ?: nextLabel(plan, s, at = over == null), "", Modifier.weight(1f).fillMaxHeight())
-        }
-
     }
+
+    if (more) MoreSheet(s, settings, plan, now, isWork, quick, chosen) { more = false }
 
     if (confirmEnd) {
         AlertDialog(
@@ -438,3 +423,188 @@ internal fun Done(s: Session, settings: Settings, onDay: () -> Unit) {
     }
 }
 
+
+// ---------- The C+ "Work" and "Break" boards ----------
+
+/** The chrome both running screens share: close it away, what this is, and more. */
+@Composable
+private fun RunBar(title: String, onMinimise: () -> Unit, onMore: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        RoundIcon(R.drawable.ic_chevron_down, "Back to the day", onMinimise)
+        Text(
+            title, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+            letterSpacing = 1.1.sp, color = cs.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 1,
+        )
+        RoundIcon(R.drawable.ic_more, "More", onMore)
+    }
+}
+
+@Composable
+private fun RoundIcon(icon: Int, label: String, onClick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Box(
+        Modifier.size(34.dp).clip(CircleShape).background(cs.surface).border(1.dp, cs.outlineVariant, CircleShape)
+            .clickable(onClickLabel = label, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Icon(painterResource(icon), label, Modifier.size(17.dp), tint = cs.onSurfaceVariant) }
+}
+
+/**
+ * The work block as a block: a tall rounded well that drains as the minutes go, the time inside it big
+ * enough to read from across the room. A ring says "a timer is running"; this says how much is left.
+ */
+@Composable
+private fun WorkScreen(plan: List<Phase>, s: Session, now: Long, over: Long?, onMinimise: () -> Unit, onMore: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val p = plan[s.index]
+    val left = s.left(now)
+    val phaseMs = (s.phaseMs.takeIf { it > 0 } ?: p.ms).coerceAtLeast(1)
+    val fill = if (over != null) 1f else (left.toFloat() / phaseMs).coerceIn(0f, 1f)
+    Column(Modifier.fillMaxWidth()) {
+        RunBar("WORK · CYCLE ${p.cycle} OF ${cyclesIn(plan)}" + if (over != null) " · OVERTIME" else "", onMinimise, onMore)
+        DayStrip(
+            dayBlocks(plan, s, now), Modifier.fillMaxWidth().padding(top = 16.dp),
+            from = s.startedAt, to = now + left.coerceAtLeast(0) + plan.drop(s.index + 1).sumOf { it.ms },
+        )
+        Text(
+            "THIS BLOCK", Modifier.fillMaxWidth().padding(top = 22.dp), style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp, color = cs.onSurfaceVariant, textAlign = TextAlign.Center,
+        )
+        Box(
+            Modifier.fillMaxWidth().padding(top = 14.dp).height(300.dp).clip(RoundedCornerShape(24.dp))
+                .background(cs.surfaceContainerHighest).border(1.5.dp, cs.outlineVariant, RoundedCornerShape(24.dp)),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            Box(Modifier.fillMaxWidth().fillMaxHeight(fill).background(cs.primary))
+            Column(
+                Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                val onFill = if (fill > 0.45f) cs.onPrimary else cs.onSurface
+                Text(
+                    if (over != null) "+" + fmt(over) else fmt(left),
+                    fontSize = 72.sp, fontWeight = FontWeight.Bold, color = onFill, letterSpacing = (-3).sp,
+                )
+                Text(
+                    if (over != null) "time's up · counting up" else "left of ${spelledMinutes(phaseMs)}",
+                    style = MaterialTheme.typography.bodyMedium, color = onFill.copy(alpha = 0.76f),
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+        }
+    }
+}
+
+/** A break is short and about choosing: a thin bar, the clock, and what you could do with it. */
+@Composable
+private fun BreakScreen(
+    plan: List<Phase>, s: Session, settings: Settings, now: Long, over: Long?, chosen: Activity,
+    onMinimise: () -> Unit, onMore: () -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    val p = plan[s.index]
+    val left = s.left(now)
+    val phaseMs = (s.phaseMs.takeIf { it > 0 } ?: p.ms).coerceAtLeast(1)
+    val quick = s.quick != null
+    val done = if (over != null) 1f else ((phaseMs - left).toFloat() / phaseMs).coerceIn(0f, 1f)
+    val title = when {
+        quick -> chosen.name.uppercase() + " · ON ITS OWN"
+        else -> "BREAK · CYCLE ${p.cycle} OF ${cyclesIn(plan)}"
+    } + if (over != null) " · OVERTIME" else ""
+    Column(Modifier.fillMaxWidth()) {
+        RunBar(title, onMinimise, onMore)
+        Box(
+            Modifier.fillMaxWidth().padding(top = 20.dp).height(16.dp).clip(RoundedCornerShape(5.dp))
+                .background(cs.surfaceContainerHighest),
+        ) { Box(Modifier.fillMaxWidth(done).fillMaxHeight().clip(RoundedCornerShape(5.dp)).background(cs.tertiary)) }
+        Text(
+            if (over != null) "+" + fmt(over) else fmt(left), Modifier.fillMaxWidth().padding(top = 14.dp),
+            fontSize = 52.sp, fontWeight = FontWeight.Bold, letterSpacing = (-2).sp, textAlign = TextAlign.Center,
+        )
+        val back = untilWork(plan, s.index, left)
+        Text(
+            when {
+                over != null -> "Time's up · tap Next when you're done"
+                back != null -> "Back to work at ${clock(now + back)}"
+                else -> "Ends at ${clock(now + left)}"
+            },
+            Modifier.fillMaxWidth().padding(top = 4.dp), style = MaterialTheme.typography.bodyMedium,
+            color = cs.onSurfaceVariant, textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/** A square button with a short word in it: the board flanks the main action with these. */
+@Composable
+private fun SquareButton(label: String, tint: Color, onClick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Box(
+        Modifier.height(54.dp).widthIn(min = 54.dp).clip(RoundedCornerShape(16.dp))
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
+            .clickable(onClickLabel = label, onClick = onClick).padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text(label, style = MaterialTheme.typography.labelLarge, color = tint, maxLines = 1) }
+}
+
+/** "BREAK AT 2:11 · 10 MIN · Stretch, or Sketch — you choose then". */
+@Composable
+private fun NextBreakCard(plan: List<Phase>, s: Session, settings: Settings, now: Long) {
+    val cs = MaterialTheme.colorScheme
+    val at = untilWork(plan, s.index, s.left(now)) ?: return
+    val breakMs = plan.drop(s.index + 1).takeWhile { it.kind != Kind.WORK }.sumOf { it.ms }
+    if (breakMs <= 0) return
+    val usual = activity(settings.activity)
+    val fresh = staleChoice(QUICK, lastUsed(History.timelines.value), History.today(), exclude = usual.id)?.let(::activity)
+    Row(
+        Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(16.dp)).background(cs.surface)
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(11.dp),
+    ) {
+        Box(Modifier.size(9.dp).clip(CircleShape).background(cs.tertiary))
+        Column(Modifier.weight(1f)) {
+            Text(
+                "BREAK AT ${clock(now + at - breakMs)} · ${fmtDur(breakMs)}",
+                style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp, color = cs.onSurfaceVariant,
+            )
+            Text(
+                fresh?.let { "${usual.name}, or ${it.name} — you choose then" } ?: "${usual.name} — or change it then",
+                style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** Everything the board leaves off the running screen, one tap away rather than gone. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MoreSheet(
+    s: Session, settings: Settings, plan: List<Phase>, now: Long, isWork: Boolean, quick: Boolean,
+    chosen: Activity, onDismiss: () -> Unit,
+) {
+    val cues by Cues.lists.collectAsState()
+    val (workDone, breakDone) = totals(plan, s, now)
+    ModalBottomSheet(onDismiss) {
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+            CueCard(if (isWork) "Start of the day" else "This break", phaseCue(plan[s.index], quick, cues, epochDay(s.startedAt)), key = s.index)
+            if (isWork) FocusMusic(settings.focusSound)
+            else ActivityPicker(chosen.id, settings.breakMin) { Timer.chooseActivity(it) }
+            if (!quick) Row(
+                Modifier.fillMaxWidth().padding(top = 16.dp).height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Stat("Today", "${fmtDur(workDone)} work", "${fmtDur(breakDone)} breaks", Modifier.weight(1f).fillMaxHeight())
+                Stat("Next", nextLabel(plan, s), "", Modifier.weight(1f).fillMaxHeight())
+            }
+        }
+    }
+}
+
+/** "50 minutes", not "50m": the running screen is read at a glance, not scanned for totals. */
+internal fun spelledMinutes(ms: Long): String {
+    val m = ((ms + 30_000) / 60_000L).toInt().coerceAtLeast(1)
+    return "$m ${if (m == 1) "minute" else "minutes"}"
+}
