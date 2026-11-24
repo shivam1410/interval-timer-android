@@ -520,6 +520,12 @@ private fun ColumnScope.WorkScreen(plan: List<Phase>, s: Session, now: Long, ove
                 )
             }
         }
+        // The board's own line about the block. It says what the shape is for, once, under it.
+        Text(
+            "The block drains. You can read it from across the room.",
+            Modifier.fillMaxWidth().padding(top = 10.dp), style = MaterialTheme.typography.labelMedium,
+            color = cs.onSurfaceVariant, textAlign = TextAlign.Center,
+        )
         Spacer(Modifier.weight(1f))
     }
 }

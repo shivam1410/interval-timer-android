@@ -670,7 +670,15 @@ private fun LibraryScreen(onQuick: (String) -> Unit, onStretches: () -> Unit, on
 @Composable
 private fun QuickTimers(onQuick: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
-    Text("BUILT IN", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+    Text("BUILT IN", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 24.dp, bottom = 4.dp))
+    // The board draws the line between these and the plans below: one-off against a dose that grows.
+    // It says "no record kept", which isn't true here — the time does land in the day — so this says
+    // the true half: there is nothing to keep up with.
+    Text(
+        "One-off. The time lands in today's line; there is nothing to keep up with.",
+        style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+        modifier = Modifier.padding(bottom = 8.dp),
+    )
     // A row each, as the board has them: a grid of four tiles has room for a name and a number, and the
     // one thing you want before starting something is what it is.
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

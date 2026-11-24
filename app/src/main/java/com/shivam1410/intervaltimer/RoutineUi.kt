@@ -293,6 +293,10 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
         ?.let { ((it + 30_000L) / 60_000L).toInt().coerceAtLeast(1) }
     var editing by remember(r.id) { mutableStateOf(false) }
     var picking by remember(r.id) { mutableStateOf(false) }
+    // A routine of one step is a quick timer that remembers: no progress to draw through a list of one,
+    // so the board gives it the step itself, the reminder, and how often you have kept it.
+    val lone = steps.singleOrNull()
+    val loneAct = (lone as? ActivityStep)?.let { stepActivity(it.activityId) }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Row(
@@ -307,7 +311,8 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
             Column(Modifier.weight(1f)) {
                 Text(r.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    r.remindMin?.let { "Reminds at ${fmtMinute(it)} · nudges at ${fmtMinute(it + NUDGE_MIN)}" }
+                    if (lone != null) "One step" + ((min ?: loneAct?.quickMin)?.let { " · $it minutes" } ?: "")
+                    else r.remindMin?.let { "Reminds at ${fmtMinute(it)} · nudges at ${fmtMinute(it + NUDGE_MIN)}" }
                         ?: routineSummary(r, min),
                     style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 1,
                 )
@@ -315,29 +320,76 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
             RoundIcon(R.drawable.ic_edit, "Edit this routine") { editing = true }
         }
 
-        Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            steps.indices.forEach { i ->
-                Box(
-                    Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp))
-                        .background(if (stepDone(i)) cs.primary else cs.surfaceContainerHighest),
+        // One bar per step says how far through you are; through a list of one it says nothing.
+        if (lone == null) {
+            Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                steps.indices.forEach { i ->
+                    Box(
+                        Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp))
+                            .background(if (stepDone(i)) cs.primary else cs.surfaceContainerHighest),
+                    )
+                }
+            }
+            Text(
+                // "0 of 6 done" is the printed zero the rest of the app refuses: nothing done is a fact
+                // about today, not a score. Once something is done the count says which.
+                (if (alreadyDone == 0) "None done today" else "$alreadyDone of ${steps.size} done") +
+                    (leftMin?.let { if (alreadyDone == 0) " · about $it minutes" else " · about $it minutes left" } ?: ""),
+                Modifier.padding(top = 7.dp), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+            )
+        } else {
+            // Why this exists at all, when the same timer is one tap away in the Library.
+            Column(
+                Modifier.fillMaxWidth().padding(top = 16.dp).clip(RoundedCornerShape(16.dp))
+                    .background(cs.secondaryContainer.copy(alpha = 0.35f))
+                    .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)).padding(13.dp),
+            ) {
+                Text(
+                    "A routine with one step is a quick timer that remembers",
+                    style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    "Same engine, same timer. What the routine adds is" +
+                        (r.remindMin?.let { " the ${fmtMinute(it)} reminder and" } ?: "") +
+                        " the record of whether you did it.",
+                    Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodySmall,
+                    color = cs.onSurfaceVariant,
                 )
             }
         }
-        Text(
-            // "0 of 6 done" is the printed zero the rest of the app refuses: nothing done is a fact
-            // about today, not a score. Once something is done the count says which.
-            (if (alreadyDone == 0) "None done today" else "$alreadyDone of ${steps.size} done") +
-                (leftMin?.let { if (alreadyDone == 0) " · about $it minutes" else " · about $it minutes left" } ?: ""),
-            Modifier.padding(top = 7.dp), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
-        )
 
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 16.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp),
-        ) { steps.forEachIndexed { i, st -> StepPreview(i + 1, st, habits, items, today) } }
+        ) {
+            if (lone != null) Text(
+                "THE ONE STEP", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp, color = cs.onSurfaceVariant,
+            )
+            steps.forEachIndexed { i, st -> StepPreview(i + 1, st, habits, items, today, number = lone == null) }
+            if (lone != null) Column(
+                Modifier.fillMaxWidth().padding(top = 3.dp).clip(RoundedCornerShape(16.dp)).background(cs.surface)
+                    .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)).padding(14.dp),
+            ) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        r.remindMin?.let { "Reminds you at ${fmtMinute(it)}" } ?: "No reminder",
+                        Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "Change",
+                        Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "Edit this routine") { editing = true }
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = cs.secondary,
+                    )
+                }
+                DensityDots(routineDensity(r, today), r.done.keys, long = true)
+            }
+        }
 
-        // The timer is a line about this run, not a row of chips competing with Start.
-        Row(
+        // The timer is a line about this run, not a row of chips competing with Start. A routine of one
+        // step already has that step's timer, so a second one over the top of it is nothing but confusing.
+        if (lone == null) Row(
             Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(12.dp)).background(cs.surface)
                 .border(1.dp, cs.outlineVariant, RoundedCornerShape(12.dp))
                 .clickable(onClickLabel = "Change the timer") { picking = true }
@@ -353,7 +405,7 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
                 fontWeight = FontWeight.SemiBold, color = cs.secondary,
             )
         }
-        if (picking) Row(
+        if (picking && lone == null) Row(
             Modifier.fillMaxWidth().padding(top = 8.dp).horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -368,7 +420,8 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
             { go() }, Modifier.fillMaxWidth().padding(bottom = 20.dp).height(72.dp), shape = RoundedCornerShape(20.dp),
         ) {
             Text(
-                (if (alreadyDone > 0) "Carry on" else "Start") + (min?.let { " · $it min" } ?: ""),
+                (if (alreadyDone > 0) "Carry on" else loneAct?.let { "Start the ${it.name.lowercase()}" } ?: "Start") +
+                    ((min ?: loneAct?.quickMin.takeIf { lone != null })?.let { " · $it min" } ?: ""),
                 fontSize = 18.sp, fontWeight = FontWeight.Bold,
             )
         }
@@ -378,7 +431,10 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
 
 /** One step as it looks before you begin: what it is, and what today asks of it. */
 @Composable
-private fun StepPreview(n: Int, st: RoutineStep, habits: List<Habit>, items: List<LibraryItem>, today: java.time.LocalDate) {
+private fun StepPreview(
+    n: Int, st: RoutineStep, habits: List<Habit>, items: List<LibraryItem>, today: java.time.LocalDate,
+    number: Boolean = true,
+) {
     val cs = MaterialTheme.colorScheme
     val habit = (st as? HabitStep)?.let { s -> habits.firstOrNull { it.id == s.habitId && !it.ended } }
     val stage = habit?.let { it.stageOn(it.dayOf(today)) }
@@ -392,7 +448,7 @@ private fun StepPreview(n: Int, st: RoutineStep, habits: List<Habit>, items: Lis
     val meta = when (st) {
         is TextStep -> "Tick it off"
         is HabitStep -> habit?.let { "Habit \u00b7 day ${it.dayOf(today)} of ${it.totalDays}" } ?: "No longer running"
-        is ActivityStep -> "Timer"
+        is ActivityStep -> "Quick timer" + (act?.id?.let { if (Strava.sportFor(it) != null) " · records in Strava" else "" } ?: "")
     }
     val right = when (st) {
         is TextStep -> ""
@@ -405,7 +461,8 @@ private fun StepPreview(n: Int, st: RoutineStep, habits: List<Habit>, items: Lis
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
+        // The number says where in the list this is; a list of one has nowhere else to be.
+        if (number || done) Text(
             if (done) "\u2713" else "$n",
             style = MaterialTheme.typography.labelLarge,
             color = if (done) cs.primary else cs.onSurfaceVariant,
