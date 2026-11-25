@@ -95,6 +95,15 @@ fun firstUndoneStep(r: Routine, habits: List<Habit>, today: LocalDate): Int {
 }
 
 /** The line under a routine's name: "5 steps · 1 stretch · about 15 min". [minutes] null = no timer. */
+/**
+ * How long a routine takes on a timer. A routine whose only step is a timer *is* that timer, so its
+ * length is the step's — the routine's own timer would be a second clock over the top of the first.
+ */
+fun routineMinutes(r: Routine): Int? =
+    (routineSteps(r).singleOrNull() as? ActivityStep)
+        ?.let { it.minutes ?: stepActivity(it.activityId)?.quickMin }
+        ?: r.minutes
+
 fun routineSummary(r: Routine, minutes: Int?): String {
     val stretches = routineSteps(r).count { it is HabitStep }
     return "${r.steps.size} ${if (r.steps.size == 1) "step" else "steps"}" +

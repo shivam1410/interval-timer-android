@@ -378,24 +378,10 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
                 letterSpacing = 1.sp, color = cs.onSurfaceVariant,
             )
             steps.forEachIndexed { i, st -> StepPreview(i + 1, st, habits, items, today, number = lone == null) }
-            if (lone != null) Column(
-                Modifier.fillMaxWidth().padding(top = 3.dp).clip(RoundedCornerShape(16.dp)).background(cs.surface)
-                    .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)).padding(14.dp),
-            ) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        r.remindMin?.let { "Reminds you at ${fmtMinute(it)}" } ?: "No reminder",
-                        Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        "Change",
-                        Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "Edit this routine") { editing = true }
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = cs.secondary,
-                    )
-                }
-                DensityDots(routineDensity(r, today), r.done.keys, long = true)
-            }
+            // The reminder had a card of its own with a Change on it, next to a pencil that opens the
+            // same editor — two controls for one thing, under a paragraph that already names the time.
+            // How often you have kept it is the part that wasn't said anywhere else.
+            if (lone != null) DensityDots(routineDensity(r, today), r.done.keys, long = true)
         }
 
         // The timer is a line about this run, not a row of chips competing with Start. A routine of one

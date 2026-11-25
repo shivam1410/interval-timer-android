@@ -232,4 +232,15 @@ class RoutineTest {
         assertEquals(ActivityStep("walk", null), stepOf("act:walk|"))
         assertEquals(ActivityStep("walk", null), stepOf("act:walk|soon"))
     }
+
+    // A routine of one timer is that timer, so its length is the step's — not the routine's own clock,
+    // which Home was reading while the routine's own page read the step.
+    @Test fun aRoutineOfOneTimerIsAsLongAsItsStep() {
+        val walk = Routine("w", "\u2B50", "Walk", listOf(actStep("walk")), null, emptyMap(), 0, minutes = 10)
+        assertEquals(activity("walk").quickMin, routineMinutes(walk))
+        assertEquals(25, routineMinutes(walk.copy(steps = listOf(actStep("walk", 25)))))
+        // More than one step, and the routine's own timer is the thing that covers them all.
+        assertEquals(10, routineMinutes(walk.copy(steps = listOf(actStep("walk"), "Stretch"))))
+        assertEquals(null, routineMinutes(walk.copy(steps = listOf("Keys", "Wallet"), minutes = null)))
+    }
 }

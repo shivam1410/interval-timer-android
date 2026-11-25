@@ -1282,7 +1282,7 @@ private fun TodayThread(now: Long, onRoutine: (String) -> Unit, onHabit: (String
             val at = doneToday(r, today)
             add(
                 if (at != null) DayRow(at, r.emoji, r.name, "${r.steps.size} steps", "", true, "routine:${r.id}")
-                else DayRow(r.remindMin, r.emoji, r.name, routineSummary(r, r.minutes), "", false, "routine:${r.id}")
+                else DayRow(r.remindMin, r.emoji, r.name, routineSummary(r, routineMinutes(r)), "", false, "routine:${r.id}")
             )
         }
         val inRoutines = habitsInRoutines(live)
