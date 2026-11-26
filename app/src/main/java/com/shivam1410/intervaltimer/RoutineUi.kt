@@ -33,6 +33,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
@@ -506,6 +511,7 @@ private fun RoutineClock(session: Session) {
 /** Name, emoji, steps (edit, add, remove, move up) and a daily reminder; Save, Delete or Cancel. */
 @Composable
 internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
     var name by remember { mutableStateOf(r.name) }
     var emoji by remember { mutableStateOf(r.emoji) }
     var steps by remember { mutableStateOf(r.steps) }
@@ -616,65 +622,258 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
         },
         confirmButton = { TextButton({ picking = false }) { Text("Cancel") } },
     )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (isNew) "New routine" else "Edit routine") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(emoji, { emoji = it.clip(2) }, Modifier.width(72.dp), singleLine = true, label = { Text("Icon") }, shape = RoundedCornerShape(12.dp))
-                    OutlinedTextField(name, { name = it.clip(40) }, Modifier.weight(1f), singleLine = true, label = { Text("Name") }, shape = RoundedCornerShape(12.dp))
-                }
-                Text("Steps, in order", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 4.dp))
-                steps.forEachIndexed { i, s ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        val parsed = stepOf(s)
+    // Adding a step asked "+ Step / + Stretch / + Timer" — three words that assume you already know
+    // the vocabulary. One way in, and each kind says what it is.
+    var adding by remember { mutableStateOf(false) }
+    var changingRemind by remember { mutableStateOf(false) }
+    if (adding) AddStepSheet(
+        empty = clean.isEmpty(),
+        onTick = { steps = steps + ""; adding = false },
+        onStretch = { picking = true; adding = false },
+        onTimer = { pickingTimer = true; adding = false },
+        onDismiss = { adding = false },
+    )
+    if (changingRemind) RemindDialog(remind, { remind = it; changingRemind = false }) { changingRemind = false }
+
+    Dialog(
+        onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        Surface(Modifier.fillMaxSize(), color = cs.background) {
+            Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 20.dp)) {
+                // No chevron: this page is a form with its own Cancel and Save, and a chevron beside
+                // them would be a third way out that quietly throws the typing away.
+                Text(
+                    if (isNew) "New routine" else "Edit routine",
+                    Modifier.padding(top = 22.dp, bottom = 4.dp), fontSize = 21.sp, fontWeight = FontWeight.Bold,
+                )
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                    FormLabel("WHAT IT IS")
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surface)
+                            .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp)).padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        OutlinedTextField(
+                            emoji, { emoji = it.clip(2) }, Modifier.width(76.dp), singleLine = true,
+                            label = { Text("Icon") }, shape = RoundedCornerShape(12.dp),
+                        )
+                        OutlinedTextField(
+                            name, { name = it.clip(40) }, Modifier.weight(1f), singleLine = true,
+                            label = { Text("Name") }, shape = RoundedCornerShape(12.dp),
+                        )
+                    }
+
+                    FormLabel("WHAT IT ASKS OF YOU")
+                    Text(
+                        "In the order you want to do them.",
+                        Modifier.padding(bottom = 8.dp), style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant,
+                    )
+                    steps.forEachIndexed { i, st ->
+                        val parsed = stepOf(st)
                         val hs = parsed as? HabitStep
                         val asStep = parsed as? ActivityStep
-                        if (asStep != null) {
-                            // A timer: started where the step is, with its own clock; not editable as text.
-                            val a = stepActivity(asStep.activityId)
-                            val mins = asStep.minutes ?: a?.quickMin ?: DEFAULT_ROUTINE_MIN
-                            Text(
-                                "⏱ " + (a?.let { "${it.name} · $mins min" } ?: "Removed timer"),
-                                Modifier.weight(1f)
-                                    .clickable(enabled = a != null, onClickLabel = "Change how long") {
-                                        timerFor = a; timerMin = mins; timerAt = i
-                                    }
-                                    .padding(horizontal = 12.dp, vertical = 16.dp),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        } else if (hs != null) {
-                            // A habit: done with its figure and count when the routine runs; not editable as text.
-                            val h = habits.firstOrNull { it.id == hs.habitId }
-                            Text("🏋 " + (h?.let { habitTitle(it, items) } ?: "Removed habit"), Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 16.dp), style = MaterialTheme.typography.bodyLarge)
-                        } else OutlinedTextField(
-                            s, { v -> steps = steps.mapIndexed { j, x -> if (j == i) v.clip(60) else x } },
-                            Modifier.weight(1f), singleLine = true, shape = RoundedCornerShape(12.dp),
-                        )
-                        // Up only meant sending the first step to the bottom of six took five taps the
-                        // wrong way round. The arrow you need is the one pointing where you are going.
-                        if (i > 0) IconButton({ steps = steps.toMutableList().apply { add(i - 1, removeAt(i)) }.toList() }) { Text("↑") }
-                        if (i < steps.lastIndex) IconButton({ steps = steps.toMutableList().apply { add(i + 1, removeAt(i)) }.toList() }) { Text("↓") }
-                        IconButton({ steps = steps.filterIndexed { j, _ -> j != i } }) { Text("×", style = MaterialTheme.typography.titleLarge) }
+                        Row(
+                            Modifier.fillMaxWidth().padding(bottom = 6.dp).clip(RoundedCornerShape(14.dp))
+                                .background(cs.surface).border(1.dp, cs.outlineVariant, RoundedCornerShape(14.dp))
+                                .padding(start = 11.dp, end = 2.dp, top = 4.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            // The kind as a chip, so a routine you come back to in a month explains itself.
+                            when {
+                                asStep != null -> {
+                                    val a = stepActivity(asStep.activityId)
+                                    val mins = asStep.minutes ?: a?.quickMin ?: DEFAULT_ROUTINE_MIN
+                                    StepChip("TIMER", cs.tertiary)
+                                    Text(
+                                        a?.let { "${it.name} · $mins min" } ?: "Removed timer",
+                                        Modifier.weight(1f)
+                                            .clickable(enabled = a != null, onClickLabel = "Change how long") {
+                                                timerFor = a; timerMin = mins; timerAt = i
+                                            }
+                                            .padding(vertical = 14.dp),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                }
+                                hs != null -> {
+                                    val h = habits.firstOrNull { it.id == hs.habitId }
+                                    StepChip("STRETCH", cs.primary)
+                                    Text(
+                                        h?.let { habitTitle(it, items) } ?: "Removed stretch",
+                                        Modifier.weight(1f).padding(vertical = 14.dp),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                }
+                                else -> {
+                                    StepChip("TICK", cs.onSurfaceVariant)
+                                    OutlinedTextField(
+                                        st, { v -> steps = steps.mapIndexed { j, x -> if (j == i) v.clip(60) else x } },
+                                        Modifier.weight(1f), singleLine = true, shape = RoundedCornerShape(12.dp),
+                                        placeholder = { Text("Take meds") },
+                                    )
+                                }
+                            }
+                            // Up only meant sending the first step to the bottom of six took five taps the
+                            // wrong way round. The arrow you need is the one pointing where you are going.
+                            // Compact: three 48dp buttons left the step itself a third of the row.
+                            if (i > 0) RowButton("↑") { steps = steps.toMutableList().apply { add(i - 1, removeAt(i)) }.toList() }
+                            if (i < steps.lastIndex) RowButton("↓") { steps = steps.toMutableList().apply { add(i + 1, removeAt(i)) }.toList() }
+                            RowButton("×") { steps = steps.filterIndexed { j, _ -> j != i } }
+                        }
                     }
+                    Row(
+                        Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(14.dp))
+                            .dashedBorder(cs.outlineVariant, 14.dp)
+                            .clickable(onClickLabel = "Add a step") { adding = true },
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Text("+", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = cs.secondary)
+                        Text("  Add a step", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    }
+
+                    FormLabel("REMIND ME")
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surface)
+                            .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
+                            .clickable(onClickLabel = "Change the reminder") { changingRemind = true }
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                remind?.let { "Every day at ${fmtMinute(it)}" } ?: "No reminder",
+                                style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                remind?.let { "A nudge again at ${fmtMinute(it + NUDGE_MIN)} if it is still to do" }
+                                    ?: "It waits on your list until you open it",
+                                Modifier.padding(top = 2.dp), style = MaterialTheme.typography.labelMedium,
+                                color = cs.onSurfaceVariant,
+                            )
+                        }
+                        Text(
+                            "Change", Modifier.padding(start = 10.dp), style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold, color = cs.secondary,
+                        )
+                    }
+                    Spacer(Modifier.height(20.dp))
                 }
-                // Short labels: three "+ Add a …" buttons wrapped onto three lines in the dialog.
-                Row {
-                    TextButton({ steps = steps + "" }) { Text("+ Step") }
-                    TextButton({ picking = true }) { Text("+ Stretch") }
-                    TextButton({ pickingTimer = true }) { Text("+ Timer") }
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    if (!isNew) TextButton(
+                        { Routines.delete(r.id); onDismiss() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = cs.error),
+                    ) { Text("Delete") }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onDismiss) { Text("Cancel") }
+                    Button(
+                        {
+                            Routines.save(r.copy(name = name.trim(), emoji = emoji.ifBlank { "⭐" }, steps = clean, remindMin = remind))
+                            onDismiss()
+                        },
+                        enabled = name.isNotBlank() && clean.isNotEmpty(),
+                        shape = RoundedCornerShape(14.dp),
+                    ) { Text("Save") }
                 }
-                ReminderRow(remind) { remind = it }
+            }
+        }
+    }
+}
+
+/** A small square control at the end of a step row. */
+@Composable
+private fun RowButton(glyph: String, onClick: () -> Unit) {
+    Box(
+        Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = glyph, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Text(glyph, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+}
+
+/** A section heading in the routine form. */
+@Composable
+private fun FormLabel(text: String) {
+    Text(
+        text, Modifier.padding(top = 20.dp, bottom = 8.dp), style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/** What kind of step a row is, in a word. */
+@Composable
+private fun StepChip(text: String, tint: Color) {
+    Text(
+        text,
+        Modifier.padding(end = 9.dp).clip(RoundedCornerShape(6.dp))
+            .background(tint.copy(alpha = 0.12f)).padding(horizontal = 6.dp, vertical = 2.dp),
+        style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = tint,
+    )
+}
+
+/** The three kinds of step, each saying what it is rather than assuming you know. */
+@Composable
+private fun AddStepSheet(
+    empty: Boolean, onTick: () -> Unit, onStretch: () -> Unit, onTimer: () -> Unit, onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add a step") },
+        text = {
+            Column {
+                // A routine of one timer is its own kind of thing, and this is where you make one.
+                if (empty) AddKind("Just a timer", "A walk at 9:00, and a record of whether you went", onTimer)
+                AddKind("Something to tick off", "Keys, wallet, water — you do it, then tap", onTick)
+                AddKind("A stretch from your plans", "Counted along with the figure when you get there", onStretch)
+                if (!empty) AddKind("A timer that runs", "A walk, NSDR, or one of your own", onTimer)
             }
         },
+        confirmButton = { TextButton(onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun AddKind(title: String, sub: String, onClick: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+        Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/**
+ * The reminder, set or cleared in one place. It used to be a switch next to a button: the switch put a
+ * default time on, the button changed it, and turning it off meant finding the switch again.
+ */
+@Composable
+private fun RemindDialog(remind: Int?, onChange: (Int?) -> Unit, onDismiss: () -> Unit) {
+    val ctx = LocalContext.current
+    val at = remind ?: Habits.DEFAULT_REMIND_MIN
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Remind me") },
+        text = {
+            Text(
+                remind?.let { "Every day at ${fmtMinute(it)}, with a nudge at ${fmtMinute(it + NUDGE_MIN)} if it is still to do." }
+                    ?: "No reminder. The routine waits on your list until you open it.",
+            )
+        },
         confirmButton = {
-            TextButton({ Routines.save(r.copy(name = name.trim(), emoji = emoji.ifBlank { "⭐" }, steps = clean, remindMin = remind)); onDismiss() },
-                enabled = name.isNotBlank() && clean.isNotEmpty()) { Text("Save") }
+            TextButton({
+                android.app.TimePickerDialog(
+                    ctx, { _, h, m -> onChange(h * 60 + m) },
+                    at / 60, at % 60, android.text.format.DateFormat.is24HourFormat(ctx),
+                ).show()
+            }) { Text(if (remind == null) "Pick a time" else "Pick another time") }
         },
         dismissButton = {
             Row {
-                if (!isNew) TextButton({ Routines.delete(r.id); onDismiss() }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Delete") }
+                if (remind != null) TextButton({ onChange(null) }) { Text("Turn it off") }
                 TextButton(onDismiss) { Text("Cancel") }
             }
         },

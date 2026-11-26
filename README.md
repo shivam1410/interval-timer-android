@@ -158,6 +158,11 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   syncs to your Drive's private app folder (`drive.appdata`, invisible to you and other apps) and
   merges across phones. Without sign-in it all stays local; Android's built-in Google backup
   still covers settings and history
+- **Making a routine** is a page, not a cramped dialog: **what it is** (icon and name), **what it asks
+  of you** (the steps, in order, each wearing its kind — TICK, STRETCH or TIMER) and **remind me**.
+  One **Add a step** names the three kinds in a sentence each rather than assuming you know them, and
+  on an empty routine the first offer is **Just a timer**. The reminder is one row that sets or clears
+  the time — no switch to find twice
 - **A routine of one timer is that timer**: adding a timer step asks how long you want it for (tap the
   step to change it later), and the routine's Start starts it — one tap, not a Start under a Start. The
   page says what the routine adds that the Library's timer doesn't: the reminder and the record
