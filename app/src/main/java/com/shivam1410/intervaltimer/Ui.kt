@@ -288,6 +288,9 @@ private fun Setup(
                 EarlierRow(onToday, Modifier.padding(top = 10.dp))
                 NowCard(Timer.plan, mini, s, now, onRestore)
                 NextCards(Timer.plan, mini, s, now)
+                // A timer on its own has nothing after it, so the screen was one card and a long void.
+                // The rest of the day didn't stop existing because a walk is running.
+                if (upNext(Timer.plan, mini, now).isEmpty()) TodayThread(now, onRoutine, onHabit)
                 Spacer(Modifier.height(16.dp))
             }
             Button(
@@ -922,14 +925,21 @@ private fun NowCard(plan: List<Phase>, s: Session, settings: Settings, now: Long
                     "NOW · ${clock(now)}", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.primary,
                 )
+                // A timer on its own has no cycles, so the count read "CYCLE 1 OF 0".
                 Text(
-                    "CYCLE ${p.cycle} OF ${cyclesIn(plan)}", style = MaterialTheme.typography.labelSmall,
+                    if (s.quick != null) "ON ITS OWN" else "CYCLE ${p.cycle} OF ${cyclesIn(plan)}",
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant,
                 )
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.Bottom) {
                 Text(
-                    if (work) "Work" else "Break · ${activity(s.quick ?: settings.activity).name}",
+                    // A walk you started yourself is not a break in anything: it is the walk.
+                    when {
+                        work -> "Work"
+                        s.quick != null -> activity(s.quick).name
+                        else -> "Break · ${activity(settings.activity).name}"
+                    },
                     Modifier.weight(1f), fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
