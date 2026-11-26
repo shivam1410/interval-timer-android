@@ -152,6 +152,7 @@ val ACTIVITIES = listOf(
     // Meditation and the old "Silence" were the same thing; one activity: silent, with the stillness meter.
     Activity("meditation", "🧘", "Meditation", "Recover", "Sit still, eyes closed. Follow the breath; let thoughts pass."),
     Activity("nothing", "🫥", "Nothing", "Recover", "Do nothing. No phone, no task — just be."),
+    Activity("read", "📖", "Read", "Recover", "Read a real book. Paper if you have it, and leave the phone face down.", quickMin = 15),
     Activity(
         "nsdr", "😌", "NSDR", "Recover", "Lie down, press play and follow the voice. 20-minute Non-Sleep Deep Rest.",
         minutes = 20,
@@ -253,7 +254,7 @@ enum class Kind { WORK, PREP, ACTIVITY }
 data class Phase(val kind: Kind, val cycle: Int, val ms: Long)
 
 /** Home quick timers, in the order shown. */
-val QUICK = listOf("nsdr", "sketch", "stretch", "exercise", "walk", "nap", "breathing")
+val QUICK = listOf("nsdr", "sketch", "read", "stretch", "exercise", "walk", "nap", "breathing")
 
 /** A one-off quick timer is a single activity phase. */
 /** [minutes]: the length a routine step asked for; without one the activity's own default. */

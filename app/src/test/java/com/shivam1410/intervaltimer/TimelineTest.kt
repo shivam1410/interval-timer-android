@@ -178,4 +178,26 @@ class TimelineTest {
         assertNull(workdayLine(emptyList()))
         assertNull(workdayLine(listOf(seg(0, 15, false, "walk")))) // nothing but a walk is no workday
     }
+
+    // "Your things" puts what you actually reach for at the top.
+    @Test fun theListLeadsWithWhatYouReachForMost() {
+        fun seg(fromMin: Int, toMin: Int, label: String, over: Boolean = false) =
+            Segment(fromMin * MIN, toMin * MIN, work = false, over = over, label = label)
+        val lines = mapOf(
+            today to listOf(seg(0, 15, "walk"), seg(20, 25, "breathing"), seg(30, 45, "walk")),
+            today.minusDays(1) to listOf(
+                seg(0, 15, "walk"),
+                seg(15, 18, "walk", over = true), // the same walk, run past its end
+                seg(60, 65, "breathing"),
+                Segment(0, MIN, work = true, label = "walk"), // work is not an activity
+            ),
+        )
+        val counts = usageCounts(lines)
+        assertEquals(3, counts["walk"])
+        assertEquals(2, counts["breathing"])
+        assertNull(counts["nap"])
+        assertEquals(listOf("walk", "breathing", "nsdr", "nap"), byUse(listOf("nsdr", "nap", "breathing", "walk"), counts))
+        // Never used keeps the order it came in, so an untouched list is unchanged.
+        assertEquals(QUICK, byUse(QUICK, emptyMap()))
+    }
 }

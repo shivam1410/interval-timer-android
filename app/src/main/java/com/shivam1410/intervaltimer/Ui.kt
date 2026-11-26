@@ -688,6 +688,9 @@ private fun LibraryScreen(onQuick: (String) -> Unit, onStretches: () -> Unit, on
 @Composable
 private fun QuickTimers(onQuick: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
+    // The ones you actually reach for come first, so the list sorts itself to you over time.
+    val timelines by History.timelines.collectAsState()
+    val order = remember(timelines) { byUse(QUICK, usageCounts(timelines)) }
     Text("BUILT IN", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 24.dp, bottom = 4.dp))
     // The board draws the line between these and the plans below: one-off against a dose that grows.
     // It says "no record kept", which isn't true here — the time does land in the day — so this says
@@ -700,7 +703,7 @@ private fun QuickTimers(onQuick: (String) -> Unit) {
     // A row each, as the board has them: a grid of four tiles has room for a name and a number, and the
     // one thing you want before starting something is what it is.
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        QUICK.map(::activity).forEach { a ->
+        order.map(::activity).forEach { a ->
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surface)
                     .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))

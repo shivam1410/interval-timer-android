@@ -41,6 +41,20 @@ fun splitRun(work: Boolean, from: Long, to: Long, overFrom: Long?, label: String
 fun activityTotals(segs: List<Segment>): Map<String, Long> =
     segs.filter { !it.work && it.label.isNotEmpty() }.groupBy { it.label }.mapValues { (_, v) -> v.sumOf { it.ms } }
 
+/**
+ * How many times each break activity was started, across the recorded timelines. A stretch split at
+ * the planned end (the overtime half) is one run, not two, so overrunning doesn't count double.
+ */
+fun usageCounts(timelines: Map<LocalDate, List<Segment>>): Map<String, Int> =
+    timelines.values.flatMap { day ->
+        val segs = day.filter { !it.work && it.label.isNotEmpty() }.sortedBy(Segment::start)
+        segs.filterIndexed { i, s -> i == 0 || segs[i - 1].label != s.label || segs[i - 1].end != s.start }
+    }.groupingBy { it.label }.eachCount()
+
+/** [ids] with the ones you reach for most at the top; equal counts keep the order they came in. */
+fun byUse(ids: List<String>, counts: Map<String, Int>): List<String> =
+    ids.sortedByDescending { counts[it] ?: 0 }
+
 /** The last day each break activity was actually used, read back from the recorded timelines. */
 fun lastUsed(timelines: Map<LocalDate, List<Segment>>): Map<String, LocalDate> =
     timelines.flatMap { (date, segs) -> segs.filter { !it.work && it.label.isNotEmpty() }.map { it.label to date } }
