@@ -4,7 +4,7 @@ package com.shivam1410.intervaltimer
 
 const val INSTAGRAM = "com.instagram.android"
 const val YOUTUBE = "com.google.android.youtube"
-const val NUDGE_COOLDOWN_MS = 30 * MIN
+const val NUDGE_COOLDOWN_MS = 10 * MIN
 
 /** One of an app's screens ([cls]) coming on screen ([resumed]) or leaving it, from UsageStatsManager events. */
 data class AppEvent(val pkg: String, val resumed: Boolean, val at: Long, val cls: String = "")
@@ -53,6 +53,29 @@ fun nextCheckMs(u: Usage, limitMs: Long, jitterMs: Long): Long = when {
 /** Like [nextCheckMs], but never inside the 30-min cooldown after a nudge: a check there can't nudge. */
 fun nextCheckAfter(u: Usage, limitMs: Long, lastNudgeAt: Long, now: Long, jitterMs: Long): Long =
     maxOf(nextCheckMs(u, limitMs, jitterMs), lastNudgeAt + NUDGE_COOLDOWN_MS - now)
+
+/**
+ * Past [breatheMin] on the app today, the ask changes: five minutes of breathing, and it comes when
+ * you cross the line rather than at the next nudge. It keeps its own clock ([lastBreatheAt]), so the
+ * nudge's cooldown never holds it back and only its own spaces repeats. 0 turns it off.
+ *
+ * Counted in minutes on the app, not in nudges sent: nudges are a cooldown apart whatever you do, so
+ * two of them say nothing about how long you scrolled.
+ */
+fun shouldBreathe(u: Usage, breatheMin: Int, lastBreatheAt: Long, now: Long, watching: Boolean): Boolean =
+    breatheMin > 0 && u.onScreen && !watching &&
+        u.todayMs >= breatheMin * MIN && now - lastBreatheAt >= NUDGE_COOLDOWN_MS
+
+/**
+ * When to look again on the breathe side; null when it isn't in play. Before the line, the minutes
+ * still to go on screen; past it, whatever is left of its own cooldown (and never longer than a
+ * minute's wait once that is spent).
+ */
+fun nextBreatheMs(u: Usage, breatheMin: Int, lastBreatheAt: Long, now: Long): Long? = when {
+    breatheMin <= 0 || !u.onScreen -> null
+    u.todayMs < breatheMin * MIN -> breatheMin * MIN - u.todayMs
+    else -> (lastBreatheAt + NUDGE_COOLDOWN_MS - now).coerceAtLeast(1 * MIN)
+}
 
 fun shouldNudge(u: Usage, limitMs: Long, lastNudgeAt: Long, now: Long, watching: Boolean): Boolean =
     u.onScreen && u.recentMs >= limitMs && now - lastNudgeAt >= NUDGE_COOLDOWN_MS && !watching

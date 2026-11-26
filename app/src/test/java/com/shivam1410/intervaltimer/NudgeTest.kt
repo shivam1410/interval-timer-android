@@ -2,6 +2,7 @@ package com.shivam1410.intervaltimer
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -51,7 +52,8 @@ class NudgeTest {
         val u = Usage(true, 11 * MIN, 30 * MIN)
         assertTrue(shouldNudge(u, 10 * MIN, lastNudgeAt = 0, now = 60 * MIN, watching = false))
         assertFalse(shouldNudge(u.copy(recentMs = 9 * MIN), 10 * MIN, 0, 60 * MIN, false))
-        assertFalse(shouldNudge(u, 10 * MIN, lastNudgeAt = 40 * MIN, now = 60 * MIN, watching = false)) // 30-min cooldown
+        assertFalse(shouldNudge(u, 10 * MIN, lastNudgeAt = 55 * MIN, now = 60 * MIN, watching = false)) // inside the cooldown
+        assertTrue(shouldNudge(u, 10 * MIN, lastNudgeAt = 50 * MIN, now = 60 * MIN, watching = false)) // exactly out of it
         assertFalse(shouldNudge(u, 10 * MIN, 0, 60 * MIN, watching = true))
     }
 
@@ -72,12 +74,12 @@ class NudgeTest {
     }
 
     @Test fun duringTheCooldownTheNextCheckWaitsForItsEnd() {
-        val past = Usage(true, 8 * MIN, 40 * MIN) // over the 5-min limit, but nudged 10 min ago
-        assertEquals(20 * MIN, nextCheckAfter(past, 5 * MIN, lastNudgeAt = 50 * MIN, now = 60 * MIN, jitterMs = 0))
+        val past = Usage(true, 8 * MIN, 40 * MIN) // over the 5-min limit, but nudged 5 min ago
+        assertEquals(5 * MIN, nextCheckAfter(past, 5 * MIN, lastNudgeAt = 55 * MIN, now = 60 * MIN, jitterMs = 0))
         // Cooldown over: back to the usual timing.
         assertEquals(1 * MIN, nextCheckAfter(past, 5 * MIN, lastNudgeAt = 0, now = 60 * MIN, jitterMs = 0))
         // App closed during the cooldown: still no point checking before it ends.
-        assertEquals(20 * MIN, nextCheckAfter(Usage(false, 0, 40 * MIN), 5 * MIN, lastNudgeAt = 50 * MIN, now = 60 * MIN, jitterMs = 0))
+        assertEquals(5 * MIN, nextCheckAfter(Usage(false, 0, 40 * MIN), 5 * MIN, lastNudgeAt = 55 * MIN, now = 60 * MIN, jitterMs = 0))
     }
 
     @Test fun screensInsideTheAppDontEndItsTime() {
@@ -93,5 +95,35 @@ class NudgeTest {
         val left = usage(events + AppEvent(ig, false, 6 * MIN, "Main"), ig, now = 8 * MIN, windowMs = window)
         assertFalse(left.onScreen)
         assertEquals(6 * MIN, left.recentMs)
+    }
+
+    // Past the day's line the ask changes, and it does not wait for the next nudge to carry it.
+    @Test fun theBreatheAskComesWhenYouCrossTheLineNotAtTheNextNudge() {
+        fun on(todayMin: Int) = Usage(onScreen = true, recentMs = 2 * MIN, todayMs = todayMin * MIN)
+        val now = 60 * MIN
+        assertFalse(shouldBreathe(on(9), 10, lastBreatheAt = 0, now, watching = false))
+        assertTrue(shouldBreathe(on(10), 10, lastBreatheAt = 0, now, watching = false))
+        // Its own cooldown, not the nudge's: a nudge a minute ago does not hold it back.
+        assertTrue(shouldBreathe(on(30), 10, lastBreatheAt = 0, now, watching = false))
+        assertFalse(shouldBreathe(on(30), 10, lastBreatheAt = 55 * MIN, now, watching = false))
+        assertTrue(shouldBreathe(on(30), 10, lastBreatheAt = 50 * MIN, now, watching = false))
+        // Not while the app is closed, not over a video, and not when it is turned off.
+        assertFalse(shouldBreathe(on(30).copy(onScreen = false), 10, 0, now, watching = false))
+        assertFalse(shouldBreathe(on(30), 10, 0, now, watching = true))
+        assertFalse(shouldBreathe(on(30), 0, 0, now, watching = false))
+    }
+
+    @Test fun theBreatheCheckWaitsForTheLineThenForItsOwnCooldown() {
+        fun on(todayMin: Int) = Usage(onScreen = true, recentMs = 2 * MIN, todayMs = todayMin * MIN)
+        val now = 60 * MIN
+        // Six minutes in, ten is the line: four more on screen.
+        assertEquals(4 * MIN, nextBreatheMs(on(6), 10, lastBreatheAt = 0, now))
+        // Past it, just asked: the rest of its cooldown.
+        assertEquals(6 * MIN, nextBreatheMs(on(30), 10, lastBreatheAt = 56 * MIN, now))
+        // Past it and the cooldown spent: a minute, not now-and-again-at-once.
+        assertEquals(1 * MIN, nextBreatheMs(on(30), 10, lastBreatheAt = 0, now))
+        // Not in play.
+        assertNull(nextBreatheMs(on(30).copy(onScreen = false), 10, 0, now))
+        assertNull(nextBreatheMs(on(30), 0, 0, now))
     }
 }

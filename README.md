@@ -97,7 +97,13 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   within a rolling window twice that long (e.g. 5 min in the last 10, gaps and all),
   a notification suggests sketching or relaxing instead; its buttons start the Sketch or Breathing
   quick timer. Never while a YouTube video or song is playing (Shorts and browsing do count), at most
-  once per 30 min per app. Needs Usage access; for YouTube also Notification access, used only to see
+  once per 10 min per app. Cross **15 min on that app today** (your pick, or off) and the ask changes
+  to **Just breathe**: one button, five minutes of box breathing. It arrives the moment you cross the
+  line — it keeps its own clock, so the nudge's cooldown never holds it back, and only its own spaces
+  repeats. It is ongoing, so Clear all leaves it, and promoted, so Android 16 shows it as a status-bar
+  chip over whatever you are scrolling; it clears itself after 10 min. It cannot take the screen over
+  — that needs the overlay permission, which payment apps such as Google Pay refuse to transact under.
+  Needs Usage access; for YouTube also Notification access, used only to see
   YouTube's player (on a sideloaded install: App info › ⋮ › Allow restricted settings first). No
   background loop: one inexact alarm set for when the limit could next be reached
 - **Start at** a whole hour: the last row of **Shape of the day** (Now or one of the next four hours);

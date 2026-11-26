@@ -43,8 +43,10 @@ fun NudgeSection() {
     Section("INSTAGRAM & YOUTUBE NUDGES") {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Nudge me to sketch or relax instead")
-                Text("Never while a YouTube video or song is playing", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                // It gates the watching, not one of the two asks: with it off nothing is counted at all,
+                // so naming only the sketch nudge made Just breathe look like it had been hidden away.
+                Text("Watch Instagram and YouTube")
+                Text("Never interrupts a YouTube video or song", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
             Switch(c.enabled, { Nudges.save(c.copy(enabled = it)) })
         }
@@ -52,6 +54,32 @@ fun NudgeSection() {
         if (!usage) Permission("Needs Usage access to see how long the apps are open", "Allow") { open(AndroidSettings.ACTION_USAGE_ACCESS_SETTINGS) }
         AppRow("📸 Instagram", c.ig, c.igMin, { Nudges.save(c.copy(ig = it)) }) { Nudges.save(c.copy(igMin = it)) }
         AppRow("▶️ YouTube", c.yt, c.ytMin, { Nudges.save(c.copy(yt = it)) }) { Nudges.save(c.copy(ytMin = it)) }
+        // The gap between nudges is the one number the screen used to keep to itself.
+        Text(
+            "Counted inside a window twice as long (5 min in any 10), and at most one nudge every 10 min per app.",
+            style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+        )
+        var breathe by remember { mutableStateOf(false) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Just breathe")
+                Text(
+                    if (c.breatheMin > 0)
+                        "Once you pass ${c.breatheMin} min on one app today it asks for five minutes of breathing " +
+                            "\u2014 the moment you cross, not at the next nudge. Then at most every 10 min."
+                    else "Off \u00b7 the nudge stays an offer, however long the day has gone",
+                    style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                )
+            }
+            Box {
+                TextButton({ breathe = true }) { Text(if (c.breatheMin > 0) "after ${c.breatheMin} min \u25be" else "Off \u25be") }
+                DropdownMenu(breathe, { breathe = false }) {
+                    Nudges.BREATHE.forEach { m ->
+                        DropdownMenuItem({ Text(if (m > 0) "$m min" else "Off") }, { Nudges.save(c.copy(breatheMin = m)); breathe = false })
+                    }
+                }
+            }
+        }
         if (c.yt && !media) Permission(
             "To tell Shorts from a video you're watching, allow Notification access (it only checks YouTube's player). " +
                 "Greyed out? App info › ⋮ › Allow restricted settings first.",
