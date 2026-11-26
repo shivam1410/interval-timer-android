@@ -166,6 +166,15 @@ object TogglSync {
         update(discardSession(entries, startedAt))
     }
 
+    private val clock = android.os.Handler(android.os.Looper.getMainLooper())
+    private val wake = Runnable { flush() }
+
+    /** One pending wake-up, replaced each time: the earliest entry still waiting decides when. */
+    private fun scheduleFlush(delayMs: Long) {
+        clock.removeCallbacks(wake)
+        clock.postDelayed(wake, delayMs + 1_000) // a second past the mark, so the check passes
+    }
+
     @Synchronized
     private fun update(next: List<TogglEntry>) {
         if (next == entries) return
@@ -178,8 +187,14 @@ object TogglSync {
     fun flush() = worker.execute {
         val token = try { token() } catch (e: GeneralSecurityException) { Log.e(TAG, "Token unreadable", e); null } ?: return@execute
         val wid = prefs.getLong("wid", 0)
+        val now = System.currentTimeMillis()
+        // A phase too young to send sits here until it is old enough. A workday flushes on every phase
+        // change anyway; this is the backstop for a lone timer with nothing else to wake the queue.
+        synchronized(this) { entries }.mapNotNull(::maturesAt).minOrNull()?.let { at ->
+            scheduleFlush((at - now).coerceAtLeast(0))
+        }
         for (e in synchronized(this) { entries }) {
-            val op = nextOp(e) ?: continue
+            val op = nextOp(e, now) ?: continue
             try {
                 // Results are applied to the entry as it is *now*: a phase change may have stopped or
                 // discarded it while the call was in flight.

@@ -83,8 +83,11 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   blocks and break activities start and stop Toggl timers as the phases change; prepare, pauses and
   ambient sounds don't. Pick a Toggl tag, or "Don't send", per activity; library items send their own
   tag. Routines get a tag too (off until you pick one): opening a routine starts a Toggl entry named after
-  it with that tag, finishing or leaving it stops it. Offline changes are queued and sent later with their real times; Discard deletes that session's
-  entries from Toggl too
+  it with that tag, finishing or leaving it stops it. **Nothing under five minutes is sent**: a phase is
+  held back until it has lasted that long, then created with its true start — so a two-minute prepare, a
+  break you cut short or a mistaken tap never appears in Toggl at all, rather than appearing and being
+  deleted a minute later. Offline changes are queued and sent later with their real times; Discard
+  deletes that session's entries from Toggl too
 - **Strava**: the Walk quick timer starts a GPS recording in the Strava app as a Walk, so it comes with a
   map, distance and pace. The 5-4-3-2-1 countdown runs first, then Strava opens already recording — no
   setup, no account linking (Strava's API can't start a recording; this uses the app's own NFC recording

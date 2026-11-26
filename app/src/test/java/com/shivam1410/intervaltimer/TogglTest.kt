@@ -55,13 +55,38 @@ class TogglTest {
 
     @Test fun nextCallFollowsTheEntryLifecycle() {
         val e = TogglEntry("1", null, "k", "Work", emptyList(), 0, null)
-        assertEquals(TogglOp.START, nextOp(e))
-        assertEquals(TogglOp.CREATE_DONE, nextOp(e.copy(stop = 60_000))) // never reached Toggl while running
-        assertEquals(TogglOp.STOP, nextOp(e.copy(remoteId = 9, stop = 60_000)))
-        assertNull(nextOp(e.copy(remoteId = 9))) // running and already in Toggl
-        assertEquals(TogglOp.DONE, nextOp(e.copy(remoteId = 9, stop = 60_000, stopSent = true)))
-        assertEquals(TogglOp.DELETE, nextOp(e.copy(remoteId = 9, discard = true)))
-        assertEquals(TogglOp.DONE, nextOp(e.copy(discard = true))) // discarded before it was ever sent
+        val old = TOGGL_MIN_MS // long enough to be worth a line
+        assertEquals(TogglOp.START, nextOp(e, old))
+        assertEquals(TogglOp.CREATE_DONE, nextOp(e.copy(stop = 10 * MIN), old)) // never reached Toggl while running
+        assertEquals(TogglOp.STOP, nextOp(e.copy(remoteId = 9, stop = 10 * MIN), old))
+        assertNull(nextOp(e.copy(remoteId = 9), old)) // running and already in Toggl
+        assertEquals(TogglOp.DONE, nextOp(e.copy(remoteId = 9, stop = 10 * MIN, stopSent = true), old))
+        assertEquals(TogglOp.DELETE, nextOp(e.copy(remoteId = 9, discard = true), old))
+        assertEquals(TogglOp.DONE, nextOp(e.copy(discard = true), old)) // discarded before it was ever sent
+    }
+
+    // A phase shorter than five minutes is never sent at all, rather than appearing in Toggl and being
+    // deleted a minute later: two minutes of prepare, a break you cut short, a mistaken tap.
+    @Test fun aShortPhaseNeverReachesToggl() {
+        val running = TogglEntry("1", null, "k", "Work", emptyList(), 0, null)
+        assertNull(nextOp(running, 4 * MIN))                       // still too young to send
+        assertNull(nextOp(running, TOGGL_MIN_MS - 1))
+        assertEquals(TogglOp.START, nextOp(running, TOGGL_MIN_MS)) // on the mark it goes, back-dated
+        // Over before it was worth sending: forgotten, with no call made at all.
+        assertEquals(TogglOp.DONE, nextOp(running.copy(stop = 4 * MIN), 4 * MIN))
+        assertEquals(TogglOp.DONE, nextOp(running.copy(stop = TOGGL_MIN_MS - 1), 9 * MIN))
+        assertEquals(TogglOp.CREATE_DONE, nextOp(running.copy(stop = TOGGL_MIN_MS), 9 * MIN))
+        // One already in Toggl is still stopped properly, however short it turned out to be.
+        assertEquals(TogglOp.STOP, nextOp(running.copy(remoteId = 9, stop = 1 * MIN), 9 * MIN))
+    }
+
+    // The flush that catches a held-back entry is scheduled from the entry itself.
+    @Test fun aHeldEntrySaysWhenItIsWorthSending() {
+        val running = TogglEntry("1", null, "k", "Work", emptyList(), 2 * MIN, null)
+        assertEquals(2 * MIN + TOGGL_MIN_MS, maturesAt(running))
+        assertNull(maturesAt(running.copy(remoteId = 9)))              // already sent
+        assertNull(maturesAt(running.copy(stop = 3 * MIN)))            // over; nextOp decides
+        assertNull(maturesAt(running.copy(discard = true)))            // thrown away
     }
 
     @Test fun discardMarksOnlyThatSession() {

@@ -76,14 +76,34 @@ fun discardSession(entries: List<TogglEntry>, startedAt: Long): List<TogglEntry>
 
 enum class TogglOp { START, CREATE_DONE, STOP, DELETE, DONE }
 
-/** The next API call for an entry, or null while it is running and already in Toggl. DONE = forget it. */
-fun nextOp(e: TogglEntry): TogglOp? = when {
+/**
+ * A phase has to last this long before it is worth a line in Toggl. Two minutes of prepare, a break you
+ * cut short, a timer started by mistake — none of those are time you spent on anything.
+ */
+const val TOGGL_MIN_MS = 5 * MIN
+
+/**
+ * The next API call for an entry, or null when there is nothing to do yet. DONE = forget it.
+ *
+ * A phase is held back until it has run [TOGGL_MIN_MS]: nothing short ever reaches Toggl, rather than
+ * appearing there and being deleted a minute later. Once it is old enough the entry is created with
+ * its true start, so the gap costs nothing but the first few minutes of a running timer.
+ */
+fun nextOp(e: TogglEntry, now: Long): TogglOp? = when {
     e.discard -> if (e.remoteId != null) TogglOp.DELETE else TogglOp.DONE
-    e.remoteId == null -> if (e.stop == null) TogglOp.START else TogglOp.CREATE_DONE
+    // Never sent, and over before it was worth sending.
+    e.remoteId == null && e.stop != null ->
+        if (e.stop - e.start >= TOGGL_MIN_MS) TogglOp.CREATE_DONE else TogglOp.DONE
+    // Never sent and still running: wait until it has lasted long enough to be worth a line.
+    e.remoteId == null -> if (now - e.start >= TOGGL_MIN_MS) TogglOp.START else null
     e.stop == null -> null
     !e.stopSent -> TogglOp.STOP
     else -> TogglOp.DONE
 }
+
+/** When [e] becomes worth sending, for a flush scheduled to catch it; null if it never will be. */
+fun maturesAt(e: TogglEntry): Long? =
+    if (!e.discard && e.remoteId == null && e.stop == null) e.start + TOGGL_MIN_MS else null
 
 /** RFC 3339 in UTC, whole seconds, as Toggl's API takes it. */
 fun togglTime(ms: Long): String = Instant.ofEpochMilli(ms).truncatedTo(ChronoUnit.SECONDS).toString()
