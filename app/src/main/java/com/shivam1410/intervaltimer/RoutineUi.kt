@@ -279,9 +279,17 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
 private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean, onBack: () -> Unit, onStart: (Boolean) -> Unit) {
     val cs = MaterialTheme.colorScheme
     var min by remember(r.id) { mutableStateOf(r.minutes) }
+    // A routine whose only step is a timer IS that timer. Starting the routine's own clock as well
+    // would be two timers for one thing — and since only one may run, they fought over it: the
+    // routine's started, then the step's asked to end it ("End Walk and start Walk?").
+    val lone = (routineSteps(r).singleOrNull() as? ActivityStep)?.takeIf { stepActivity(it.activityId) != null }
+    val loneAct = lone?.let { stepActivity(it.activityId) }
+    val loneMin = lone?.let { it.minutes ?: loneAct?.quickMin }
     // Asks first when a workday or another timer runs; the steps open only once the routine's timer is away.
     val start = rememberStartGuard { id, min -> Timer.startQuick(id, min); onStart(false) }
     fun go() {
+        // The step's own timer is started by the screen behind this card, so nothing starts here.
+        if (lone != null) return onStart(false)
         // Saved first, so the engine reads this length when it builds the timer's single phase.
         if (min != r.minutes) Routines.save(r.copy(minutes = min))
         if (min == null) return onStart(false)
@@ -302,12 +310,6 @@ private fun RoutineStartCard(r: Routine, habits: List<Habit>, autoStart: Boolean
         ?.let { ((it + 30_000L) / 60_000L).toInt().coerceAtLeast(1) }
     var editing by remember(r.id) { mutableStateOf(false) }
     var picking by remember(r.id) { mutableStateOf(false) }
-    // A routine of one step is a quick timer that remembers: no progress to draw through a list of one,
-    // so the board gives it the step itself, the reminder, and how often you have kept it.
-    val lone = steps.singleOrNull()
-    val loneAct = (lone as? ActivityStep)?.let { stepActivity(it.activityId) }
-    // The step's own length wins over the activity's, which is the whole point of asking for one.
-    val loneMin = (lone as? ActivityStep)?.minutes ?: loneAct?.quickMin
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Row(
