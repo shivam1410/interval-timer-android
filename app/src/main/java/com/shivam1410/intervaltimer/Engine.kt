@@ -137,7 +137,11 @@ data class Activity(
     val playLabel: String = "",
     val app: String? = null, // package launched by the activity's button
     val media: String? = null, // library file name played with the phone's player (shared MP3/MP4)
-    val quickMin: Int? = null, // offered as a one-off quick timer on home, for this long
+    val quickMin: Int? = null,
+    // The routine this quick timer *is*: a routine of one timer step runs as that timer, and finishing
+    // it is what marks the routine done. Without this the routine's record depended on its own screen
+    // still being open, which there is no reason for it to be.
+    val forRoutine: String? = null, // offered as a one-off quick timer on home, for this long
     val clip: String? = null, // library clip looped on the activity card (your own exercises)
 )
 
@@ -362,6 +366,10 @@ data class Session(
     // The length this quick timer was started for, when it isn't the activity's own: a routine step can
     // ask for 20 minutes of a walk that is usually 15. Kept here so the plan survives a restart.
     val quickMin: Int? = null,
+    // The routine this quick timer *is*: a routine of one timer step runs as that timer, and finishing
+    // it is what marks the routine done. Without this the routine's record depended on its own screen
+    // still being open, which there is no reason for it to be.
+    val forRoutine: String? = null,
     val overAlerted: Boolean = false, // the "time's up" gong/alert for the current phase already fired
     val runFrom: Long = 0,
     val log: List<Segment> = emptyList(),

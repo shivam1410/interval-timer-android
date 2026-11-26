@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -190,7 +191,7 @@ internal fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Lon
             (if (isWork) "WORK · CYCLE ${p.cycle} OF ${cyclesIn(plan)}"
             else if (quick) chosen.name.uppercase() + " · ON ITS OWN"
             else "BREAK · CYCLE ${p.cycle} OF ${cyclesIn(plan)}") + if (over != null) " · OVERTIME" else "",
-            onMinimise, { more = true },
+            onMinimise, { more = true }.takeIf { !quick },
         )
         BoxWithConstraints(Modifier.weight(1f)) {
         val tall = maxHeight
@@ -263,6 +264,12 @@ internal fun Running(plan: List<Phase>, s: Session, settings: Settings, now: Lon
             // Ending lives on the work screen, where the board has it, and in the sheet everywhere else.
             if (isWork) SquareButton("End", MaterialTheme.colorScheme.error) { confirmEnd = true }
         }
+        // Finish keeps the time; this throws the run away. It lived under the ⋯ that a timer on its
+        // own no longer has, and "Finish or nothing" is not the whole choice.
+        if (quick) TextButton(
+            { confirmEnd = true }, Modifier.align(Alignment.CenterHorizontally).padding(bottom = 6.dp),
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+        ) { Text("Throw this away", style = MaterialTheme.typography.labelMedium) }
     }
 
     if (more) MoreSheet(s, settings, plan, now, isWork, quick, chosen, onDiscard = { confirmEnd = true }) { more = false }
@@ -455,7 +462,7 @@ internal fun EndTile(label: String, value: String, modifier: Modifier) {
 
 /** The chrome both running screens share: close it away, what this is, and more. */
 @Composable
-private fun RunBar(title: String, onMinimise: () -> Unit, onMore: () -> Unit) {
+private fun RunBar(title: String, onMinimise: () -> Unit, onMore: (() -> Unit)?) {
     val cs = MaterialTheme.colorScheme
     Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         RoundIcon(R.drawable.ic_chevron_down, "Back to the day", onClick = onMinimise)
@@ -463,7 +470,9 @@ private fun RunBar(title: String, onMinimise: () -> Unit, onMore: () -> Unit) {
             title, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
             letterSpacing = 1.1.sp, color = cs.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 1,
         )
-        RoundIcon(R.drawable.ic_more, "More", onClick = onMore)
+        // Nothing behind it on a timer of its own: the cue is a workday's, and the picker it used to
+        // show changed the workday's break activity, which did nothing you could see from here.
+        if (onMore != null) RoundIcon(R.drawable.ic_more, "More", onClick = onMore) else Spacer(Modifier.width(34.dp))
     }
 }
 
@@ -698,7 +707,7 @@ private fun MoreSheet(
             TextButton(
                 { onDismiss(); onDiscard() }, Modifier.padding(top = 8.dp),
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-            ) { Text(if (quick) "Throw this timer away" else "End the day") }
+            ) { Text("End the day") }
             if (!quick) Row(
                 Modifier.fillMaxWidth().padding(top = 16.dp).height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),

@@ -79,6 +79,8 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
     val timed = session.quick == "routine:$id" // this routine's own timer, running or just finished
     var started by remember(id) { mutableStateOf(false) }
     val ctx = LocalContext.current
+    // A routine of one timer step runs as that timer, with nothing of the routine's own on screen.
+    val onlyTimer = (routineSteps(r).singleOrNull() as? ActivityStep)?.takeIf { stepActivity(it.activityId) != null }
     // The step you're on. A timer step runs a quick timer or a library item where the step is.
     val current = routineSteps(r).getOrNull(step)
     val act = (current as? ActivityStep)?.let { stepActivity(it.activityId) }
@@ -88,7 +90,8 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
         val lib = items.firstOrNull { "lib:${it.id}" == actId && !it.deleted }
         if (lib != null) startLibraryItem(ctx, lib) // opens its video or file too, as on home
         else {
-            Timer.startQuick(actId, min)
+            // Tied to the routine when the routine is this timer, so finishing the walk finishes it.
+            Timer.startQuick(actId, min, forRoutine = r.id.takeIf { onlyTimer?.activityId == actId })
             Strava.record(ctx, actId) // a walk also records in Strava, as it does from home
         }
     }
@@ -125,11 +128,17 @@ fun RoutineScreen(id: String, autoStart: Boolean = false, onBack: () -> Unit) {
     }
     // A routine of one timer step is that timer. Showing a second Start under the one you just pressed
     // was two taps and two screens to begin a walk.
-    val onlyTimer = (routineSteps(r).singleOrNull() as? ActivityStep)?.takeIf { stepActivity(it.activityId) != null }
     LaunchedEffect(started, onlyTimer) {
         val only = onlyTimer ?: return@LaunchedEffect
         val a = stepActivity(only.activityId) ?: return@LaunchedEffect
         if (started && session.quick != a.id) startTimer(a.id, only.minutes ?: a.quickMin)
+    }
+    // Once it is running, the routine has nothing left to show: a "Step 1 of 1" page wrapped around
+    // the walk, with its own small clock and a Done beside the walk's own Finish, was two screens
+    // arguing about one thing. Leave, and the walk's own screen takes over.
+    LaunchedEffect(session.quick, onlyTimer) {
+        val a = onlyTimer?.let { stepActivity(it.activityId) } ?: return@LaunchedEffect
+        if (session.quick == a.id) onBack()
     }
     // Toggl: a timer from opening the routine until it's finished or you leave it.
     DisposableEffect(id) {
@@ -622,17 +631,7 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
         },
         confirmButton = { TextButton({ picking = false }) { Text("Cancel") } },
     )
-    // Adding a step asked "+ Step / + Stretch / + Timer" — three words that assume you already know
-    // the vocabulary. One way in, and each kind says what it is.
-    var adding by remember { mutableStateOf(false) }
     var changingRemind by remember { mutableStateOf(false) }
-    if (adding) AddStepSheet(
-        empty = clean.isEmpty(),
-        onTick = { steps = steps + ""; adding = false },
-        onStretch = { picking = true; adding = false },
-        onTimer = { pickingTimer = true; adding = false },
-        onDismiss = { adding = false },
-    )
     if (changingRemind) RemindDialog(remind, { remind = it; changingRemind = false }) { changingRemind = false }
 
     Dialog(
@@ -723,14 +722,12 @@ internal fun RoutineEditor(r: Routine, isNew: Boolean, onDismiss: () -> Unit) {
                             RowButton("×") { steps = steps.filterIndexed { j, _ -> j != i } }
                         }
                     }
-                    Row(
-                        Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(14.dp))
-                            .dashedBorder(cs.outlineVariant, 14.dp)
-                            .clickable(onClickLabel = "Add a step") { adding = true },
-                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
-                    ) {
-                        Text("+", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = cs.secondary)
-                        Text("  Add a step", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    // The three kinds as three buttons, not one button that asks which. Timer and
+                    // Stretch go straight to the thing you are picking.
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        AddStep("Tick off", Modifier.weight(1f)) { steps = steps + "" }
+                        AddStep("Stretch", Modifier.weight(1f)) { picking = true }
+                        AddStep("Timer", Modifier.weight(1f)) { pickingTimer = true }
                     }
 
                     FormLabel("REMIND ME")
@@ -814,35 +811,16 @@ private fun StepChip(text: String, tint: Color) {
     )
 }
 
-/** The three kinds of step, each saying what it is rather than assuming you know. */
+/** One of the three kinds of step you can add, as a dashed button. */
 @Composable
-private fun AddStepSheet(
-    empty: Boolean, onTick: () -> Unit, onStretch: () -> Unit, onTimer: () -> Unit, onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add a step") },
-        text = {
-            Column {
-                // A routine of one timer is its own kind of thing, and this is where you make one.
-                if (empty) AddKind("Just a timer", "A walk at 9:00, and a record of whether you went", onTimer)
-                AddKind("Something to tick off", "Keys, wallet, water — you do it, then tap", onTick)
-                AddKind("A stretch from your plans", "Counted along with the figure when you get there", onStretch)
-                if (!empty) AddKind("A timer that runs", "A walk, NSDR, or one of your own", onTimer)
-            }
-        },
-        confirmButton = { TextButton(onDismiss) { Text("Cancel") } },
-    )
-}
-
-@Composable
-private fun AddKind(title: String, sub: String, onClick: () -> Unit) {
-    Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
+private fun AddStep(label: String, modifier: Modifier, onClick: () -> Unit) {
+    Row(
+        modifier.height(44.dp).clip(RoundedCornerShape(12.dp))
+            .dashedBorder(MaterialTheme.colorScheme.outlineVariant, 12.dp)
+            .clickable(onClickLabel = "Add a $label step", onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
     ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-        Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 

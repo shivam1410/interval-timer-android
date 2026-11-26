@@ -61,7 +61,7 @@ object Timer {
             Session(getInt("index", -1), getLong("endsAt", 0), getLong("pausedLeft", 0), getLong("startedAt", 0), getLong("finishedAt", 0),
                 getLong("phaseMs", 0), getLong("bonus", 0),
                 getLong("workMs", 0), getLong("breakMs", 0), getInt("cycles_done", 0), getString("quick", null),
-                getInt("quickMin", -1).takeIf { it > 0 },
+                getInt("quickMin", -1).takeIf { it > 0 }, getString("forRoutine", null),
                 runFrom = getLong("runFrom", 0), log = decodeSegments(getString("log", null)), act = getString("act", "").orEmpty())
         }
         prefs.edit().remove("ambientStart").apply() // a fresh process isn't playing ambient
@@ -246,10 +246,16 @@ object Timer {
     }
 
     /** One-off activity timer from home (NSDR, stretch, walk…): soft bell now, long gong at the end. */
-    /** [minutes]: a length this one run should take, when a routine step asked for its own. */
-    fun startQuick(id: String, minutes: Int? = null) {
+    /**
+     * [minutes]: a length this one run should take, when a routine step asked for its own.
+     * [forRoutine]: the routine this timer is, when it is a routine of one timer step.
+     */
+    fun startQuick(id: String, minutes: Int? = null, forRoutine: String? = null) {
         setAmbient(null)
-        commit(start(quickPlan(id, minutes), now()).copy(quick = id, quickMin = minutes), Cue.SOFT)
+        commit(
+            start(quickPlan(id, minutes), now()).copy(quick = id, quickMin = minutes, forRoutine = forRoutine),
+            Cue.SOFT,
+        )
     }
     fun pause() = commit(pause(plan, session.value, now()), null)
     fun resume() = commit(resume(session.value, now()), null)
@@ -261,7 +267,11 @@ object Timer {
     /** Ends the day early; whatever was done so far still goes into history. */
     fun stop() {
         val s = session.value
-        if (s.running(plan)) History.record(s.startedAt, credit(plan, close(plan, s, now()), now()))
+        if (s.running(plan)) {
+            History.record(s.startedAt, credit(plan, close(plan, s, now()), now()))
+            // The routine this timer was: finishing the walk is finishing the routine.
+            s.forRoutine?.let { Routines.finish(it) }
+        }
         commit(Session(), null)
         // A walk Strava is recording: its record screen comes up so Pause and Finish are one tap away.
         Strava.openRecording(app, s.quick)
@@ -340,14 +350,18 @@ object Timer {
         val s = next.copy(act = actFor(next))
         // Alerts (heads-up + lock-screen page) are for phase changes, not for the moment you press Start.
         val transition = session.value.running(plan)
-        if (s.done(plan) && session.value.running(plan)) History.record(s.startedAt, s)
+        if (s.done(plan) && session.value.running(plan)) {
+            History.record(s.startedAt, s)
+            s.forRoutine?.let { Routines.finish(it) } // ran to the end on its own
+        }
         session.value = s
         TogglSync.onSession(plan, s, chosen)
         prefs.edit().putInt("index", s.index).putLong("endsAt", s.endsAt).putLong("pausedLeft", s.pausedLeft)
             .putLong("startedAt", s.startedAt).putLong("finishedAt", s.finishedAt)
             .putLong("phaseMs", s.phaseMs).putLong("bonus", s.bonus)
             .putLong("workMs", s.workMs).putLong("breakMs", s.breakMs).putInt("cycles_done", s.cycles)
-            .putString("quick", s.quick).putInt("quickMin", s.quickMin ?: -1).putLong("runFrom", s.runFrom).putString("log", encodeSegments(s.log)).putString("act", s.act).apply()
+            .putString("quick", s.quick).putInt("quickMin", s.quickMin ?: -1)
+            .putString("forRoutine", s.forRoutine).putLong("runFrom", s.runFrom).putString("log", encodeSegments(s.log)).putString("act", s.act).apply()
 
         val am = app.getSystemService(AlarmManager::class.java)
         val alarm = PendingIntent.getBroadcast(app, 0, Intent(app, Receiver::class.java).setAction(Receiver.ALARM), PendingIntent.FLAG_IMMUTABLE)

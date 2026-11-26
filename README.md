@@ -160,12 +160,12 @@ morning, put the phone away, and it runs **8 × (50 min work + 10 min break)** o
   still covers settings and history
 - **Making a routine** is a page, not a cramped dialog: **what it is** (icon and name), **what it asks
   of you** (the steps, in order, each wearing its kind — TICK, STRETCH or TIMER) and **remind me**.
-  One **Add a step** names the three kinds in a sentence each rather than assuming you know them, and
-  on an empty routine the first offer is **Just a timer**. The reminder is one row that sets or clears
-  the time — no switch to find twice
+  Three buttons add a step — **Tick off**, **Stretch**, **Timer** — and Stretch and Timer go straight
+  to what you are picking. The reminder is one row that sets or clears the time — no switch to find twice
 - **A routine of one timer is that timer**: adding a timer step asks how long you want it for (tap the
-  step to change it later), and the routine's Start starts it — one tap, not a Start under a Start. The
-  page says what the routine adds that the Library's timer doesn't: the reminder and the record
+  step to change it later), and the routine's Start starts it and gets out of the way — the walk's own
+  screen takes over, and finishing the walk is what records the routine. The page says what the routine
+  adds that the Library's timer doesn't: the reminder and the record
 - **A routine learns how long it takes you**: each step is timed as you finish it, so the start card
   says "Usually takes you about 9 min", or "1 of 3 already done today · about 3 min left". Measured,
   never guessed — it stays quiet until every remaining step has been timed, and skipping teaches it
